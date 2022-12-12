@@ -1,0 +1,28 @@
+.tomas{
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    padding: 10px;
+}
+article{
+    display: flex;
+    flex-direction: row;
+    right: 50px;
+
+
+
+}
+section{
+    background-position: center;
+}
+main{
+    width: 300px;
+    height: 500px;
+}
+.jo{
+display: flex;
+left: 200px;
+}
+p{
+    display: flex;
+}
