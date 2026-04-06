@@ -1,12 +1,12 @@
 :root {
   --bg: #ffffff;
-  --bg-muted: #f3f7fc;
+  --bg-muted: #f4f7fa;
   --text: #2b3440;
   --heading: #0b1f33;
   --primary: #0b1f33;
-  --primary-2: #1a4f7e;
-  --accent: #2f6fa7;
-  --border: #d7e3ef;
+  --primary-2: #123e63;
+  --accent: #00a3b5;
+  --border: #dde4ec;
   --success: #2e7d32;
   --radius: 14px;
   --container: min(1160px, 92vw);
@@ -142,26 +142,32 @@ ul {
   display: inline-flex;
   gap: 0.6rem;
   align-items: center;
+  font-family: Manrope, sans-serif;
   color: var(--primary);
   flex-shrink: 0;
 }
 
-.logo-image {
-  height: 52px;
-  width: auto;
-  max-width: min(260px, 44vw);
-  object-fit: contain;
+.logo-mark {
+  width: 2rem;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
+  color: #fff;
+  font-weight: 800;
 }
 
-.logo-fallback {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
+.logo-text {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.logo-text small {
+  display: block;
+  font-size: 0.65rem;
+  letter-spacing: 0.13em;
+  opacity: 0.75;
 }
 
 .main-nav {
@@ -238,17 +244,10 @@ ul {
   min-height: 420px;
   border-radius: var(--radius);
   border: 1px solid #cfd9e3;
-  overflow: hidden;
-  background: #e8eff6;
+  background:
+    linear-gradient(180deg, rgba(8, 23, 40, 0.2), rgba(8, 23, 40, 0.55)),
+    radial-gradient(circle at 20% 15%, #4f6578 0%, #1b3348 42%, #0b1f33 100%);
   box-shadow: 0 20px 45px rgba(7, 17, 27, 0.14);
-}
-
-.hero-panel img {
-  width: 100%;
-  height: 100%;
-  min-height: 420px;
-  object-fit: cover;
-  display: block;
 }
 
 .hero-actions {
@@ -302,15 +301,6 @@ ul {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.2rem;
-}
-
-.card-image {
-  width: 100%;
-  height: 170px;
-  object-fit: cover;
-  border-radius: 10px;
-  margin-bottom: 0.9rem;
-  border: 1px solid #d6e1ec;
 }
 
 .solution-card ul,
@@ -434,7 +424,7 @@ ul {
 }
 
 .section-cta {
-  background: linear-gradient(180deg, #0f2b45 0%, #0b2137 100%);
+  background: linear-gradient(180deg, #0d2439 0%, #0a1e31 100%);
   color: #e8eef5;
 }
 
@@ -559,10 +549,6 @@ textarea:focus {
   }
 
   .hero-panel {
-    min-height: 280px;
-  }
-
-  .hero-panel img {
     min-height: 280px;
   }
 }
