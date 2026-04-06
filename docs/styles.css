@@ -238,10 +238,17 @@ ul {
   min-height: 420px;
   border-radius: var(--radius);
   border: 1px solid #cfd9e3;
-  background:
-    linear-gradient(180deg, rgba(8, 23, 40, 0.2), rgba(8, 23, 40, 0.55)),
-    radial-gradient(circle at 20% 15%, #4f6578 0%, #1b3348 42%, #0b1f33 100%);
+  overflow: hidden;
+  background: #e8eff6;
   box-shadow: 0 20px 45px rgba(7, 17, 27, 0.14);
+}
+
+.hero-panel img {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  object-fit: cover;
+  display: block;
 }
 
 .hero-actions {
@@ -295,6 +302,15 @@ ul {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.2rem;
+}
+
+.card-image {
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 0.9rem;
+  border: 1px solid #d6e1ec;
 }
 
 .solution-card ul,
@@ -543,6 +559,10 @@ textarea:focus {
   }
 
   .hero-panel {
+    min-height: 280px;
+  }
+
+  .hero-panel img {
     min-height: 280px;
   }
 }
