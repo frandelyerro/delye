@@ -4,6 +4,21 @@ import { useProspectStore } from '../store/useProspectStore';
 
 const colors = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
 
+const priorityBadgeClass = {
+  high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
+  medium: 'border-amber-500/30 bg-amber-500/15 text-amber-200',
+  low: 'border-red-500/30 bg-red-500/15 text-red-200'
+};
+
+const riskBadgeClass = {
+  source: 'border-sky-500/30 bg-sky-500/15 text-sky-200',
+  migration: 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200',
+  reservoir: 'border-indigo-500/30 bg-indigo-500/15 text-indigo-200',
+  seal: 'border-violet-500/30 bg-violet-500/15 text-violet-200',
+  trap: 'border-rose-500/30 bg-rose-500/15 text-rose-200',
+  timing: 'border-orange-500/30 bg-orange-500/15 text-orange-200'
+};
+
 export function DashboardPage() {
   const { prospects, filters, setFilters } = useProspectStore();
   const basins = [...new Set(prospects.map((p) => p.basin))];
@@ -22,64 +37,107 @@ export function DashboardPage() {
   const totals = filtered.reduce((a, p) => a + p.resourceEstimate, 0);
   const top = ranked[0];
   const priorityDist = ['high', 'medium', 'low'].map((k) => ({ name: k, value: filtered.filter((p) => p.priority === k).length }));
+  const kpis = [
+    ['Portfolio', filtered.length, 'filtered prospects'],
+    ['Average GCoS', `${Math.round(avg * 100)}%`, 'geological chance of success'],
+    ['Unrisked resources', `${totals} MMboe`, 'current filtered portfolio'],
+    ['Top prospect', top?.name ?? '-', top ? `${Math.round((top.geologicalChanceOfSuccess ?? 0) * 100)}% GCoS` : 'no active match']
+  ];
 
   return <div className="space-y-6">
-    <h2 className="text-2xl font-semibold">Rank prospects by geological and commercial attractiveness</h2>
-    <div className="grid grid-cols-4 gap-4">{[
-      ['Total prospects', filtered.length],
-      ['Average GCoS', `${Math.round(avg * 100)}%`],
-      ['Total unrisked resources', `${totals} MMboe`],
-      ['Top ranked prospect', top?.name ?? '-']
-    ].map(([k, v]) => <div key={k as string} className="bg-slate-900 border border-slate-800 rounded-lg p-4"><div className="text-xs text-slate-400">{k}</div><div className="text-lg mt-1">{v}</div></div>)}</div>
-
-    <div className="grid grid-cols-4 gap-3">
-      <select className="bg-slate-900 border border-slate-700 rounded p-2" value={filters.basin} onChange={(e) => setFilters({ basin: e.target.value })}><option value="">All basins</option>{basins.map((v) => <option key={v}>{v}</option>)}</select>
-      <select className="bg-slate-900 border border-slate-700 rounded p-2" value={filters.block} onChange={(e) => setFilters({ block: e.target.value })}><option value="">All blocks</option>{blocks.map((v) => <option key={v}>{v}</option>)}</select>
-      <select className="bg-slate-900 border border-slate-700 rounded p-2" value={filters.playType} onChange={(e) => setFilters({ playType: e.target.value })}><option value="">All play types</option>{plays.map((v) => <option key={v}>{v}</option>)}</select>
-      <select className="bg-slate-900 border border-slate-700 rounded p-2" value={filters.priority} onChange={(e) => setFilters({ priority: e.target.value as '' | 'high' | 'medium' | 'low' })}><option value="">All priorities</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
-    </div>
-
-    <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 h-56"><ResponsiveContainer><PieChart><Pie data={priorityDist} dataKey="value" nameKey="name" outerRadius={80}>{priorityDist.map((entry) => <Cell key={entry.name} fill={colors[entry.name as keyof typeof colors]} />)}</Pie><Tooltip/></PieChart></ResponsiveContainer></div>
-
-    {ranked.length ? (
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] text-sm">
-          <thead>
-            <tr className="text-slate-400 text-left">
-              <th className="py-2 pr-3">Rank</th>
-              <th className="py-2 pr-3">Prospect Name</th>
-              <th className="py-2 pr-3">Basin</th>
-              <th className="py-2 pr-3">Block</th>
-              <th className="py-2 pr-3">Play Type</th>
-              <th className="py-2 pr-3">GCoS %</th>
-              <th className="py-2 pr-3">Commercial Score</th>
-              <th className="py-2 pr-3">Resource Estimate MMboe</th>
-              <th className="py-2 pr-3">Priority</th>
-              <th className="py-2 pr-3">Main Risk</th>
-              <th className="py-2 pr-3">Recommendation</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ranked.map((p, index) => (
-              <tr key={p.id} className="border-t border-slate-800 align-top">
-                <td className="py-3 pr-3 text-slate-300">{index + 1}</td>
-                <td className="py-3 pr-3"><Link to={`/prospects/${p.id}`} className="text-cyan-400">{p.name}</Link></td>
-                <td className="py-3 pr-3">{p.basin}</td>
-                <td className="py-3 pr-3">{p.block}</td>
-                <td className="py-3 pr-3">{p.playType}</td>
-                <td className="py-3 pr-3">{Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%</td>
-                <td className="py-3 pr-3">{p.commercialScore}</td>
-                <td className="py-3 pr-3">{p.resourceEstimate}</td>
-                <td className="py-3 pr-3"><span className={`px-2 py-0.5 rounded text-xs ${p.priority === 'high' ? 'bg-green-700' : p.priority === 'medium' ? 'bg-amber-700' : 'bg-red-700'}`}>{p.priority}</span></td>
-                <td className="py-3 pr-3 capitalize">{p.mainRisk}</td>
-                <td className="py-3 pr-3 max-w-xs">{p.recommendation}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <section className="border border-slate-800 bg-slate-900 rounded-lg p-6">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">PetroTarget AI</h1>
+          <p className="mt-1 text-sm text-slate-400">Decision intelligence for petroleum exploration</p>
+        </div>
+        <p className="max-w-xl text-sm leading-6 text-slate-300">
+          Rank exploration opportunities by explainable petroleum system risk, commercial strength, and resource scale.
+        </p>
       </div>
-    ) : (
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 text-sm text-slate-300">No prospects match the current filters.</div>
-    )}
+    </section>
+
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {kpis.map(([label, value, detail]) => (
+        <div key={label} className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
+          <div className="mt-3 text-2xl font-semibold text-slate-50">{value}</div>
+          <div className="mt-1 text-xs text-slate-400">{detail}</div>
+        </div>
+      ))}
+    </section>
+
+    <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-slate-200">Portfolio filters</h2>
+        <span className="text-xs text-slate-500">{ranked.length} ranked results</span>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <select className="rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm" value={filters.basin} onChange={(e) => setFilters({ basin: e.target.value })}><option value="">All basins</option>{basins.map((v) => <option key={v}>{v}</option>)}</select>
+        <select className="rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm" value={filters.block} onChange={(e) => setFilters({ block: e.target.value })}><option value="">All blocks</option>{blocks.map((v) => <option key={v}>{v}</option>)}</select>
+        <select className="rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm" value={filters.playType} onChange={(e) => setFilters({ playType: e.target.value })}><option value="">All play types</option>{plays.map((v) => <option key={v}>{v}</option>)}</select>
+        <select className="rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm" value={filters.priority} onChange={(e) => setFilters({ priority: e.target.value as '' | 'high' | 'medium' | 'low' })}><option value="">All priorities</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+      </div>
+    </section>
+
+    <section className="grid gap-4 xl:grid-cols-[320px_1fr]">
+      <div className="h-64 rounded-lg border border-slate-800 bg-slate-900 p-4">
+        <h2 className="mb-2 text-sm font-semibold text-slate-200">Priority mix</h2>
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie data={priorityDist} dataKey="value" nameKey="name" outerRadius={82}>
+              {priorityDist.map((entry) => <Cell key={entry.name} fill={colors[entry.name as keyof typeof colors]} />)}
+            </Pie>
+            <Tooltip/>
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="rounded-lg border border-slate-800 bg-slate-900">
+        <div className="border-b border-slate-800 px-4 py-3">
+          <h2 className="text-sm font-semibold text-slate-200">Prospect ranking</h2>
+        </div>
+        {ranked.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1240px] text-sm">
+              <thead className="bg-slate-950/70">
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-3">Rank</th>
+                  <th className="px-4 py-3">Prospect Name</th>
+                  <th className="px-4 py-3">Basin</th>
+                  <th className="px-4 py-3">Block</th>
+                  <th className="px-4 py-3">Play Type</th>
+                  <th className="px-4 py-3">GCoS %</th>
+                  <th className="px-4 py-3">Commercial Score</th>
+                  <th className="px-4 py-3">Resource Estimate MMboe</th>
+                  <th className="px-4 py-3">Priority</th>
+                  <th className="px-4 py-3">Main Risk</th>
+                  <th className="px-4 py-3">Recommendation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranked.map((p, index) => (
+                  <tr key={p.id} className="border-t border-slate-800 align-top hover:bg-slate-800/35">
+                    <td className="px-4 py-4 font-semibold text-slate-300">#{index + 1}</td>
+                    <td className="px-4 py-4"><Link to={`/prospects/${p.id}`} className="font-medium text-cyan-300 hover:text-cyan-200">{p.name}</Link></td>
+                    <td className="px-4 py-4 text-slate-300">{p.basin}</td>
+                    <td className="px-4 py-4 text-slate-300">{p.block}</td>
+                    <td className="px-4 py-4 text-slate-300">{p.playType}</td>
+                    <td className="px-4 py-4 font-semibold text-slate-100">{Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%</td>
+                    <td className="px-4 py-4 text-slate-300">{p.commercialScore}</td>
+                    <td className="px-4 py-4 text-slate-300">{p.resourceEstimate}</td>
+                    <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${priorityBadgeClass[p.priority ?? 'low']}`}>{p.priority}</span></td>
+                    <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${riskBadgeClass[p.mainRisk ?? 'timing']}`}>{p.mainRisk}</span></td>
+                    <td className="px-4 py-4"><div className="max-w-[280px] whitespace-normal leading-6 text-slate-300">{p.recommendation}</div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-6 text-sm text-slate-300">No prospects match the current filters.</div>
+        )}
+      </div>
+    </section>
   </div>;
 }
