@@ -1,0 +1,12 @@
+import { Prospect } from '../domain/prospect';
+
+export const mockProspects: Prospect[] = [
+  { id: 'p1', name: 'Vaca Norte Lead', basin: 'Neuquén Basin', block: 'CN-VN-12', playType: 'Shale + Tight', latitude: -38.6, longitude: -68.5, sourceScore: 0.85, migrationScore: 0.81, reservoirScore: 0.74, sealScore: 0.68, trapScore: 0.71, timingScore: 0.82, commercialScore: 78, resourceEstimate: 95 },
+  { id: 'p2', name: 'D-129 Ridge', basin: 'Golfo San Jorge Basin', block: 'GSJ-07', playType: 'Faulted Anticline', latitude: -45.9, longitude: -67.7, sourceScore: 0.75, migrationScore: 0.72, reservoirScore: 0.65, sealScore: 0.58, trapScore: 0.69, timingScore: 0.74, commercialScore: 66, resourceEstimate: 42 },
+  { id: 'p3', name: 'Austral Deep Fan', basin: 'Austral Basin', block: 'AU-15', playType: 'Deepwater Fan', latitude: -52.9, longitude: -69.2, sourceScore: 0.71, migrationScore: 0.63, reservoirScore: 0.57, sealScore: 0.49, trapScore: 0.62, timingScore: 0.59, commercialScore: 61, resourceEstimate: 130 },
+  { id: 'p4', name: 'Wolfcamp East', basin: 'Permian Basin', block: 'PM-WE-03', playType: 'Unconventional', latitude: 31.8, longitude: -102.1, sourceScore: 0.9, migrationScore: 0.87, reservoirScore: 0.8, sealScore: 0.76, trapScore: 0.79, timingScore: 0.9, commercialScore: 88, resourceEstimate: 240 },
+  { id: 'p5', name: 'Forties Satellite', basin: 'North Sea', block: 'NS-21A', playType: 'Structural-Stratigraphic', latitude: 57.6, longitude: 1.8, sourceScore: 0.8, migrationScore: 0.78, reservoirScore: 0.7, sealScore: 0.61, trapScore: 0.69, timingScore: 0.77, commercialScore: 73, resourceEstimate: 68 },
+  { id: 'p6', name: 'Miocene Shelf Edge', basin: 'Gulf of Mexico', block: 'GOM-442', playType: 'Subsalt Trap', latitude: 27.2, longitude: -91.8, sourceScore: 0.83, migrationScore: 0.77, reservoirScore: 0.72, sealScore: 0.55, trapScore: 0.66, timingScore: 0.7, commercialScore: 75, resourceEstimate: 150 },
+  { id: 'p7', name: 'Lower Agrio South', basin: 'Neuquén Basin', block: 'NQ-24', playType: 'Conventional Clastics', latitude: -39.1, longitude: -69.1, sourceScore: 0.69, migrationScore: 0.64, reservoirScore: 0.6, sealScore: 0.52, trapScore: 0.58, timingScore: 0.6, commercialScore: 59, resourceEstimate: 26 },
+  { id: 'p8', name: 'Malvinas Margin', basin: 'Austral Basin', block: 'AU-OFF-02', playType: 'Frontier Offshore', latitude: -51.2, longitude: -61.5, sourceScore: 0.66, migrationScore: 0.54, reservoirScore: 0.5, sealScore: 0.46, trapScore: 0.48, timingScore: 0.53, commercialScore: 52, resourceEstimate: 180 }
+];
