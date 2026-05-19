@@ -16,10 +16,11 @@ export function DashboardPage() {
     (!filters.playType || p.playType === filters.playType) &&
     (!filters.priority || p.priority === filters.priority)
   );
+  const ranked = [...filtered].sort((a, b) => (b.geologicalChanceOfSuccess ?? 0) - (a.geologicalChanceOfSuccess ?? 0));
 
   const avg = filtered.length ? filtered.reduce((a, p) => a + (p.geologicalChanceOfSuccess ?? 0), 0) / filtered.length : 0;
   const totals = filtered.reduce((a, p) => a + p.resourceEstimate, 0);
-  const top = filtered[0];
+  const top = ranked[0];
   const priorityDist = ['high', 'medium', 'low'].map((k) => ({ name: k, value: filtered.filter((p) => p.priority === k).length }));
 
   return <div className="space-y-6">
@@ -40,6 +41,45 @@ export function DashboardPage() {
 
     <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 h-56"><ResponsiveContainer><PieChart><Pie data={priorityDist} dataKey="value" nameKey="name" outerRadius={80}>{priorityDist.map((entry) => <Cell key={entry.name} fill={colors[entry.name as keyof typeof colors]} />)}</Pie><Tooltip/></PieChart></ResponsiveContainer></div>
 
-    <table className="w-full text-sm"><thead><tr className="text-slate-400 text-left"><th>Name</th><th>Basin</th><th>GCoS</th><th>Priority</th><th>Resources</th><th></th></tr></thead><tbody>{filtered.map((p) => <tr key={p.id} className="border-t border-slate-800"><td>{p.name}</td><td>{p.basin}</td><td>{Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%</td><td><span className={`px-2 py-0.5 rounded text-xs ${p.priority === 'high' ? 'bg-green-700' : p.priority === 'medium' ? 'bg-amber-700' : 'bg-red-700'}`}>{p.priority}</span></td><td>{p.resourceEstimate} MMboe</td><td><Link to={`/prospects/${p.id}`} className="text-cyan-400">View</Link></td></tr>)}</tbody></table>
+    {ranked.length ? (
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1100px] text-sm">
+          <thead>
+            <tr className="text-slate-400 text-left">
+              <th className="py-2 pr-3">Rank</th>
+              <th className="py-2 pr-3">Prospect Name</th>
+              <th className="py-2 pr-3">Basin</th>
+              <th className="py-2 pr-3">Block</th>
+              <th className="py-2 pr-3">Play Type</th>
+              <th className="py-2 pr-3">GCoS %</th>
+              <th className="py-2 pr-3">Commercial Score</th>
+              <th className="py-2 pr-3">Resource Estimate MMboe</th>
+              <th className="py-2 pr-3">Priority</th>
+              <th className="py-2 pr-3">Main Risk</th>
+              <th className="py-2 pr-3">Recommendation</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranked.map((p, index) => (
+              <tr key={p.id} className="border-t border-slate-800 align-top">
+                <td className="py-3 pr-3 text-slate-300">{index + 1}</td>
+                <td className="py-3 pr-3"><Link to={`/prospects/${p.id}`} className="text-cyan-400">{p.name}</Link></td>
+                <td className="py-3 pr-3">{p.basin}</td>
+                <td className="py-3 pr-3">{p.block}</td>
+                <td className="py-3 pr-3">{p.playType}</td>
+                <td className="py-3 pr-3">{Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%</td>
+                <td className="py-3 pr-3">{p.commercialScore}</td>
+                <td className="py-3 pr-3">{p.resourceEstimate}</td>
+                <td className="py-3 pr-3"><span className={`px-2 py-0.5 rounded text-xs ${p.priority === 'high' ? 'bg-green-700' : p.priority === 'medium' ? 'bg-amber-700' : 'bg-red-700'}`}>{p.priority}</span></td>
+                <td className="py-3 pr-3 capitalize">{p.mainRisk}</td>
+                <td className="py-3 pr-3 max-w-xs">{p.recommendation}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 text-sm text-slate-300">No prospects match the current filters.</div>
+    )}
   </div>;
 }
