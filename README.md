@@ -1,44 +1,70 @@
 # PetroTarget AI (MVP)
 
-PetroTarget AI is a B2B frontend platform for petroleum exploration and development teams. The MVP helps rank prospects by geological and commercial attractiveness using explainable petroleum system scoring.
+PetroTarget AI is a frontend MVP for petroleum exploration teams. It ranks prospects using explainable petroleum system scoring, shows map context, provides a rule-based portfolio advisor, and supports validated CSV/JSON portfolio imports.
 
-## Installation
+## Current MVP Status
+
+- Frontend-only React/Vite application.
+- Uses mock, non-confidential prospect data.
+- Calculates Geological Chance of Success (GCoS) locally.
+- Ranks prospects by GCoS descending.
+- Provides prospect detail pages, portfolio map, rule-based advisor, CSV/JSON import, and JSON report export.
+- No backend, authentication, billing, database, real ML model, or LLM integration.
+
+## Install
 
 ```bash
 npm install
 ```
 
-## Run the app
+On Windows PowerShell, if `npm` is blocked by local script execution policy, use:
+
+```powershell
+npm.cmd install --registry=https://registry.npmjs.org/
+```
+
+## Run Locally
 
 ```bash
 npm run dev
 ```
 
-## Build
+Windows PowerShell fallback:
 
-```bash
-npm run build
+```powershell
+npm.cmd run dev
 ```
 
-## Optional checks
+## Validated Commands On Windows
 
-```bash
-npm run typecheck
-npm run test
+The Codex Windows environment used for QA blocks the literal `npm ...` PowerShell wrapper because it resolves to:
+
+```text
+C:\Program Files\nodejs\npm.ps1
 ```
 
-## Project structure
+The failure is a local PowerShell `ExecutionPolicy` issue before npm reaches the registry. The npm CLI itself was validated through `npm.cmd`:
+
+```powershell
+npm.cmd config get registry
+npm.cmd install --registry=https://registry.npmjs.org/
+npm.cmd run typecheck
+npm.cmd run test
+npm.cmd run build
+```
+
+Expected registry:
+
+```text
+https://registry.npmjs.org/
+```
+
+## Project Structure
 
 ```text
 src/
   components/
     Layout/
-    Dashboard/
-    Prospects/
-    Map/
-    Advisor/
-    Upload/
-    Reports/
     ui/
   data/
     mockProspects.ts
@@ -60,27 +86,38 @@ src/
     exportReport.ts
 ```
 
-## Scoring engine
+## Scoring Engine
 
 Geological Chance of Success (GCoS) is calculated as:
 
-`sourceScore * migrationScore * reservoirScore * sealScore * trapScore * timingScore`
+```text
+sourceScore * migrationScore * reservoirScore * sealScore * trapScore * timingScore
+```
 
 Priority rules:
+
 - `high`: GCoS >= 0.35 and commercialScore >= 70
 - `medium`: GCoS >= 0.18
 - `low`: GCoS < 0.18
 
-Main risk is the minimum component among source/migration/reservoir/seal/trap/timing.
+Main risk is the minimum component among source, migration, reservoir, seal, trap, and timing.
 
 Recommendation rules:
-- high: Advance to detailed technical evaluation / drilling candidate
-- medium: Acquire additional data and reduce key uncertainty
-- low: Do not prioritize unless new evidence improves risk profile
 
-## Current MVP limitations
+- `high`: Advance to detailed technical evaluation / drilling candidate
+- `medium`: Acquire additional data and reduce key uncertainty
+- `low`: Do not prioritize unless new evidence improves risk profile
 
-- No backend, authentication, billing, or persistent database.
-- No real ML model or LLM integration (advisor is rule-based).
-- CSV parsing is intentionally simple and expects comma-separated rows without quoted embedded commas.
-- Uses mock non-confidential data only.
+## Import Behavior
+
+- CSV and JSON imports are validated locally.
+- Imports replace the current prospect portfolio by default.
+- Append mode exists in store code for a future UX mode but is not enabled in the UI.
+
+## Short Roadmap
+
+- Add persisted project workspaces.
+- Add authenticated team access.
+- Add backend data storage and audit history.
+- Add richer import templates and validation reports.
+- Add optional real ML/LLM integrations after the MVP scoring workflow is stable.
