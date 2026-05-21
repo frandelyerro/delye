@@ -20,11 +20,12 @@ export type Prospect = {
   geologicalChanceOfSuccess?: number;
   priority?: Priority;
   mainRisk?: MainRisk;
+  dataConfidence?: number;
   recommendation?: string;
   explanation?: string;
 };
 
-export type ProspectInput = Omit<Prospect, 'geologicalChanceOfSuccess' | 'priority' | 'mainRisk' | 'recommendation' | 'explanation'>;
+export type ProspectInput = Omit<Prospect, 'geologicalChanceOfSuccess' | 'priority' | 'mainRisk' | 'dataConfidence' | 'recommendation' | 'explanation'>;
 
 export const validateProspect = (prospect: Prospect): string[] => {
   const errors: string[] = [];

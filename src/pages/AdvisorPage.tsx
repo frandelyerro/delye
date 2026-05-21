@@ -5,6 +5,10 @@ import { useProspectStore } from '../store/useProspectStore';
 const examples = [
   'top prospects',
   'best prospect',
+  'Why is Wolfcamp East ranked high?',
+  'Which prospects have low data confidence?',
+  'What is the weakest component in the portfolio?',
+  'strongest components',
   'main risk',
   'high resource high risk',
   'need more data',
@@ -32,7 +36,7 @@ export function AdvisorPage() {
     <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
       <h1 className="text-2xl font-semibold">Portfolio advisor</h1>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-        Rule-based guidance over the current prospect portfolio. Use it to summarize rankings, risks, and follow-up data priorities.
+        Rule-based guidance over the current prospect portfolio. Use it to explain ranking logic, identify weak components, and flag low-confidence input data.
       </p>
     </section>
 

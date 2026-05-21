@@ -1,5 +1,13 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  componentLabels,
+  getGCoSFormulaString,
+  getGCoSInterpretation,
+  getRecommendedNextStep,
+  getStrongestComponents,
+  getWeakestComponent
+} from '../domain/explainability';
 import { useProspectStore } from '../store/useProspectStore';
 import { exportProspectReport } from '../utils/exportReport';
 
@@ -18,12 +26,22 @@ const riskBadgeClass = {
   timing: 'border-orange-500/30 bg-orange-500/15 text-orange-200'
 };
 
+const confidenceBadgeClass = {
+  high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
+  medium: 'border-amber-500/30 bg-amber-500/15 text-amber-200',
+  low: 'border-red-500/30 bg-red-500/15 text-red-200'
+};
+
 export function ProspectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const prospect = useProspectStore((s) => s.prospects.find((p) => p.id === id));
   const deleteProspect = useProspectStore((s) => s.deleteProspect);
   if (!prospect) return <div className="rounded-lg border border-slate-800 bg-slate-900 p-6">Prospect not found.</div>;
+  const strongestComponents = getStrongestComponents(prospect).map((component) => componentLabels[component]).join(' and ');
+  const weakestComponent = componentLabels[getWeakestComponent(prospect)];
+  const dataConfidence = prospect.dataConfidence ?? 0;
+  const dataConfidenceLevel = dataConfidence >= 75 ? 'high' : dataConfidence >= 50 ? 'medium' : 'low';
 
   const chartData = [
     { name: 'source', value: prospect.sourceScore },
@@ -38,7 +56,8 @@ export function ProspectDetailPage() {
     ['Commercial Score', `${prospect.commercialScore}/100`],
     ['Resource Estimate', `${prospect.resourceEstimate} MMboe`],
     ['Priority', prospect.priority],
-    ['Main Risk', prospect.mainRisk]
+    ['Main Risk', prospect.mainRisk],
+    ['Data Confidence', `${dataConfidence}/100`]
   ];
 
   return <div className="space-y-6">
@@ -68,7 +87,7 @@ export function ProspectDetailPage() {
       </div>
     </section>
 
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
       {primaryMetrics.map(([label, value]) => (
         <div key={label} className="rounded-lg border border-slate-800 bg-slate-900 p-4">
           <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
@@ -76,6 +95,13 @@ export function ProspectDetailPage() {
             <span className={`mt-3 inline-flex rounded-full border px-3 py-1 text-sm font-medium capitalize ${priorityBadgeClass[prospect.priority ?? 'low']}`}>{value}</span>
           ) : label === 'Main Risk' ? (
             <span className={`mt-3 inline-flex rounded-full border px-3 py-1 text-sm font-medium capitalize ${riskBadgeClass[prospect.mainRisk ?? 'timing']}`}>{value}</span>
+          ) : label === 'Data Confidence' ? (
+            <div className="mt-3 space-y-3">
+              <div className="text-2xl font-semibold text-slate-50">{value}</div>
+              <span className={`inline-flex rounded-full border px-3 py-1 text-sm font-medium capitalize ${confidenceBadgeClass[dataConfidenceLevel]}`}>
+                {dataConfidenceLevel} confidence
+              </span>
+            </div>
           ) : (
             <div className="mt-3 text-2xl font-semibold text-slate-50">{value}</div>
           )}
@@ -116,6 +142,58 @@ export function ProspectDetailPage() {
             <Bar dataKey="value" fill="#38bdf8"/>
           </BarChart>
         </ResponsiveContainer>
+      </div>
+    </section>
+
+    <section className="grid gap-4 xl:grid-cols-[1.2fr_320px]">
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Why this score?</h2>
+          <span className="text-xs text-slate-500">Scoring explainability</span>
+        </div>
+        <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+          <div className="rounded border border-slate-800 bg-slate-950 p-4 md:col-span-2">
+            <div className="text-xs uppercase tracking-wide text-slate-500">GCoS calculation</div>
+            <p className="mt-2 font-mono text-sm text-slate-200">{getGCoSFormulaString(prospect)}</p>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-4">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Strongest components</div>
+            <p className="mt-2 text-slate-200">{strongestComponents}</p>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-4">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Weakest component</div>
+            <p className="mt-2 text-slate-200">{weakestComponent}</p>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-4">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Main risk</div>
+            <span className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-medium capitalize ${riskBadgeClass[prospect.mainRisk ?? 'timing']}`}>{prospect.mainRisk}</span>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-4">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Final GCoS</div>
+            <p className="mt-2 text-slate-200">{Math.round((prospect.geologicalChanceOfSuccess ?? 0) * 100)}%</p>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-4 md:col-span-2">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Interpretation</div>
+            <p className="mt-2 leading-6 text-slate-300">{getGCoSInterpretation(prospect)}</p>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-4 md:col-span-2">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Recommended next step</div>
+            <p className="mt-2 leading-6 text-slate-300">{getRecommendedNextStep(prospect)}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+        <h2 className="text-lg font-semibold">Data Confidence</h2>
+        <div className="mt-4 rounded border border-slate-800 bg-slate-950 p-4">
+          <div className="text-3xl font-semibold text-slate-50">{dataConfidence}/100</div>
+          <span className={`mt-3 inline-flex rounded-full border px-3 py-1 text-sm font-medium capitalize ${confidenceBadgeClass[dataConfidenceLevel]}`}>
+            {dataConfidenceLevel} confidence
+          </span>
+          <p className="mt-4 text-sm leading-6 text-slate-400">
+            Data Confidence reflects the completeness and consistency of the inputs used in the scoring model.
+          </p>
+        </div>
       </div>
     </section>
 

@@ -118,6 +118,7 @@ export function DashboardPage() {
                   <th className="px-4 py-3">Resource Estimate MMboe</th>
                   <th className="px-4 py-3">Priority</th>
                   <th className="px-4 py-3">Main Risk</th>
+                  <th className="px-4 py-3">Data Confidence</th>
                   <th className="px-4 py-3">Recommendation</th>
                   <th className="px-4 py-3">Actions</th>
                 </tr>
@@ -135,6 +136,11 @@ export function DashboardPage() {
                     <td className="px-4 py-4 text-slate-300">{p.resourceEstimate}</td>
                     <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${priorityBadgeClass[p.priority ?? 'low']}`}>{p.priority}</span></td>
                     <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${riskBadgeClass[p.mainRisk ?? 'timing']}`}>{p.mainRisk}</span></td>
+                    <td className="px-4 py-4">
+                      <span className="inline-flex rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-medium text-slate-200">
+                        {p.dataConfidence ?? 0}/100
+                      </span>
+                    </td>
                     <td className="px-4 py-4"><div className="max-w-[280px] whitespace-normal leading-6 text-slate-300">{p.recommendation}</div></td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-2">
