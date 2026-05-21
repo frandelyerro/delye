@@ -20,7 +20,7 @@ const riskBadgeClass = {
 };
 
 export function DashboardPage() {
-  const { prospects, filters, setFilters } = useProspectStore();
+  const { prospects, filters, setFilters, deleteProspect, resetProspects } = useProspectStore();
   const basins = [...new Set(prospects.map((p) => p.basin))];
   const blocks = [...new Set(prospects.map((p) => p.block))];
   const plays = [...new Set(prospects.map((p) => p.playType))];
@@ -51,9 +51,15 @@ export function DashboardPage() {
           <h1 className="text-3xl font-semibold tracking-tight">PetroTarget AI</h1>
           <p className="mt-1 text-sm text-slate-400">Decision intelligence for petroleum exploration</p>
         </div>
-        <p className="max-w-xl text-sm leading-6 text-slate-300">
-          Rank exploration opportunities by explainable petroleum system risk, commercial strength, and resource scale.
-        </p>
+        <div className="flex flex-col gap-3 lg:items-end">
+          <p className="max-w-xl text-sm leading-6 text-slate-300">
+            Rank exploration opportunities by explainable petroleum system risk, commercial strength, and resource scale.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/prospects/new" className="inline-flex rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600">New Prospect</Link>
+            <button className="rounded border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800" onClick={() => resetProspects()} type="button">Reset to sample data</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -99,7 +105,7 @@ export function DashboardPage() {
         </div>
         {ranked.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1240px] text-sm">
+            <table className="w-full min-w-[1440px] text-sm">
               <thead className="bg-slate-950/70">
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-3">Rank</th>
@@ -113,6 +119,7 @@ export function DashboardPage() {
                   <th className="px-4 py-3">Priority</th>
                   <th className="px-4 py-3">Main Risk</th>
                   <th className="px-4 py-3">Recommendation</th>
+                  <th className="px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -129,6 +136,21 @@ export function DashboardPage() {
                     <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${priorityBadgeClass[p.priority ?? 'low']}`}>{p.priority}</span></td>
                     <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${riskBadgeClass[p.mainRisk ?? 'timing']}`}>{p.mainRisk}</span></td>
                     <td className="px-4 py-4"><div className="max-w-[280px] whitespace-normal leading-6 text-slate-300">{p.recommendation}</div></td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Link to={`/prospects/${p.id}`} className="rounded border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800">View</Link>
+                        <Link to={`/prospects/${p.id}/edit`} className="rounded border border-cyan-800 px-3 py-1.5 text-xs font-medium text-cyan-200 hover:bg-cyan-950">Edit</Link>
+                        <button
+                          className="rounded border border-red-800 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-950"
+                          onClick={() => {
+                            if (window.confirm(`Delete ${p.name}?`)) deleteProspect(p.id);
+                          }}
+                          type="button"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
