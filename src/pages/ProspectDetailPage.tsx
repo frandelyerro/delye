@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useProspectStore } from '../store/useProspectStore';
 import { exportProspectReport } from '../utils/exportReport';
@@ -20,7 +20,9 @@ const riskBadgeClass = {
 
 export function ProspectDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const prospect = useProspectStore((s) => s.prospects.find((p) => p.id === id));
+  const deleteProspect = useProspectStore((s) => s.deleteProspect);
   if (!prospect) return <div className="rounded-lg border border-slate-800 bg-slate-900 p-6">Prospect not found.</div>;
 
   const chartData = [
@@ -47,7 +49,22 @@ export function ProspectDetailPage() {
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">{prospect.name}</h1>
           <p className="mt-2 text-sm text-slate-400">{prospect.basin} / {prospect.block} / {prospect.playType}</p>
         </div>
-        <button className="rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600" onClick={() => exportProspectReport(prospect)}>Export report JSON</button>
+        <div className="flex flex-wrap gap-2">
+          <Link to={`/prospects/${prospect.id}/edit`} className="inline-flex rounded border border-cyan-800 px-4 py-2 text-sm font-medium text-cyan-200 hover:bg-cyan-950">Edit prospect</Link>
+          <button
+            className="rounded border border-red-800 px-4 py-2 text-sm font-medium text-red-200 hover:bg-red-950"
+            onClick={() => {
+              if (window.confirm(`Delete ${prospect.name}?`)) {
+                deleteProspect(prospect.id);
+                navigate('/');
+              }
+            }}
+            type="button"
+          >
+            Delete prospect
+          </button>
+          <button className="rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600" onClick={() => exportProspectReport(prospect)}>Export report JSON</button>
+        </div>
       </div>
     </section>
 
