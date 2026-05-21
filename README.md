@@ -7,6 +7,7 @@ PetroTarget AI is a frontend MVP for petroleum exploration teams. It ranks prosp
 - Frontend-only React/Vite application.
 - Uses mock, non-confidential prospect data.
 - Calculates Geological Chance of Success (GCoS) locally.
+- Adds scoring explainability and Data Confidence indicators locally.
 - Ranks prospects by GCoS descending.
 - Provides prospect detail pages, portfolio map, rule-based advisor, CSV/JSON import, and JSON report export.
 - No backend, authentication, billing, database, real ML model, or LLM integration.
@@ -94,6 +95,8 @@ Geological Chance of Success (GCoS) is calculated as:
 sourceScore * migrationScore * reservoirScore * sealScore * trapScore * timingScore
 ```
 
+GCoS estimates a compounded geological chance based on petroleum system inputs. It is not a prediction engine and does not guarantee a discovery.
+
 Priority rules:
 
 - `high`: GCoS >= 0.35 and commercialScore >= 70
@@ -107,6 +110,31 @@ Recommendation rules:
 - `high`: Advance to detailed technical evaluation / drilling candidate
 - `medium`: Acquire additional data and reduce key uncertainty
 - `low`: Do not prioritize unless new evidence improves risk profile
+
+## GCoS vs Data Confidence
+
+- `GCoS` estimates the compounded geological chance of success from the six petroleum system components.
+- `Data Confidence` measures the completeness and consistency of the inputs used in the scoring model.
+- `Data Confidence` is not a probability of finding hydrocarbons and should not be read as certainty.
+
+Current Data Confidence adjustments:
+
+- Start from `100`
+- Minus `10` if `resourceEstimate` is `0`
+- Minus `10` if `commercialScore` is `0`
+- Minus `5` for each geological score below `0.25`
+- Minus `5` if `latitude` or `longitude` are `0`
+- Clamped between `0` and `100`
+
+The product explains each scored prospect with:
+
+- full GCoS multiplication string
+- strongest components
+- weakest component
+- main risk
+- data confidence
+- textual interpretation
+- recommended next technical step
 
 ## Import Behavior
 
