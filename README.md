@@ -36,6 +36,24 @@ Windows PowerShell fallback:
 npm.cmd run dev
 ```
 
+Run tests locally:
+
+```powershell
+npm.cmd run test
+```
+
+Run a production build locally:
+
+```powershell
+npm.cmd run build
+```
+
+Preview the production build:
+
+```powershell
+npm.cmd run preview
+```
+
 ## Validated Commands On Windows
 
 The Codex Windows environment used for QA blocks the literal `npm ...` PowerShell wrapper because it resolves to:
@@ -141,6 +159,28 @@ The product explains each scored prospect with:
 - CSV and JSON imports are validated locally.
 - Imports replace the current prospect portfolio by default.
 - Append mode exists in store code for a future UX mode but is not enabled in the UI.
+
+## Deployment
+
+Recommended deploy target: Vercel.
+
+- Framework preset: `Vite`
+- Install command: `npm install`
+- Build command: `npm run build`
+- Output directory: `dist`
+- Environment variables: none for now
+
+The project includes a root `vercel.json` with SPA rewrites so direct refreshes continue to work for:
+
+- `/dashboard`
+- `/map`
+- `/advisor`
+- `/upload`
+- `/prospects/:id`
+- `/prospects/new`
+- `/prospects/:id/edit`
+
+Windows local note: if PowerShell blocks `npm.ps1`, use `npm.cmd` instead.
 
 ## Short Roadmap
 
