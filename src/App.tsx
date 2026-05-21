@@ -4,6 +4,7 @@ import { AdvisorPage } from './pages/AdvisorPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MapPage } from './pages/MapPage';
 import { ProspectDetailPage } from './pages/ProspectDetailPage';
+import { ProspectFormPage } from './pages/ProspectFormPage';
 import { UploadPage } from './pages/UploadPage';
 
 export function App() {
@@ -15,6 +16,8 @@ export function App() {
         <Route path="/map" element={<MapPage />} />
         <Route path="/advisor" element={<AdvisorPage />} />
         <Route path="/upload" element={<UploadPage />} />
+        <Route path="/prospects/new" element={<ProspectFormPage />} />
+        <Route path="/prospects/:id/edit" element={<ProspectFormPage />} />
         <Route path="/prospects/:id" element={<ProspectDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
