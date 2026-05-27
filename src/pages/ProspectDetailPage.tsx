@@ -307,7 +307,10 @@ export function ProspectDetailPage() {
               <h2 className="text-lg font-semibold text-cyan-200">Geoscience Intelligence Engine</h2>
               <p className="mt-1 text-xs text-slate-400">Evidence-derived petroleum system assessment</p>
             </div>
-            <span className="inline-flex rounded-full border border-cyan-700 bg-cyan-950 px-3 py-1 text-xs font-medium text-cyan-300">Evidence-derived</span>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex rounded-full border border-cyan-700 bg-cyan-950 px-3 py-1 text-xs font-medium text-cyan-300">Evidence-derived</span>
+              <Link to={`/prospects/${prospect.id}/edit`} className="inline-flex rounded border border-cyan-800 px-3 py-1 text-xs font-medium text-cyan-200 hover:bg-cyan-950">Edit structured evidence</Link>
+            </div>
           </div>
           <div className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded border border-slate-800 bg-slate-950 p-3">
@@ -388,11 +391,21 @@ export function ProspectDetailPage() {
       </>
     ) : (
       <section className="rounded-lg border border-slate-700 bg-slate-900/50 p-5">
-        <h2 className="text-lg font-semibold text-slate-400">Geoscience Intelligence Engine</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-500">
-          This prospect currently uses manual scoring. Add structured evidence to enable the Geoscience Intelligence Engine,
-          the Evidence Matrix and the Recommended Next Data sections.
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-400">Geoscience Intelligence Engine</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              This prospect currently uses manual scoring. Add structured evidence to enable the Geoscience Intelligence Engine,
+              the Evidence Matrix and the Recommended Next Data sections.
+            </p>
+          </div>
+          <Link
+            to={`/prospects/${prospect.id}/edit?mode=evidence_derived`}
+            className="inline-flex shrink-0 rounded border border-cyan-800 px-4 py-2 text-sm font-medium text-cyan-200 hover:bg-cyan-950"
+          >
+            Convert to evidence-derived scoring
+          </Link>
+        </div>
       </section>
     )}
   </div>;

@@ -179,7 +179,7 @@ export function DashboardPage() {
                     </td>
                     <td className="px-4 py-4">
                       {p.scoringMode === 'evidence_derived'
-                        ? <span className="inline-flex rounded-full border border-cyan-700 bg-cyan-950 px-2.5 py-1 text-xs font-medium text-cyan-300">Evidence-derived</span>
+                        ? <Link to={`/prospects/${p.id}`} className="inline-flex rounded-full border border-cyan-700 bg-cyan-950 px-2.5 py-1 text-xs font-medium text-cyan-300 hover:bg-cyan-900">Evidence-derived</Link>
                         : <span className="inline-flex rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-medium text-slate-400">Manual</span>
                       }
                     </td>

@@ -128,3 +128,58 @@ To move from heuristic to calibrated:
 4. Repeat as new wells are drilled.
 
 This calibration step transforms the engine from an expert system into a statistically grounded risk model.
+
+## Editing structured evidence
+
+PetroTarget AI supports editing structured evidence directly through the Create/Edit Prospect form.
+
+### How to switch a prospect from manual to evidence-derived
+
+1. Open the prospect detail page and click **Convert to evidence-derived scoring**.
+2. The edit form opens pre-set to Evidence-derived scoring mode.
+3. Fill in the petroleum system evidence fields for each component (A–F).
+4. The **Derived Scoring Preview** panel updates live as you type.
+5. Click **Save prospect** to persist the evidence and re-derive all scores.
+
+### How to edit evidence for an existing evidence-derived prospect
+
+1. Open the prospect detail page.
+2. Click **Edit structured evidence** next to the Geoscience Intelligence Engine heading.
+3. Edit any evidence field. The preview updates in real time.
+4. Save to re-score.
+
+### Scoring Method options
+
+| Mode | Behavior |
+|---|---|
+| Manual scoring | User enters component scores (0–1) directly. Evidence is ignored. |
+| Evidence-derived scoring | Scores are derived from structured evidence. Manual score fields are hidden. |
+
+### Default evidence
+
+When switching a manual prospect to evidence-derived, all evidence fields are initialised to conservative defaults:
+- All presence/pathway fields default to `unknown`
+- `trapFormedBeforeMigration` defaults to `uncertain`
+- `closureMapped` defaults to `false`
+- All optional numeric fields are empty
+
+These defaults produce low but valid component scores. Fill in real evidence to improve accuracy.
+
+### Validation
+
+The form validates evidence numeric fields on save:
+- `tocPercent`, `roPercent`, `tmaxC`, `sourceThicknessM`, `distanceToKitchenKm` must be ≥ 0
+- `distanceFromKitchenKm` must be ≥ 0
+- `porosityPercent` must be between 0 and 100
+- `permeabilityMd`, `netPayM` must be ≥ 0
+- `vshaleFraction` must be between 0 and 1
+- `sealThicknessM`, `closureAreaKm2`, `closureHeightM` must be ≥ 0
+
+All numeric fields are optional. Leaving them empty is valid and defaults to conservative score adjustments.
+
+### Limitations
+
+- Evidence is stored in localStorage. No backend persistence.
+- Heuristic rules are not calibrated against historical drilling outcomes.
+- This is not ML and not a prediction of discovery.
+- Does not replace technical human interpretation by geologists or reservoir engineers.
