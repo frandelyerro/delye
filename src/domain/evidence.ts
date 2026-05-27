@@ -107,4 +107,6 @@ export type GeoscienceAssessment = {
   criticalRisk: ComponentName;
   overallConfidence: EvidenceConfidence;
   summary: string;
+  /** Aggregated missing evidence from all components — the recommended next data acquisition steps. */
+  recommendedNextData: string[];
 };

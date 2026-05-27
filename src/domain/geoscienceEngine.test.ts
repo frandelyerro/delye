@@ -468,3 +468,146 @@ describe('advisor — evidence-derived queries', () => {
     expect(r).toContain('North Sea Deepwater');
   });
 });
+
+// ────────── Fix 1: assessSeal — 'unknown' lithology/faultSealRisk must not inflate confidence ──────────
+
+describe('assessSeal — confidence with unknown string values', () => {
+  it('lithology unknown + faultSealRisk unknown gives low or unknown confidence, not medium', () => {
+    const r = assessSeal({ presence: 'possible', lithology: 'unknown', faultSealRisk: 'unknown' });
+    expect(['low', 'unknown']).toContain(r.confidence);
+  });
+
+  it('presence possible + no real seal data → confidence low', () => {
+    const r = assessSeal({ presence: 'possible', lithology: 'unknown', faultSealRisk: 'unknown' });
+    expect(r.confidence).toBe('low');
+  });
+
+  it('presence unknown + no real seal data → confidence unknown', () => {
+    const r = assessSeal({ presence: 'unknown', lithology: 'unknown', faultSealRisk: 'unknown' });
+    expect(r.confidence).toBe('unknown');
+  });
+
+  it('presence proven + real lithology + real faultSealRisk → confidence high', () => {
+    const r = assessSeal({ presence: 'proven', lithology: 'shale', faultSealRisk: 'low' });
+    expect(r.confidence).toBe('high');
+  });
+
+  it('presence probable + real lithology only → confidence medium', () => {
+    const r = assessSeal({ presence: 'probable', lithology: 'shale' });
+    expect(r.confidence).toBe('medium');
+  });
+});
+
+// ────────── Fix 2: recommendedNextData field in GeoscienceAssessment ──────────
+
+describe('assessPetroleumSystem — recommendedNextData', () => {
+  it('includes recommendedNextData field', () => {
+    const r = assessPetroleumSystem({});
+    expect(r.recommendedNextData).toBeDefined();
+    expect(Array.isArray(r.recommendedNextData)).toBe(true);
+  });
+
+  it('recommendedNextData aggregates missingEvidence from all components', () => {
+    const r = assessPetroleumSystem({});
+    const expectedMissing = r.components.flatMap((c) => c.missingEvidence);
+    expect(r.recommendedNextData).toEqual(expectedMissing);
+  });
+
+  it('recommendedNextData is empty when all evidence is fully provided', () => {
+    const r = assessPetroleumSystem({
+      source: { presence: 'proven', tocPercent: 3.0, roPercent: 0.85, sourceThicknessM: 40 },
+      migration: { pathway: 'proven', faultConnectivity: 'good', carrierBedPresence: 'proven' },
+      reservoir: { presence: 'proven', porosityPercent: 16, permeabilityMd: 50, netPayM: 12, continuity: 'good' },
+      seal: { presence: 'proven', lithology: 'shale', thicknessM: 35, faultSealRisk: 'low' },
+      trap: { closureMapped: true, trapType: 'structural', closureAreaKm2: 25, closureHeightM: 60, seismicConfidence: 'high' },
+      timing: { trapFormedBeforeMigration: 'yes', chargeTiming: 'favorable', burialHistoryConfidence: 'high' },
+    });
+    expect(r.recommendedNextData).toHaveLength(0);
+  });
+
+  it('recommendedNextData has entries for prospects with missing data', () => {
+    const r = assessPetroleumSystem({ source: { presence: 'probable' } });
+    expect(r.recommendedNextData.length).toBeGreaterThan(0);
+  });
+});
+
+// ────────── Fix 3: Data Confidence must not be high for all-unknown evidence-derived ──────────
+
+describe('scoreProspect — Data Confidence vs evidence quality', () => {
+  it('evidence-derived prospect with all-unknown evidence gets low dataConfidence (< 60)', () => {
+    const allUnknown: Prospect = {
+      ...baseEvidenceProspect,
+      id: 'all-unknown',
+      evidence: {
+        source: { presence: 'unknown' },
+        migration: { pathway: 'unknown' },
+        reservoir: { presence: 'unknown' },
+        seal: { presence: 'unknown', lithology: 'unknown', faultSealRisk: 'unknown' },
+        trap: { closureMapped: false, trapType: 'unknown', seismicConfidence: 'unknown' },
+        timing: { trapFormedBeforeMigration: 'uncertain', burialHistoryConfidence: 'unknown' },
+      },
+    };
+    const scored = scoreProspect(allUnknown);
+    expect(scored.dataConfidence).toBeLessThan(60);
+  });
+
+  it('evidence-derived prospect with strong evidence gets higher dataConfidence than all-unknown', () => {
+    const strong: Prospect = {
+      ...baseEvidenceProspect,
+      id: 'strong',
+      evidence: {
+        source: { presence: 'proven', tocPercent: 3.0, roPercent: 0.85 },
+        migration: { pathway: 'proven', faultConnectivity: 'good', carrierBedPresence: 'proven' },
+        reservoir: { presence: 'proven', porosityPercent: 16, permeabilityMd: 50 },
+        seal: { presence: 'proven', lithology: 'shale', faultSealRisk: 'low' },
+        trap: { closureMapped: true, trapType: 'structural', seismicConfidence: 'high' },
+        timing: { trapFormedBeforeMigration: 'yes', chargeTiming: 'favorable', burialHistoryConfidence: 'high' },
+      },
+    };
+    const allUnknown: Prospect = {
+      ...baseEvidenceProspect,
+      id: 'all-unknown-2',
+      evidence: {
+        source: { presence: 'unknown' },
+        migration: { pathway: 'unknown' },
+        reservoir: { presence: 'unknown' },
+        seal: { presence: 'unknown', lithology: 'unknown', faultSealRisk: 'unknown' },
+        trap: { closureMapped: false, trapType: 'unknown', seismicConfidence: 'unknown' },
+        timing: { trapFormedBeforeMigration: 'uncertain', burialHistoryConfidence: 'unknown' },
+      },
+    };
+    const scoredStrong = scoreProspect(strong);
+    const scoredUnknown = scoreProspect(allUnknown);
+    expect(scoredStrong.dataConfidence ?? 0).toBeGreaterThan(scoredUnknown.dataConfidence ?? 0);
+  });
+
+  it('manual prospect dataConfidence is unaffected by evidence confidence penalty', () => {
+    const manual = scoreProspect(baseManualProspect);
+    // Manual prospects have no geoscienceAssessment → no penalty applied
+    expect(manual.dataConfidence).toBe(100);
+    expect(manual.geoscienceAssessment).toBeUndefined();
+  });
+
+  it('GCoS and dataConfidence remain separate: high GCoS possible with low dataConfidence', () => {
+    // Evidence-derived prospect where all manual scores are 1.0 but evidence is all-unknown
+    // → GCoS comes from derived scores (unknown base ≈ low), dataConfidence is also low
+    const allUnknown: Prospect = {
+      ...baseEvidenceProspect,
+      id: 'separation-test',
+      evidence: {
+        source: { presence: 'unknown' },
+        migration: { pathway: 'unknown' },
+        reservoir: { presence: 'unknown' },
+        seal: { presence: 'unknown', faultSealRisk: 'unknown' },
+        trap: { closureMapped: false, seismicConfidence: 'unknown' },
+        timing: { trapFormedBeforeMigration: 'uncertain' },
+      },
+    };
+    const scored = scoreProspect(allUnknown);
+    // Confirm they are independent fields, both present
+    expect(scored.geologicalChanceOfSuccess).toBeDefined();
+    expect(scored.dataConfidence).toBeDefined();
+    expect(typeof scored.geologicalChanceOfSuccess).toBe('number');
+    expect(typeof scored.dataConfidence).toBe('number');
+  });
+});

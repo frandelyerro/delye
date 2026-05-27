@@ -145,9 +145,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
   if ((q.includes('evidence') && q.includes('missing')) || q.includes('missing evidence')) {
     const target = findMentionedProspect(q, prospects) ?? ranked[0];
     if (target.geoscienceAssessment) {
-      const missing = target.geoscienceAssessment.components
-        .flatMap((c) => c.missingEvidence)
-        .slice(0, 4);
+      const missing = target.geoscienceAssessment.recommendedNextData.slice(0, 4);
       return missing.length
         ? `Missing evidence for ${target.name}: ${missing.join('; ')}.`
         : `No missing evidence flagged for ${target.name}.`;

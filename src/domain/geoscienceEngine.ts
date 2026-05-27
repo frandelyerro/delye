@@ -247,8 +247,11 @@ export const assessSeal = (evidence: SealEvidence): ComponentAssessment => {
   }
 
   const finalScore = clamp01(score);
-  const hasSealData = evidence.lithology !== undefined && evidence.faultSealRisk !== undefined;
-  const hasSome = evidence.lithology !== undefined || evidence.faultSealRisk !== undefined;
+  // Exclude 'unknown' values — they carry no information and must not inflate confidence
+  const hasLithology = evidence.lithology !== undefined && evidence.lithology !== 'unknown';
+  const hasFaultRisk = evidence.faultSealRisk !== undefined && evidence.faultSealRisk !== 'unknown';
+  const hasSealData = hasLithology && hasFaultRisk;
+  const hasSome = hasLithology || hasFaultRisk;
   let confidence: EvidenceConfidence;
   if (evidence.presence === 'unknown' && !hasSome) confidence = 'unknown';
   else if ((evidence.presence === 'proven' || evidence.presence === 'probable') && hasSealData) confidence = 'high';
@@ -413,6 +416,7 @@ export const assessPetroleumSystem = (evidence: ProspectEvidence, targetPhase?: 
 
   const criticalRisk = [...components].sort((a, b) => a.score - b.score)[0].component as ComponentName;
   const overallConfidence = computeOverallConfidence(components);
+  const recommendedNextData = components.flatMap((c) => c.missingEvidence);
 
   const gcos = Object.values(derivedScores).reduce((acc, v) => acc * v, 1);
   const summary = `Evidence-derived assessment (phase: ${phase}). GCoS ${(gcos * 100).toFixed(1)}%. Critical risk: ${criticalRisk}. Overall confidence: ${overallConfidence}. ${components.find(c => c.negativeEvidence.length > 0)?.negativeEvidence[0] ?? ''}`.trim();
@@ -425,6 +429,7 @@ export const assessPetroleumSystem = (evidence: ProspectEvidence, targetPhase?: 
     criticalRisk,
     overallConfidence,
     summary,
+    recommendedNextData,
   };
 };
 
