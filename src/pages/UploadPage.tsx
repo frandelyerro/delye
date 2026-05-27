@@ -79,7 +79,7 @@ export function UploadPage() {
           <tbody>
             {preview.length ? preview.slice(0, 8).map((p) => (
               <tr key={p.id} className="border-t border-slate-800">
-                {previewColumns.map((column) => <td key={column} className="px-4 py-3 text-slate-300">{p[column]}</td>)}
+                {previewColumns.map((column) => <td key={column} className="px-4 py-3 text-slate-300">{String(p[column] ?? '')}</td>)}
               </tr>
             )) : (
               <tr><td colSpan={previewColumns.length} className="px-4 py-6 text-slate-500">No preview data loaded.</td></tr>

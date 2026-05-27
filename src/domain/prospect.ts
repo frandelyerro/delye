@@ -1,3 +1,5 @@
+import type { GeoscienceAssessment, ProspectEvidence, ScoringMode, TargetPhase } from './evidence';
+
 export type Priority = 'high' | 'medium' | 'low';
 export type MainRisk = 'source' | 'migration' | 'reservoir' | 'seal' | 'trap' | 'timing';
 
@@ -23,6 +25,10 @@ export type Prospect = {
   dataConfidence?: number;
   recommendation?: string;
   explanation?: string;
+  scoringMode?: ScoringMode;
+  targetPhase?: TargetPhase;
+  evidence?: ProspectEvidence;
+  geoscienceAssessment?: GeoscienceAssessment;
 };
 
 export type ProspectInput = Omit<Prospect, 'geologicalChanceOfSuccess' | 'priority' | 'mainRisk' | 'dataConfidence' | 'recommendation' | 'explanation'>;

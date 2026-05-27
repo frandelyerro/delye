@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { PieChart, Pie, Tooltip, Cell, ResponsiveContainer } from 'recharts';
 import { useProspectStore } from '../store/useProspectStore';
@@ -21,6 +22,7 @@ const riskBadgeClass = {
 
 export function DashboardPage() {
   const { prospects, filters, setFilters, deleteProspect, resetProspects } = useProspectStore();
+  const [scoringModeFilter, setScoringModeFilter] = React.useState<'' | 'manual' | 'evidence_derived'>('');
   const basins = [...new Set(prospects.map((p) => p.basin))];
   const blocks = [...new Set(prospects.map((p) => p.block))];
   const plays = [...new Set(prospects.map((p) => p.playType))];
@@ -29,7 +31,8 @@ export function DashboardPage() {
     (!filters.basin || p.basin === filters.basin) &&
     (!filters.block || p.block === filters.block) &&
     (!filters.playType || p.playType === filters.playType) &&
-    (!filters.priority || p.priority === filters.priority)
+    (!filters.priority || p.priority === filters.priority) &&
+    (!scoringModeFilter || (scoringModeFilter === 'manual' ? (!p.scoringMode || p.scoringMode === 'manual') : p.scoringMode === scoringModeFilter))
   );
   const ranked = [...filtered].sort((a, b) => (b.geologicalChanceOfSuccess ?? 0) - (a.geologicalChanceOfSuccess ?? 0));
 
@@ -83,6 +86,7 @@ export function DashboardPage() {
         <select className="rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm" value={filters.block} onChange={(e) => setFilters({ block: e.target.value })}><option value="">All blocks</option>{blocks.map((v) => <option key={v}>{v}</option>)}</select>
         <select className="rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm" value={filters.playType} onChange={(e) => setFilters({ playType: e.target.value })}><option value="">All play types</option>{plays.map((v) => <option key={v}>{v}</option>)}</select>
         <select className="rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm" value={filters.priority} onChange={(e) => setFilters({ priority: e.target.value as '' | 'high' | 'medium' | 'low' })}><option value="">All priorities</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+        <select className="rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm" value={scoringModeFilter} onChange={(e) => setScoringModeFilter(e.target.value as '' | 'manual' | 'evidence_derived')}><option value="">All scoring modes</option><option value="manual">Manual</option><option value="evidence_derived">Evidence-derived</option></select>
       </div>
     </section>
 
@@ -119,6 +123,7 @@ export function DashboardPage() {
                   <th className="px-4 py-3">Priority</th>
                   <th className="px-4 py-3">Main Risk</th>
                   <th className="px-4 py-3">Data Confidence</th>
+                  <th className="px-4 py-3">Scoring Mode</th>
                   <th className="px-4 py-3">Recommendation</th>
                   <th className="px-4 py-3">Actions</th>
                 </tr>
@@ -140,6 +145,12 @@ export function DashboardPage() {
                       <span className="inline-flex rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-medium text-slate-200">
                         {p.dataConfidence ?? 0}/100
                       </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      {p.scoringMode === 'evidence_derived'
+                        ? <span className="inline-flex rounded-full border border-cyan-700 bg-cyan-950 px-2.5 py-1 text-xs font-medium text-cyan-300">Evidence-derived</span>
+                        : <span className="inline-flex rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-medium text-slate-400">Manual</span>
+                      }
                     </td>
                     <td className="px-4 py-4"><div className="max-w-[280px] whitespace-normal leading-6 text-slate-300">{p.recommendation}</div></td>
                     <td className="px-4 py-4">

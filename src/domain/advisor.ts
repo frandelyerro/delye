@@ -115,5 +115,76 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Portfolio summary: ${prospects.length} prospects, average GCoS ${Math.round(avg * 100)}%, total unrisked resources ${resources} MMboe.`;
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", or "portfolio summary".';
+  if (q.includes('evidence-derived') || q.includes('evidence derived')) {
+    const evProspects = prospects.filter((p) => p.scoringMode === 'evidence_derived');
+    return evProspects.length
+      ? `Evidence-derived prospects (${evProspects.length}): ${evProspects.map((p) => p.name).join(', ')}.`
+      : 'No prospects are currently using evidence-derived scoring.';
+  }
+
+  if (q.includes('manual scoring') || q.includes('still manual')) {
+    const manual = prospects.filter((p) => !p.scoringMode || p.scoringMode === 'manual');
+    return manual.length
+      ? `Manual scoring prospects (${manual.length}): ${manual.map((p) => p.name).join(', ')}. Add structured evidence to enable the Geoscience Intelligence Engine.`
+      : 'All prospects are using evidence-derived scoring.';
+  }
+
+  if (q.includes('evidence supports') || (q.includes('what evidence') && q.includes('support'))) {
+    const target = findMentionedProspect(q, prospects) ?? ranked[0];
+    if (target.geoscienceAssessment) {
+      const positives = target.geoscienceAssessment.components
+        .flatMap((c) => c.positiveEvidence)
+        .slice(0, 4);
+      return positives.length
+        ? `Evidence supporting ${target.name}: ${positives.join('; ')}.`
+        : `No positive evidence flagged for ${target.name}.`;
+    }
+    return `${target.name} uses manual scoring and has no structured evidence model yet.`;
+  }
+
+  if ((q.includes('evidence') && q.includes('missing')) || q.includes('missing evidence')) {
+    const target = findMentionedProspect(q, prospects) ?? ranked[0];
+    if (target.geoscienceAssessment) {
+      const missing = target.geoscienceAssessment.components
+        .flatMap((c) => c.missingEvidence)
+        .slice(0, 4);
+      return missing.length
+        ? `Missing evidence for ${target.name}: ${missing.join('; ')}.`
+        : `No missing evidence flagged for ${target.name}.`;
+    }
+    return `${target.name} uses manual scoring. Add structured evidence to enable the Geoscience Intelligence Engine.`;
+  }
+
+  if (q.includes('need more seismic') || q.includes('more seismic') || q.includes('needs seismic')) {
+    const needSeismic = prospects.filter((p) => p.mainRisk === 'trap' || p.trapScore < 0.40);
+    return needSeismic.length
+      ? `Prospects needing more seismic data: ${needSeismic.map((p) => `${p.name} (trap score ${p.trapScore.toFixed(2)})`).join(', ')}.`
+      : 'No prospects currently flagged for additional seismic.';
+  }
+
+  if (q.includes('seal risk')) {
+    const sealRisk = prospects.filter((p) => p.mainRisk === 'seal' || p.sealScore < 0.40);
+    return sealRisk.length
+      ? `Prospects with seal risk: ${sealRisk.map((p) => `${p.name} (seal ${p.sealScore.toFixed(2)})`).join(', ')}.`
+      : 'No prospects currently flagged with critical seal risk.';
+  }
+
+  if (q.includes('timing uncertainty') || q.includes('timing risk')) {
+    const timingRisk = prospects.filter((p) => p.mainRisk === 'timing' || p.timingScore < 0.40);
+    return timingRisk.length
+      ? `Prospects with timing uncertainty: ${timingRisk.map((p) => `${p.name} (timing ${p.timingScore.toFixed(2)})`).join(', ')}.`
+      : 'No prospects currently flagged with critical timing uncertainty.';
+  }
+
+  if (q.includes('critical geoscience risk') || q.includes('critical risk')) {
+    const riskCount = prospects.reduce<Record<string, number>>((acc, p) => {
+      const risk = p.mainRisk ?? 'unknown';
+      acc[risk] = (acc[risk] ?? 0) + 1;
+      return acc;
+    }, {});
+    const [risk, count] = Object.entries(riskCount).sort((a, b) => b[1] - a[1])[0];
+    return `Critical geoscience risk: ${risk} is the main risk in ${count} prospect(s) across the portfolio.`;
+  }
+
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", or "critical geoscience risk".';
 };
