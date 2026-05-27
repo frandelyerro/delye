@@ -255,7 +255,7 @@ export function TargetingPage() {
         <h2 className="mb-3 text-sm font-semibold text-slate-200">Decision Buckets</h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {bucketConfig.map((bucket) => {
-            const bucketRecs = allRecs.filter((r) => bucket.actions.includes(r.action));
+            const bucketRecs = filtered.filter((r) => bucket.actions.includes(r.action));
             return (
               <div key={bucket.label} className={`rounded-lg border p-4 ${bucket.colorClass}`}>
                 <div className="mb-3 flex items-center justify-between">

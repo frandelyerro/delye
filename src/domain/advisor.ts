@@ -51,7 +51,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       `Data Confidence: ${target.dataConfidence ?? 0}/100. ${getGCoSInterpretation(target)} Recommended next step: ${getRecommendedNextStep(target)}`;
   }
 
-  if (q.includes('main risk')) {
+  if (q.includes('main risk') && !q.includes('portfolio risk')) {
     const riskCount = prospects.reduce<Record<string, number>>((acc, p) => {
       const risk = p.mainRisk ?? 'unknown';
       acc[risk] = (acc[risk] ?? 0) + 1;
@@ -75,7 +75,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       : 'No medium/low-priority prospects currently require additional data by this rule.';
   }
 
-  if (q.includes('data confidence') || q.includes('confidence')) {
+  if ((q.includes('data confidence') || q.includes('confidence')) && !q.includes('high gcos')) {
     const target = findMentionedProspect(q, prospects);
     if (target) {
       return `${target.name} has Data Confidence ${target.dataConfidence ?? 0}/100. Data Confidence reflects the completeness and consistency of the inputs used in the scoring model.`;

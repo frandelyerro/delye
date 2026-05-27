@@ -137,7 +137,7 @@ export function DashboardPage() {
         </div>
         {ranked.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1440px] text-sm">
+            <table className="w-full min-w-[1900px] text-sm">
               <thead className="bg-slate-950/70">
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-3">Rank</th>

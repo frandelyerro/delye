@@ -81,15 +81,18 @@ export const getRecommendedAction = (prospect: Prospect): RecommendedAction => {
   // Hard floor — commercial or geological viability too low
   if (prospect.commercialScore < 30 || gcos < 0.05) return 'do_not_prioritize';
 
+  // Explicit data-confidence gate: promising GCoS but not enough confidence to commit to a well.
+  // Covers dc in the 50–69 range that wouldn't reach tier_1 anyway, but also any dc < 50.
+  // This ensures high GCoS + low Data Confidence never produces drill_candidate even implicitly.
+  if (gcos >= 0.35 && dc < 70) return 'acquire_additional_seismic';
+  if (gcos >= 0.25 && dc < 50) return 'acquire_additional_seismic';
+
   // Tier 1 already guarantees dc >= 70, so drill_candidate is safe here
   if (tier === 'tier_1') {
     // Very large accumulation — needs multi-well appraisal before full commitment
     if (prospect.resourceEstimate >= 200 && prospect.commercialScore >= 80) return 'appraisal_candidate';
     return 'drill_candidate';
   }
-
-  // Good GCoS but insufficient data confidence → must acquire data, never drill
-  if (gcos >= 0.25 && dc < 50) return 'acquire_additional_seismic';
 
   // Risk-specific de-risking (applies to tier_2 / tier_3)
   if (prospect.mainRisk === 'trap') return 'acquire_additional_seismic';
