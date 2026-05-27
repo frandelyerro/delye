@@ -11,6 +11,14 @@ import {
 import type { ComponentAssessment, EvidenceConfidence } from '../domain/evidence';
 import { useProspectStore } from '../store/useProspectStore';
 import { exportProspectReport } from '../utils/exportReport';
+import {
+  getTargetingRecommendation,
+  getRecommendedActionLabel,
+  getTierLabel,
+  type ProspectivityTier,
+  type RecommendedAction,
+} from '../domain/recommendationEngine';
+import { assessExplorationMaturity } from '../domain/earlyExploration';
 
 const priorityBadgeClass = {
   high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
@@ -40,6 +48,26 @@ const evidenceScoreBadge = (score: number) => {
   return 'border-red-500/30 bg-red-500/15 text-red-200';
 };
 
+const tierBadgeClass: Record<ProspectivityTier, string> = {
+  tier_1: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+  tier_2: 'border-cyan-500/40 bg-cyan-500/15 text-cyan-200',
+  tier_3: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+  tier_4: 'border-slate-600 bg-slate-800/60 text-slate-400',
+};
+
+const actionBadgeClass: Record<RecommendedAction, string> = {
+  drill_candidate: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+  appraisal_candidate: 'border-teal-500/40 bg-teal-500/15 text-teal-200',
+  acquire_additional_seismic: 'border-sky-500/40 bg-sky-500/15 text-sky-200',
+  validate_reservoir_quality: 'border-indigo-500/40 bg-indigo-500/15 text-indigo-200',
+  validate_seal_continuity: 'border-violet-500/40 bg-violet-500/15 text-violet-200',
+  improve_timing_model: 'border-orange-500/40 bg-orange-500/15 text-orange-200',
+  acreage_review: 'border-cyan-700/40 bg-cyan-900/30 text-cyan-300',
+  farm_in_candidate: 'border-blue-500/40 bg-blue-500/15 text-blue-200',
+  watchlist: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+  do_not_prioritize: 'border-red-500/40 bg-red-500/15 text-red-300',
+};
+
 export function ProspectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -67,6 +95,9 @@ export function ProspectDetailPage() {
     ['Main Risk', prospect.mainRisk],
     ['Data Confidence', `${dataConfidence}/100`]
   ];
+
+  const targeting = getTargetingRecommendation(prospect);
+  const maturity = assessExplorationMaturity(prospect);
 
   return <div className="space-y-6">
     <section className="rounded-lg border border-slate-800 bg-slate-900 p-6">
@@ -222,6 +253,49 @@ export function ProspectDetailPage() {
       <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
         <h2 className="text-lg font-semibold">AI Explanation</h2>
         <p className="mt-4 text-sm leading-7 text-slate-300">{prospect.explanation}</p>
+      </div>
+    </section>
+
+    <section className="rounded-lg border border-indigo-900 bg-slate-900 p-5">
+      <h2 className="text-lg font-semibold text-indigo-200">Targeting Recommendation</h2>
+      <p className="mt-1 text-xs text-slate-400">AI-assisted petroleum targeting — heuristic rules, not ML. Does not replace technical interpretation.</p>
+      <div className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded border border-slate-800 bg-slate-950 p-3">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Prospectivity Tier</div>
+          <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${tierBadgeClass[targeting.tier]}`}>{getTierLabel(targeting.tier)}</span>
+        </div>
+        <div className="rounded border border-slate-800 bg-slate-950 p-3">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Recommended Action</div>
+          <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${actionBadgeClass[targeting.action]}`}>{getRecommendedActionLabel(targeting.action)}</span>
+        </div>
+        <div className="rounded border border-slate-800 bg-slate-950 p-3">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Exploration Stage</div>
+          <p className="mt-2 text-sm text-slate-200">{maturity.stageLabel}</p>
+        </div>
+        <div className="rounded border border-slate-800 bg-slate-950 p-3">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Readiness Score</div>
+          <p className="mt-2 text-sm font-semibold text-slate-200">{maturity.readinessScore}/100</p>
+        </div>
+      </div>
+      <div className="mt-4 space-y-3">
+        <div className="rounded border border-slate-800 bg-slate-950 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Rationale</div>
+          <p className="mt-2 text-sm leading-6 text-slate-300">{targeting.rationale}</p>
+        </div>
+        <div className="rounded border border-slate-800 bg-slate-950 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Next Best Step</div>
+          <p className="mt-2 text-sm leading-6 text-slate-300">{targeting.nextBestStep}</p>
+        </div>
+        {targeting.riskFlags.length > 0 && (
+          <div className="rounded border border-amber-900/50 bg-amber-950/20 p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-300">Risk Flags</div>
+            <ul className="space-y-1">
+              {targeting.riskFlags.map((flag, i) => (
+                <li key={i} className="text-xs text-slate-300">⚠ {flag}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </section>
 

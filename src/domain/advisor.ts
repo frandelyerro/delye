@@ -7,6 +7,14 @@ import {
   getStrongestComponents,
   getWeakestComponent
 } from './explainability';
+import {
+  getPortfolioRecommendations,
+  getRecommendedAction,
+  getRecommendedActionLabel,
+  getProspectivityTier,
+  getTierLabel,
+} from './recommendationEngine';
+import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk } from './portfolioIntelligence';
 
 const findMentionedProspect = (question: string, prospects: Prospect[]): Prospect | undefined => {
   const lowerQuestion = question.toLowerCase();
@@ -43,7 +51,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       `Data Confidence: ${target.dataConfidence ?? 0}/100. ${getGCoSInterpretation(target)} Recommended next step: ${getRecommendedNextStep(target)}`;
   }
 
-  if (q.includes('main risk')) {
+  if (q.includes('main risk') && !q.includes('portfolio risk')) {
     const riskCount = prospects.reduce<Record<string, number>>((acc, p) => {
       const risk = p.mainRisk ?? 'unknown';
       acc[risk] = (acc[risk] ?? 0) + 1;
@@ -67,7 +75,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       : 'No medium/low-priority prospects currently require additional data by this rule.';
   }
 
-  if (q.includes('data confidence') || q.includes('confidence')) {
+  if ((q.includes('data confidence') || q.includes('confidence')) && !q.includes('high gcos')) {
     const target = findMentionedProspect(q, prospects);
     if (target) {
       return `${target.name} has Data Confidence ${target.dataConfidence ?? 0}/100. Data Confidence reflects the completeness and consistency of the inputs used in the scoring model.`;
@@ -184,5 +192,81 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Critical geoscience risk: ${risk} is the main risk in ${count} prospect(s) across the portfolio.`;
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", or "critical geoscience risk".';
+  // ---- Targeting Workbench queries ----
+
+  if (q.includes('drill first') || q.includes('where should we drill') || q.includes('drill candidates') || q.includes('which prospects are drill')) {
+    const recs = getPortfolioRecommendations(prospects);
+    const drillCandidates = recs.filter((r) => r.action === 'drill_candidate');
+    return drillCandidates.length
+      ? `Drill candidates: ${drillCandidates.map((r) => `${r.prospectName} (T1, GCoS ${Math.round((prospects.find((p) => p.id === r.prospectId)?.geologicalChanceOfSuccess ?? 0) * 100)}%)`).join(', ')}. All quality gates met — advance to well planning.`
+      : 'No drill candidates in the current portfolio. Prospects require additional data or de-risking before FID.';
+  }
+
+  if (q.includes('de-risk') || q.includes('derisk') || q.includes('before drill') || q.includes('before drilling')) {
+    const recs = getPortfolioRecommendations(prospects);
+    const deRisk = recs.filter((r) => ['acquire_additional_seismic', 'validate_reservoir_quality', 'validate_seal_continuity', 'improve_timing_model'].includes(r.action));
+    return deRisk.length
+      ? `Prospects to de-risk before drilling: ${deRisk.map((r) => `${r.prospectName} (${getRecommendedActionLabel(r.action)})`).join('; ')}.`
+      : 'No prospects currently flagged for de-risking.';
+  }
+
+  if (q.includes('farm-in') || q.includes('farm in') || q.includes('farmin')) {
+    const recs = getPortfolioRecommendations(prospects);
+    const farmIn = recs.filter((r) => r.action === 'farm_in_candidate');
+    return farmIn.length
+      ? `Farm-in candidates: ${farmIn.map((r) => `${r.prospectName} (${prospects.find((p) => p.id === r.prospectId)?.resourceEstimate ?? 0} MMboe)`).join(', ')}.`
+      : 'No prospects currently classified as farm-in candidates.';
+  }
+
+  if (q.includes('acreage review') || q.includes('acreage')) {
+    const recs = getPortfolioRecommendations(prospects);
+    const acreage = recs.filter((r) => r.action === 'acreage_review');
+    return acreage.length
+      ? `Acreage review candidates: ${acreage.map((r) => r.prospectName).join(', ')}.`
+      : 'No prospects currently flagged for acreage review.';
+  }
+
+  if (q.includes('tier 1') || q.includes('tier1')) {
+    const tier1 = prospects.filter((p) => getProspectivityTier(p) === 'tier_1');
+    return tier1.length
+      ? `Tier 1 targets (${tier1.length}): ${tier1.map((p) => `${p.name} (GCoS ${Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%, DC ${p.dataConfidence ?? 0}/100)`).join('; ')}.`
+      : 'No Tier 1 prospects in the current portfolio.';
+  }
+
+  if (q.includes('tier 2') || q.includes('tier2')) {
+    const tier2 = prospects.filter((p) => getProspectivityTier(p) === 'tier_2');
+    return tier2.length
+      ? `Tier 2 targets (${tier2.length}): ${tier2.map((p) => p.name).join(', ')}.`
+      : 'No Tier 2 prospects in the current portfolio.';
+  }
+
+  if (q.includes('high gcos') && q.includes('low') && (q.includes('confidence') || q.includes('data'))) {
+    const flagged = getHighGCoSLowConfidenceProspects(prospects);
+    return flagged.length
+      ? `High GCoS / low data confidence prospects: ${flagged.map((p) => `${p.name} (GCoS ${Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%, DC ${p.dataConfidence ?? 0}/100)`).join('; ')}. Do not advance to drill without additional data.`
+      : 'No prospects currently flagged with high GCoS and low data confidence.';
+  }
+
+  if (q.includes('main portfolio risk') || q.includes('portfolio risk')) {
+    const mainRisk = getPortfolioMainRisk(prospects);
+    const count = prospects.filter((p) => p.mainRisk === mainRisk).length;
+    return `Main portfolio risk: ${mainRisk} is the dominant risk factor in ${count} prospect(s). Target ${mainRisk}-specific data acquisition to achieve the largest risk reduction across the portfolio.`;
+  }
+
+  if (q.includes('what should we do next') || q.includes('next as an exploration team') || q.includes('exploration team')) {
+    const recs = getPortfolioRecommendations(prospects);
+    const drillCount = recs.filter((r) => r.action === 'drill_candidate').length;
+    const deRiskCount = recs.filter((r) => ['acquire_additional_seismic', 'validate_reservoir_quality', 'validate_seal_continuity', 'improve_timing_model'].includes(r.action)).length;
+    const mainRisk = getPortfolioMainRisk(prospects);
+    const topProspect = recs[0];
+    const lines = [];
+    if (drillCount) lines.push(`${drillCount} drill candidate${drillCount > 1 ? 's' : ''} ready for well planning.`);
+    if (deRiskCount) lines.push(`${deRiskCount} prospect${deRiskCount > 1 ? 's' : ''} require ${mainRisk}-risk reduction before upgrade.`);
+    const highLowDC = getHighGCoSLowConfidenceProspects(prospects);
+    if (highLowDC.length) lines.push(`${highLowDC.length} prospect${highLowDC.length > 1 ? 's' : ''} with high GCoS but low data confidence — acquire data before committing.`);
+    if (topProspect) lines.push(`Top-ranked prospect is ${topProspect.prospectName}: ${getRecommendedActionLabel(topProspect.action)}.`);
+    return lines.length ? lines.join(' ') : 'Portfolio analysis inconclusive — review prospect data inputs.';
+  }
+
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", or "what should we do next as an exploration team".';
 };

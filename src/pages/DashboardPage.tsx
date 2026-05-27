@@ -2,6 +2,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { PieChart, Pie, Tooltip, Cell, ResponsiveContainer } from 'recharts';
 import { useProspectStore } from '../store/useProspectStore';
+import {
+  getProspectivityTier,
+  getRecommendedAction,
+  getRecommendedActionLabel,
+  type ProspectivityTier,
+  type RecommendedAction,
+} from '../domain/recommendationEngine';
+import { getExplorationStage, getExplorationStageLabel } from '../domain/earlyExploration';
 
 const colors = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
 
@@ -18,6 +26,26 @@ const riskBadgeClass = {
   seal: 'border-violet-500/30 bg-violet-500/15 text-violet-200',
   trap: 'border-rose-500/30 bg-rose-500/15 text-rose-200',
   timing: 'border-orange-500/30 bg-orange-500/15 text-orange-200'
+};
+
+const tierBadgeClass: Record<ProspectivityTier, string> = {
+  tier_1: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+  tier_2: 'border-cyan-500/40 bg-cyan-500/15 text-cyan-200',
+  tier_3: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+  tier_4: 'border-slate-600 bg-slate-800/60 text-slate-400',
+};
+
+const actionBadgeClass: Record<RecommendedAction, string> = {
+  drill_candidate: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+  appraisal_candidate: 'border-teal-500/40 bg-teal-500/15 text-teal-200',
+  acquire_additional_seismic: 'border-sky-500/40 bg-sky-500/15 text-sky-200',
+  validate_reservoir_quality: 'border-indigo-500/40 bg-indigo-500/15 text-indigo-200',
+  validate_seal_continuity: 'border-violet-500/40 bg-violet-500/15 text-violet-200',
+  improve_timing_model: 'border-orange-500/40 bg-orange-500/15 text-orange-200',
+  acreage_review: 'border-cyan-700/40 bg-cyan-900/30 text-cyan-300',
+  farm_in_candidate: 'border-blue-500/40 bg-blue-500/15 text-blue-200',
+  watchlist: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+  do_not_prioritize: 'border-red-500/40 bg-red-500/15 text-red-300',
 };
 
 export function DashboardPage() {
@@ -109,7 +137,7 @@ export function DashboardPage() {
         </div>
         {ranked.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1440px] text-sm">
+            <table className="w-full min-w-[1900px] text-sm">
               <thead className="bg-slate-950/70">
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-3">Rank</th>
@@ -124,6 +152,9 @@ export function DashboardPage() {
                   <th className="px-4 py-3">Main Risk</th>
                   <th className="px-4 py-3">Data Confidence</th>
                   <th className="px-4 py-3">Scoring Mode</th>
+                  <th className="px-4 py-3">Prospectivity Tier</th>
+                  <th className="px-4 py-3">Recommended Action</th>
+                  <th className="px-4 py-3">Exploration Stage</th>
                   <th className="px-4 py-3">Recommendation</th>
                   <th className="px-4 py-3">Actions</th>
                 </tr>
@@ -151,6 +182,19 @@ export function DashboardPage() {
                         ? <span className="inline-flex rounded-full border border-cyan-700 bg-cyan-950 px-2.5 py-1 text-xs font-medium text-cyan-300">Evidence-derived</span>
                         : <span className="inline-flex rounded-full border border-slate-700 bg-slate-950 px-2.5 py-1 text-xs font-medium text-slate-400">Manual</span>
                       }
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${tierBadgeClass[getProspectivityTier(p)]}`}>
+                        T{getProspectivityTier(p).split('_')[1]}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${actionBadgeClass[getRecommendedAction(p)]}`}>
+                        {getRecommendedActionLabel(getRecommendedAction(p))}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="text-xs text-slate-400">{getExplorationStageLabel(getExplorationStage(p))}</span>
                     </td>
                     <td className="px-4 py-4"><div className="max-w-[280px] whitespace-normal leading-6 text-slate-300">{p.recommendation}</div></td>
                     <td className="px-4 py-4">
