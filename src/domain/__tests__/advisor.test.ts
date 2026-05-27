@@ -13,9 +13,12 @@ describe('advisor explainability responses', () => {
     expect(response).toContain('Data Confidence');
   });
 
-  it('returns prospects with low data confidence when asked', () => {
+  it('returns low-confidence prospects when asked — East Siberia Lead flagged after penalty', () => {
     const response = getAdvisorResponse('Which prospects have low data confidence?', prospects);
-    expect(response).toBe('No prospects currently have low data confidence.');
+    // East Siberia Lead uses all-unknown evidence → overallConfidence 'unknown' → -50 penalty applied,
+    // correctly placing it below the 50/100 threshold (was incorrectly 95/100 before the fix).
+    expect(response).toContain('East Siberia Lead');
+    expect(response).toMatch(/\(\d+\/100\)/);
   });
 
   it('summarizes weakest component across the portfolio', () => {

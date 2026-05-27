@@ -10,6 +10,7 @@ PetroTarget AI is a frontend MVP for petroleum exploration teams. It ranks prosp
 - Adds scoring explainability and Data Confidence indicators locally.
 - Ranks prospects by GCoS descending.
 - Provides prospect detail pages, portfolio map, rule-based advisor, CSV/JSON import, and JSON report export.
+- Supports **evidence-derived scoring** via the Geoscience Intelligence Engine: structured geological evidence per component (TOC, Ro, porosity, permeability, fault seal risk, seismic confidence, charge timing, etc.) derives component scores deterministically. See [docs/geoscience-engine.md](docs/geoscience-engine.md).
 - No backend, authentication, billing, database, real ML model, or LLM integration.
 
 ## Install
@@ -141,6 +142,13 @@ The product explains each scored prospect with:
 - CSV and JSON imports are validated locally.
 - Imports replace the current prospect portfolio by default.
 - Append mode exists in store code for a future UX mode but is not enabled in the UI.
+
+## Documentation
+
+- [Geoscience Intelligence Engine](docs/geoscience-engine.md) — evidence-derived scoring rules, component parameters, limitations and calibration roadmap
+- [Petroleum Expert Agent](docs/PETROLEUM_EXPERT_AGENT.md) — technical guardrails and product positioning
+- [Petroleum Review Checklist](docs/PETROLEUM_REVIEW_CHECKLIST.md) — pre-merge technical review checklist
+- [Petroleum Technical Parameters](docs/PETROLEUM_TECHNICAL_PARAMETERS.md) — current heuristic parameters and gap inventory
 
 ## Short Roadmap
 

@@ -8,6 +8,7 @@ import {
   getStrongestComponents,
   getWeakestComponent
 } from '../domain/explainability';
+import type { ComponentAssessment, EvidenceConfidence } from '../domain/evidence';
 import { useProspectStore } from '../store/useProspectStore';
 import { exportProspectReport } from '../utils/exportReport';
 
@@ -29,7 +30,14 @@ const riskBadgeClass = {
 const confidenceBadgeClass = {
   high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
   medium: 'border-amber-500/30 bg-amber-500/15 text-amber-200',
-  low: 'border-red-500/30 bg-red-500/15 text-red-200'
+  low: 'border-red-500/30 bg-red-500/15 text-red-200',
+  unknown: 'border-slate-600 bg-slate-800 text-slate-400'
+};
+
+const evidenceScoreBadge = (score: number) => {
+  if (score >= 0.70) return 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200';
+  if (score >= 0.45) return 'border-amber-500/30 bg-amber-500/15 text-amber-200';
+  return 'border-red-500/30 bg-red-500/15 text-red-200';
 };
 
 export function ProspectDetailPage() {
@@ -216,5 +224,102 @@ export function ProspectDetailPage() {
         <p className="mt-4 text-sm leading-7 text-slate-300">{prospect.explanation}</p>
       </div>
     </section>
+
+    {prospect.scoringMode === 'evidence_derived' && prospect.geoscienceAssessment ? (
+      <>
+        <section className="rounded-lg border border-cyan-900 bg-slate-900 p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-cyan-200">Geoscience Intelligence Engine</h2>
+              <p className="mt-1 text-xs text-slate-400">Evidence-derived petroleum system assessment</p>
+            </div>
+            <span className="inline-flex rounded-full border border-cyan-700 bg-cyan-950 px-3 py-1 text-xs font-medium text-cyan-300">Evidence-derived</span>
+          </div>
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded border border-slate-800 bg-slate-950 p-3">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Target Phase</div>
+              <p className="mt-2 capitalize text-slate-200">{prospect.geoscienceAssessment.targetPhase}</p>
+            </div>
+            <div className="rounded border border-slate-800 bg-slate-950 p-3">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Critical Risk</div>
+              <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${riskBadgeClass[prospect.geoscienceAssessment.criticalRisk]}`}>{prospect.geoscienceAssessment.criticalRisk}</span>
+            </div>
+            <div className="rounded border border-slate-800 bg-slate-950 p-3">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Overall Confidence</div>
+              <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${confidenceBadgeClass[prospect.geoscienceAssessment.overallConfidence as EvidenceConfidence]}`}>{prospect.geoscienceAssessment.overallConfidence}</span>
+            </div>
+            <div className="rounded border border-slate-800 bg-slate-950 p-3 md:col-span-2 xl:col-span-1">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Scoring Mode</div>
+              <p className="mt-2 text-slate-200">Evidence-derived</p>
+            </div>
+            <div className="rounded border border-slate-800 bg-slate-950 p-3 md:col-span-2">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Assessment Summary</div>
+              <p className="mt-2 leading-6 text-slate-300">{prospect.geoscienceAssessment.summary}</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+          <h2 className="text-lg font-semibold">Evidence Matrix</h2>
+          <p className="mt-1 text-xs text-slate-400">Per-component geoscience assessment — positive, negative and missing evidence</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {prospect.geoscienceAssessment.components.map((c: ComponentAssessment) => (
+              <div key={c.component} className="rounded border border-slate-800 bg-slate-950 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold capitalize text-slate-200">{c.component}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${evidenceScoreBadge(c.score)}`}>{(c.score * 100).toFixed(0)}%</span>
+                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${confidenceBadgeClass[c.confidence as EvidenceConfidence]}`}>{c.confidence}</span>
+                  </div>
+                </div>
+                <p className="text-xs leading-5 text-slate-400">{c.rationale}</p>
+                {c.positiveEvidence.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-emerald-400 mb-1">Positive</div>
+                    <ul className="space-y-0.5">{c.positiveEvidence.map((e, i) => <li key={i} className="text-xs text-slate-300">✓ {e}</li>)}</ul>
+                  </div>
+                )}
+                {c.negativeEvidence.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-red-400 mb-1">Negative</div>
+                    <ul className="space-y-0.5">{c.negativeEvidence.map((e, i) => <li key={i} className="text-xs text-slate-300">✗ {e}</li>)}</ul>
+                  </div>
+                )}
+                {c.missingEvidence.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-amber-400 mb-1">Missing data</div>
+                    <ul className="space-y-0.5">{c.missingEvidence.map((e, i) => <li key={i} className="text-xs text-slate-500">? {e}</li>)}</ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+          <h2 className="text-lg font-semibold">Recommended Next Data</h2>
+          <p className="mt-1 mb-4 text-xs text-slate-400">Data gaps identified by the Geoscience Intelligence Engine</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {prospect.geoscienceAssessment.components
+              .filter((c: ComponentAssessment) => c.missingEvidence.length > 0)
+              .map((c: ComponentAssessment) => (
+                <div key={c.component} className="rounded border border-amber-900/40 bg-amber-950/20 p-3">
+                  <div className="text-xs font-semibold capitalize text-amber-300 mb-2">{c.component}</div>
+                  <ul className="space-y-1">{c.missingEvidence.map((e, i) => <li key={i} className="text-xs text-slate-300">→ {e}</li>)}</ul>
+                </div>
+              ))
+            }
+          </div>
+        </section>
+      </>
+    ) : (
+      <section className="rounded-lg border border-slate-700 bg-slate-900/50 p-5">
+        <h2 className="text-lg font-semibold text-slate-400">Geoscience Intelligence Engine</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-500">
+          This prospect currently uses manual scoring. Add structured evidence to enable the Geoscience Intelligence Engine,
+          the Evidence Matrix and the Recommended Next Data sections.
+        </p>
+      </section>
+    )}
   </div>;
 }
