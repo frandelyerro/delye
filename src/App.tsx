@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { MapPage } from './pages/MapPage';
 import { ProspectDetailPage } from './pages/ProspectDetailPage';
 import { ProspectFormPage } from './pages/ProspectFormPage';
+import { TargetingPage } from './pages/TargetingPage';
 import { UploadPage } from './pages/UploadPage';
 
 export function App() {
@@ -14,6 +15,7 @@ export function App() {
         <Route path="/" element={<DashboardPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/map" element={<MapPage />} />
+        <Route path="/targeting" element={<TargetingPage />} />
         <Route path="/advisor" element={<AdvisorPage />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/prospects/new" element={<ProspectFormPage />} />

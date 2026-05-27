@@ -3,9 +3,10 @@ import { Link, useLocation } from 'react-router-dom';
 
 const nav = [
   { to: '/', label: 'Dashboard' },
+  { to: '/targeting', label: 'AI Targeting' },
   { to: '/map', label: 'Map' },
   { to: '/advisor', label: 'Advisor' },
-  { to: '/upload', label: 'Upload' }
+  { to: '/upload', label: 'Upload' },
 ];
 
 export function SidebarLayout({ children }: PropsWithChildren) {
