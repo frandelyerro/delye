@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockProspects } from '../data/mockProspects';
 import { Prospect } from '../domain/prospect';
 import { scoreProspects } from '../domain/scoring';
+import { createDefaultEvidence } from '../domain/evidenceDefaults';
+import { getRecommendedAction } from '../domain/recommendationEngine';
 import { useProspectStore } from './useProspectStore';
 
 const sample: Prospect = {
@@ -94,6 +96,95 @@ describe('useProspectStore portfolio behavior', () => {
     expect(useProspectStore.getState().prospects).toHaveLength(mockProspects.length);
     expect(useProspectStore.getState().prospects[0].geologicalChanceOfSuccess).toBeDefined();
     expect(localStorage.removeItem).toHaveBeenCalledWith('petrotarget-ai:prospects');
+  });
+
+  it('creates an evidence-derived prospect and preserves evidence after scoring', () => {
+    useProspectStore.setState({ prospects: [] });
+    const evidenceProspect: Prospect = {
+      ...sample,
+      id: 'ev1',
+      name: 'Evidence Test',
+      scoringMode: 'evidence_derived',
+      targetPhase: 'oil',
+      evidence: {
+        ...createDefaultEvidence(),
+        source: { presence: 'proven', tocPercent: 3.5, sources: ['well'] },
+      },
+    };
+    useProspectStore.getState().createProspect(evidenceProspect);
+    const stored = useProspectStore.getState().prospects.find((p) => p.id === 'ev1');
+    expect(stored).toBeDefined();
+    expect(stored!.scoringMode).toBe('evidence_derived');
+    expect(stored!.evidence).toBeDefined();
+    expect(stored!.evidence!.source!.presence).toBe('proven');
+    // Scores should be engine-derived, not the placeholder 0.8s
+    expect(stored!.geologicalChanceOfSuccess).toBeDefined();
+    expect(stored!.geoscienceAssessment).toBeDefined();
+  });
+
+  it('manual prospect save is unchanged — no evidence or geoscienceAssessment', () => {
+    useProspectStore.setState({ prospects: [] });
+    useProspectStore.getState().createProspect({ ...sample, scoringMode: 'manual' });
+    const stored = useProspectStore.getState().prospects.find((p) => p.id === 'x1');
+    expect(stored!.scoringMode).toBe('manual');
+    expect(stored!.geoscienceAssessment).toBeUndefined();
+  });
+
+  it('updating evidence-derived prospect re-derives scores from new evidence', () => {
+    const baseEvidence = createDefaultEvidence();
+    const evidenceProspect: Prospect = {
+      ...sample,
+      id: 'ev2',
+      name: 'Evidence Update Test',
+      scoringMode: 'evidence_derived',
+      targetPhase: 'oil',
+      evidence: baseEvidence,
+    };
+    useProspectStore.getState().replaceProspects([evidenceProspect]);
+    const before = useProspectStore.getState().prospects[0].geologicalChanceOfSuccess ?? 0;
+
+    const updatedEvidence = {
+      ...baseEvidence,
+      source: { presence: 'proven' as const, tocPercent: 4.0, roPercent: 0.8, sources: ['well' as const] },
+      reservoir: { presence: 'proven' as const, porosityPercent: 22, permeabilityMd: 150, sources: ['well' as const] },
+    };
+    useProspectStore.getState().updateProspect('ev2', {
+      ...evidenceProspect,
+      evidence: updatedEvidence,
+    });
+    const after = useProspectStore.getState().prospects[0].geologicalChanceOfSuccess ?? 0;
+    expect(after).toBeGreaterThan(before);
+  });
+
+  it('evidence-derived prospect persists and reloads with evidence intact', () => {
+    const localStorage = window.localStorage;
+    const evidenceProspect: Prospect = {
+      ...sample,
+      id: 'ev3',
+      scoringMode: 'evidence_derived',
+      evidence: { ...createDefaultEvidence(), source: { presence: 'probable', sources: ['seismic'] } },
+    };
+    useProspectStore.getState().replaceProspects([evidenceProspect]);
+    expect(localStorage.setItem).toHaveBeenCalled();
+
+    useProspectStore.setState({ prospects: [] });
+    useProspectStore.getState().loadFromStorage();
+    const reloaded = useProspectStore.getState().prospects.find((p) => p.id === 'ev3');
+    expect(reloaded!.scoringMode).toBe('evidence_derived');
+    expect(reloaded!.evidence!.source!.presence).toBe('probable');
+  });
+
+  it('high GCoS + low data confidence never produces drill_candidate (targeting regression)', () => {
+    const highGcosLowDC: Prospect = {
+      ...sample,
+      id: 'reg1',
+      sourceScore: 0.9, migrationScore: 0.9, reservoirScore: 0.9,
+      sealScore: 0.9, trapScore: 0.9, timingScore: 0.9,
+      commercialScore: 80,
+      geologicalChanceOfSuccess: 0.531441,
+      dataConfidence: 35,
+    };
+    expect(getRecommendedAction(highGcosLowDC)).not.toBe('drill_candidate');
   });
 
   it('persists and loads prospects from localStorage', () => {

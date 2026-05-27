@@ -12,6 +12,7 @@ PetroTarget AI is a frontend MVP for petroleum exploration teams. It ranks prosp
 - Provides prospect detail pages, portfolio map, rule-based advisor, CSV/JSON import, and JSON report export.
 - Supports **evidence-derived scoring** via the Geoscience Intelligence Engine: structured geological evidence per component (TOC, Ro, porosity, permeability, fault seal risk, seismic confidence, charge timing, etc.) derives component scores deterministically. See [docs/geoscience-engine.md](docs/geoscience-engine.md).
 - Includes the **AI Targeting Workbench** (`/targeting`): Prospectivity Tiers (T1–T4), Recommended Actions (drill candidate → do not prioritize), Exploration Stage classification, Portfolio Intelligence summary, and 11 new Advisor queries. See [docs/ai-targeting-workbench.md](docs/ai-targeting-workbench.md).
+- Supports **evidence editing**: switch any prospect between manual and evidence-derived scoring directly in the Create/Edit form. Fill structured petroleum system evidence per component (source, migration, reservoir, seal, trap, timing) and see a live derived scoring preview before saving. See [docs/geoscience-engine.md#editing-structured-evidence](docs/geoscience-engine.md#editing-structured-evidence).
 - No backend, authentication, billing, database, real ML model, or LLM integration.
 
 ## Install
