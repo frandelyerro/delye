@@ -9,12 +9,13 @@ PetroTarget AI is a frontend MVP for petroleum exploration teams. It ranks prosp
 - Calculates Geological Chance of Success (GCoS) locally.
 - Adds scoring explainability and Data Confidence indicators locally.
 - Ranks prospects by GCoS descending.
-- Provides prospect detail pages, portfolio map, rule-based advisor, CSV/JSON import, and JSON report export.
+- Provides prospect detail pages, portfolio map, rule-based advisor, CSV/JSON import, and structured report export (JSON and Markdown).
 - Supports **evidence-derived scoring** via the Geoscience Intelligence Engine: structured geological evidence per component (TOC, Ro, porosity, permeability, fault seal risk, seismic confidence, charge timing, etc.) derives component scores deterministically. See [docs/geoscience-engine.md](docs/geoscience-engine.md).
 - Includes the **AI Targeting Workbench** (`/targeting`): Prospectivity Tiers (T1–T4), Recommended Actions (drill candidate → do not prioritize), Exploration Stage classification, Portfolio Intelligence summary, and 11 new Advisor queries. See [docs/ai-targeting-workbench.md](docs/ai-targeting-workbench.md).
 - Supports **evidence editing**: switch any prospect between manual and evidence-derived scoring directly in the Create/Edit form. Fill structured petroleum system evidence per component (source, migration, reservoir, seal, trap, timing) and see a live derived scoring preview before saving. See [docs/geoscience-engine.md#editing-structured-evidence](docs/geoscience-engine.md#editing-structured-evidence).
 - Includes **Decision Economics**: screening-level EMV model (GCoS × Net Revenue − CAPEX) with economic grade (strong/moderate/weak/negative), decision signal, risked/unrisked resource breakdown, and per-prospect assumption overrides. See [docs/decision-economics.md](docs/decision-economics.md).
 - Includes **Backend Foundation**: optional Supabase integration via `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` env vars. Without credentials, all data persists to localStorage. With credentials, prospects sync to a Supabase PostgreSQL table. See [docs/backend-foundation.md](docs/backend-foundation.md).
+- Includes **Reports v1**: export full `ProspectReport` and `PortfolioReport` as JSON or Markdown from the Prospect Detail page and the AI Targeting Workbench. Includes executive summaries, petroleum system scores, targeting recommendations, economics, geoscience assessments, and key data gaps. The Geo AI Advisor understands report queries ("generate a summary report", "summarize this portfolio", "present to management", "key data gaps"). See [docs/reports.md](docs/reports.md).
 
 ## Backend Foundation
 

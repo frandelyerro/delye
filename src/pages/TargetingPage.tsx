@@ -15,6 +15,7 @@ import { getExplorationStage, getExplorationStageLabel } from '../domain/earlyEx
 import { getPortfolioSummary } from '../domain/portfolioIntelligence';
 import { getDecisionSignalLabel } from '../domain/economics';
 import type { EconomicAssessment } from '../domain/economicTypes';
+import { exportPortfolioReportJson, exportPortfolioReportMarkdown } from '../utils/exportReport';
 
 const tierBadge: Record<ProspectivityTier, string> = {
   tier_1: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
@@ -115,11 +116,31 @@ export function TargetingPage() {
   return (
     <div className="space-y-6">
       <section className="rounded-lg border border-slate-800 bg-slate-900 p-6">
-        <h1 className="text-2xl font-semibold">Petroleum AI Targeting Workbench</h1>
-        <p className="mt-1 max-w-3xl text-sm text-slate-400">
-          AI-assisted petroleum targeting for prospect ranking, uncertainty reduction and exploration decision support.
-          Recommendations are rule-based heuristics and do not replace technical human interpretation.
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">Petroleum AI Targeting Workbench</h1>
+            <p className="mt-1 max-w-3xl text-sm text-slate-400">
+              AI-assisted petroleum targeting for prospect ranking, uncertainty reduction and exploration decision support.
+              Recommendations are rule-based heuristics and do not replace technical human interpretation.
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button
+              className="rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600"
+              onClick={() => exportPortfolioReportJson(prospects)}
+              type="button"
+            >
+              Export Portfolio JSON
+            </button>
+            <button
+              className="rounded border border-cyan-700 px-4 py-2 text-sm font-medium text-cyan-200 hover:bg-cyan-950"
+              onClick={() => exportPortfolioReportMarkdown(prospects)}
+              type="button"
+            >
+              Export Portfolio Markdown
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* Portfolio Overview */}

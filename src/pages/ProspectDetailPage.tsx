@@ -10,7 +10,7 @@ import {
 } from '../domain/explainability';
 import type { ComponentAssessment, EvidenceConfidence } from '../domain/evidence';
 import { useProspectStore } from '../store/useProspectStore';
-import { exportProspectReport } from '../utils/exportReport';
+import { exportProspectReportJson, exportProspectReportMarkdown } from '../utils/exportReport';
 import {
   getTargetingRecommendation,
   getRecommendedActionLabel,
@@ -138,7 +138,8 @@ export function ProspectDetailPage() {
           >
             Delete prospect
           </button>
-          <button className="rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600" onClick={() => exportProspectReport(prospect)}>Export report JSON</button>
+          <button className="rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600" onClick={() => exportProspectReportJson(prospect)}>Export Report JSON</button>
+          <button className="rounded border border-cyan-700 px-4 py-2 text-sm font-medium text-cyan-200 hover:bg-cyan-950" onClick={() => exportProspectReportMarkdown(prospect)}>Export Report Markdown</button>
         </div>
       </div>
     </section>

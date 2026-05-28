@@ -16,6 +16,7 @@ import {
 } from './recommendationEngine';
 import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk } from './portfolioIntelligence';
 import { getEconomicAssumptionDefaults, getDecisionSignalLabel } from './economics';
+import { getProspectExecutiveSummary, getPortfolioExecutiveSummary, getPortfolioKeyDataGaps, generatePortfolioReport } from './reporting';
 
 const findMentionedProspect = (question: string, prospects: Prospect[]): Prospect | undefined => {
   const lowerQuestion = question.toLowerCase();
@@ -324,5 +325,58 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Default economic assumptions: oil price $${d.oilPriceUsdPerBbl}/bbl, development cost $${d.developmentCostUsdMM}M, exploration well cost $${d.explorationWellCostUsdMM}M, seismic cost $${d.seismicCostUsdMM}M, lease cost $${d.leaseOrEntryCostUsdMM}M, operating cost $${d.operatingCostUsdPerBbl}/bbl, royalty ${d.royaltyRate * 100}%, NRI ${d.netRevenueInterest}, WI ${d.workingInterest}. These can be customised per prospect in the Edit Prospect form.`;
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", or "what are the default economic assumptions".';
+  // ---- Reports queries ----
+
+  if (
+    q.includes('generate a summary report') ||
+    q.includes('generate report') ||
+    (q.includes('summary report') && !q.includes('portfolio'))
+  ) {
+    const target = findMentionedProspect(q, prospects);
+    if (target) {
+      return getProspectExecutiveSummary(target);
+    }
+    return getPortfolioExecutiveSummary(prospects);
+  }
+
+  if (
+    q.includes('summarize this portfolio') ||
+    q.includes('portfolio report') ||
+    (q.includes('summary') && q.includes('portfolio'))
+  ) {
+    return getPortfolioExecutiveSummary(prospects);
+  }
+
+  if (
+    q.includes('present to management') ||
+    q.includes('management summary') ||
+    q.includes('executive summary')
+  ) {
+    const summary = getPortfolioExecutiveSummary(prospects);
+    const recs = generatePortfolioReport(prospects);
+    const drillSection = recs.sections.find((s) => s.title === 'Targeting Recommendations Summary');
+    const drillLine = drillSection?.content[0] ?? '';
+    return `Management Summary — ${summary} ${drillLine}`;
+  }
+
+  if (
+    q.includes('key risks') ||
+    (q.includes('main risks') && q.includes('portfolio'))
+  ) {
+    const report = generatePortfolioReport(prospects);
+    const riskSection = report.sections.find((s) => s.title === 'Risk Distribution');
+    const riskLines = riskSection?.content ?? [];
+    return `Portfolio key risks: ${riskLines.join('; ')}.`;
+  }
+
+  if (
+    q.includes('key data gaps') ||
+    q.includes('main data gaps') ||
+    (q.includes('data gaps') && !q.includes('missing evidence'))
+  ) {
+    const gaps = getPortfolioKeyDataGaps(prospects);
+    return `Key data gaps: ${gaps.slice(0, 4).join(' ')}`;
+  }
+
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "generate a summary report", "summarize this portfolio", "what should I present to management", "what are the key risks", or "what are the key data gaps".';
 };
