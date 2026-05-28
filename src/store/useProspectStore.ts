@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { mockProspects } from '../data/mockProspects';
 import { Priority, Prospect, validateProspect } from '../domain/prospect';
 import { scoreProspect, scoreProspects } from '../domain/scoring';
+import { getProspectRepository } from '../services/prospectRepository';
 
 type Filters = { basin: string; block: string; playType: string; priority: '' | Priority };
 const STORAGE_KEY = 'petrotarget-ai:prospects';
@@ -18,6 +19,8 @@ type ProspectStore = {
   resetProspects: () => void;
   loadFromStorage: () => void;
   persistToStorage: () => void;
+  loadFromRepository: () => Promise<void>;
+  saveToRepository: () => Promise<{ saved: number; errors: string[] }>;
 };
 
 const canUseStorage = () => typeof window !== 'undefined' && Boolean(window.localStorage);
@@ -109,5 +112,31 @@ export const useProspectStore = create<ProspectStore>((set) => ({
   persistToStorage: () => set((state) => {
     writeStoredProspects(state.prospects);
     return {};
-  })
+  }),
+
+  loadFromRepository: async () => {
+    try {
+      const repo = getProspectRepository();
+      const prospects = await repo.listProspects();
+      writeStoredProspects(prospects);
+      set({ prospects });
+    } catch (e) {
+      console.error('[PetroTarget] loadFromRepository failed:', (e as Error).message);
+    }
+  },
+
+  saveToRepository: async () => {
+    const result = { saved: 0, errors: [] as string[] };
+    const repo = getProspectRepository();
+    const { prospects } = useProspectStore.getState();
+    for (const prospect of prospects) {
+      try {
+        await repo.updateProspect(prospect.id, prospect);
+        result.saved++;
+      } catch (e) {
+        result.errors.push(`${prospect.name}: ${(e as Error).message}`);
+      }
+    }
+    return result;
+  },
 }));
