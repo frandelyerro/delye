@@ -19,6 +19,8 @@ import {
   type RecommendedAction,
 } from '../domain/recommendationEngine';
 import { assessExplorationMaturity } from '../domain/earlyExploration';
+import { getDecisionSignalLabel, getEconomicGradeLabel } from '../domain/economics';
+import type { EconomicAssessment } from '../domain/economicTypes';
 
 const priorityBadgeClass = {
   high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
@@ -66,6 +68,21 @@ const actionBadgeClass: Record<RecommendedAction, string> = {
   farm_in_candidate: 'border-blue-500/40 bg-blue-500/15 text-blue-200',
   watchlist: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
   do_not_prioritize: 'border-red-500/40 bg-red-500/15 text-red-300',
+};
+
+const economicGradeBadge: Record<EconomicAssessment['economicGrade'], string> = {
+  strong: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+  moderate: 'border-cyan-500/40 bg-cyan-500/15 text-cyan-200',
+  weak: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+  negative: 'border-red-500/40 bg-red-500/15 text-red-300',
+};
+
+const decisionSignalBadge: Record<EconomicAssessment['decisionSignal'], string> = {
+  drill_if_budget_available: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+  de_risk_before_investment: 'border-sky-500/40 bg-sky-500/15 text-sky-200',
+  consider_farm_in: 'border-blue-500/40 bg-blue-500/15 text-blue-200',
+  investigate_further: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+  do_not_invest: 'border-red-500/40 bg-red-500/15 text-red-300',
 };
 
 export function ProspectDetailPage() {
@@ -298,6 +315,73 @@ export function ProspectDetailPage() {
         )}
       </div>
     </section>
+
+    {prospect.economicAssessment && (
+      <section className="rounded-lg border border-amber-900 bg-slate-900 p-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-lg font-semibold text-amber-200">Decision Economics</h2>
+            <p className="mt-1 text-xs text-slate-400">Simple EMV model — illustrative only, not a substitute for full financial modelling.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${economicGradeBadge[prospect.economicAssessment.economicGrade]}`}>
+              {getEconomicGradeLabel(prospect.economicAssessment.economicGrade)}
+            </span>
+            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${decisionSignalBadge[prospect.economicAssessment.decisionSignal]}`}>
+              {getDecisionSignalLabel(prospect.economicAssessment.decisionSignal)}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded border border-slate-800 bg-slate-950 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Simple EMV</div>
+            <div className={`mt-2 text-xl font-semibold ${prospect.economicAssessment.simpleEMVUsdMM >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+              ${prospect.economicAssessment.simpleEMVUsdMM.toFixed(0)}M
+            </div>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Risked Resources</div>
+            <div className="mt-2 text-xl font-semibold text-slate-100">{prospect.economicAssessment.riskedResourceMMboe.toFixed(1)} MMboe</div>
+            <div className="text-xs text-slate-500 mt-1">of {prospect.economicAssessment.unriskedResourceMMboe.toFixed(0)} MMboe unrisked</div>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Net Revenue</div>
+            <div className="mt-2 text-xl font-semibold text-slate-100">${prospect.economicAssessment.estimatedNetRevenueUsdMM.toFixed(0)}M</div>
+            <div className="text-xs text-slate-500 mt-1">unrisked, after NRI/WI/OpEx</div>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Total CAPEX</div>
+            <div className="mt-2 text-xl font-semibold text-slate-100">${prospect.economicAssessment.estimatedTotalCostUsdMM.toFixed(0)}M</div>
+            <div className="text-xs text-slate-500 mt-1">value/risked boe: ${prospect.economicAssessment.valuePerRiskedBoeUsd.toFixed(1)}</div>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div className="rounded border border-slate-800 bg-slate-950 p-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">EMV Rationale</div>
+            <ul className="space-y-1">
+              {prospect.economicAssessment.rationale.map((line, i) => (
+                <li key={i} className="text-xs leading-5 text-slate-300">• {line}</li>
+              ))}
+            </ul>
+          </div>
+          {prospect.economicAssessment.warnings.length > 0 && (
+            <div className="rounded border border-amber-900/50 bg-amber-950/20 p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-300">Economic Warnings</div>
+              <ul className="space-y-1">
+                {prospect.economicAssessment.warnings.map((w, i) => (
+                  <li key={i} className="text-xs text-slate-300">⚠ {w}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="rounded border border-slate-700 bg-slate-950/50 p-3">
+            <p className="text-xs text-slate-500">Economic assumptions use portfolio defaults (oil $75/bbl, dev cost $350M, explore $45M, seismic $12M, lease $20M, OpEx $18/bbl, royalty 20%, NRI 0.75, WI 1.0). Override per prospect via <Link to={`/prospects/${prospect.id}/edit`} className="text-cyan-400 hover:text-cyan-300 underline">Edit Prospect → Economic Assumptions</Link>.</p>
+          </div>
+        </div>
+      </section>
+    )}
 
     {prospect.scoringMode === 'evidence_derived' && prospect.geoscienceAssessment ? (
       <>
