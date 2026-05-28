@@ -36,6 +36,8 @@ import {
   getTierLabel,
 } from '../domain/recommendationEngine';
 import { createDefaultEvidence } from '../domain/evidenceDefaults';
+import { getEconomicAssumptionDefaults } from '../domain/economics';
+import type { EconomicAssumptions } from '../domain/economicTypes';
 
 // ── Form state type ────────────────────────────────────────────────────────────
 
@@ -165,6 +167,10 @@ export function ProspectFormPage() {
       ? existing.evidence
       : createDefaultEvidence()
   );
+  const [economicAssumptions, setEconomicAssumptions] = useState<EconomicAssumptions>(
+    () => existing?.economicAssumptions ?? {}
+  );
+  const [showEconomics, setShowEconomics] = useState(false);
 
   const title = isEdit ? 'Edit prospect' : 'New prospect';
   const backPath = existing ? `/prospects/${existing.id}` : '/';
@@ -319,6 +325,9 @@ export function ProspectFormPage() {
     const base = formToBase(form);
 
     let prospect: Prospect;
+    const econOverrides = Object.fromEntries(Object.entries(economicAssumptions).filter(([, v]) => v !== undefined)) as EconomicAssumptions;
+    const econFields = Object.keys(econOverrides).length > 0 ? { economicAssumptions: econOverrides } : {};
+
     if (scoringMode === 'evidence_derived') {
       const evErrors = validateEvidenceFields(evidence);
       if (evErrors.length) { setErrors(evErrors); return; }
@@ -326,9 +335,9 @@ export function ProspectFormPage() {
         sourceScore: 0.5, migrationScore: 0.5, reservoirScore: 0.5,
         sealScore: 0.5, trapScore: 0.5, timingScore: 0.5,
       };
-      prospect = { ...base, ...placeholders, scoringMode: 'evidence_derived', targetPhase, evidence };
+      prospect = { ...base, ...placeholders, scoringMode: 'evidence_derived', targetPhase, evidence, ...econFields };
     } else {
-      prospect = { ...base, scoringMode: 'manual' };
+      prospect = { ...base, scoringMode: 'manual', ...econFields };
     }
 
     const validationErrors = validateProspect(prospect);
@@ -669,6 +678,56 @@ export function ProspectFormPage() {
           )}
         </>
       )}
+
+      {/* Economic Assumptions (collapsible) */}
+      <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 text-left"
+          onClick={() => setShowEconomics((v) => !v)}
+        >
+          <div>
+            <h2 className="text-lg font-semibold">Economic Assumptions</h2>
+            <p className="mt-1 text-xs text-slate-400">Optional — override default portfolio assumptions for EMV calculation. Leave blank to use defaults.</p>
+          </div>
+          <span className="shrink-0 text-slate-400 text-lg">{showEconomics ? '▲' : '▼'}</span>
+        </button>
+
+        {showEconomics && (() => {
+          const d = getEconomicAssumptionDefaults();
+          const setA = (key: keyof EconomicAssumptions, val: number | undefined) =>
+            setEconomicAssumptions((prev) => ({ ...prev, [key]: val }));
+          const numField = (label: string, key: keyof EconomicAssumptions, defaultVal: number, min?: number, max?: number) => (
+            <label key={key} className="block text-sm text-slate-300">
+              {label} <span className="text-xs text-slate-500">(default {defaultVal})</span>
+              <input
+                type="number"
+                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                value={economicAssumptions[key] ?? ''}
+                min={min}
+                max={max}
+                step="any"
+                placeholder={String(defaultVal)}
+                onChange={(e) => setA(key, e.target.value === '' ? undefined : Number(e.target.value))}
+              />
+            </label>
+          );
+          return (
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {numField('Oil Price ($/bbl)', 'oilPriceUsdPerBbl', d.oilPriceUsdPerBbl, 0)}
+              {numField('Gas Price ($/Mcf)', 'gasPriceUsdPerMcf', d.gasPriceUsdPerMcf, 0)}
+              {numField('Development Cost ($M)', 'developmentCostUsdMM', d.developmentCostUsdMM, 0)}
+              {numField('Exploration Well Cost ($M)', 'explorationWellCostUsdMM', d.explorationWellCostUsdMM, 0)}
+              {numField('Seismic Cost ($M)', 'seismicCostUsdMM', d.seismicCostUsdMM, 0)}
+              {numField('Lease / Entry Cost ($M)', 'leaseOrEntryCostUsdMM', d.leaseOrEntryCostUsdMM, 0)}
+              {numField('Operating Cost ($/bbl)', 'operatingCostUsdPerBbl', d.operatingCostUsdPerBbl, 0)}
+              {numField('Net Revenue Interest (0–1)', 'netRevenueInterest', d.netRevenueInterest, 0, 1)}
+              {numField('Working Interest (0–1)', 'workingInterest', d.workingInterest, 0, 1)}
+              {numField('Royalty Rate (0–1)', 'royaltyRate', d.royaltyRate, 0, 1)}
+            </div>
+          );
+        })()}
+      </section>
 
       {/* Submit */}
       <div className="flex justify-end gap-3">

@@ -13,6 +13,8 @@ import {
 } from '../domain/recommendationEngine';
 import { getExplorationStage, getExplorationStageLabel } from '../domain/earlyExploration';
 import { getPortfolioSummary } from '../domain/portfolioIntelligence';
+import { getDecisionSignalLabel } from '../domain/economics';
+import type { EconomicAssessment } from '../domain/economicTypes';
 
 const tierBadge: Record<ProspectivityTier, string> = {
   tier_1: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
@@ -36,6 +38,14 @@ const actionBadge: Record<RecommendedAction, string> = {
   farm_in_candidate: 'border-blue-500/40 bg-blue-500/15 text-blue-200',
   watchlist: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
   do_not_prioritize: 'border-red-500/40 bg-red-500/15 text-red-300',
+};
+
+const decisionSignalBadge: Record<EconomicAssessment['decisionSignal'], string> = {
+  drill_if_budget_available: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+  de_risk_before_investment: 'border-sky-500/40 bg-sky-500/15 text-sky-200',
+  consider_farm_in: 'border-blue-500/40 bg-blue-500/15 text-blue-200',
+  investigate_further: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+  do_not_invest: 'border-red-500/40 bg-red-500/15 text-red-300',
 };
 
 const riskBadge: Record<string, string> = {
@@ -89,12 +99,17 @@ export function TargetingPage() {
     return true;
   });
 
+  const totalRiskedResources = prospects.reduce((acc, p) => acc + (p.economicAssessment?.riskedResourceMMboe ?? 0), 0);
+  const positiveEMVCount = prospects.filter((p) => (p.economicAssessment?.simpleEMVUsdMM ?? 0) > 0).length;
+
   const kpis = [
     { label: 'Total Prospects', value: summary.totalProspects, sub: 'in portfolio' },
     { label: 'Tier 1 Targets', value: summary.tier1Count, sub: 'high prospectivity' },
     { label: 'Drill Candidates', value: summary.drillCandidateCount, sub: 'ready for FID' },
     { label: 'Avg. Data Confidence', value: `${summary.averageDataConfidence}/100`, sub: 'input quality' },
     { label: 'Main Portfolio Risk', value: summary.portfolioMainRisk.charAt(0).toUpperCase() + summary.portfolioMainRisk.slice(1), sub: 'most common risk factor' },
+    { label: 'Risked Resources', value: `${totalRiskedResources.toFixed(1)} MMboe`, sub: 'portfolio total' },
+    { label: 'Positive EMV', value: positiveEMVCount, sub: 'prospects' },
   ];
 
   return (
@@ -108,7 +123,7 @@ export function TargetingPage() {
       </section>
 
       {/* Portfolio Overview */}
-      <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-7">
         {kpis.map((k) => (
           <div key={k.label} className="rounded-lg border border-slate-800 bg-slate-900 p-4">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{k.label}</div>
@@ -180,7 +195,7 @@ export function TargetingPage() {
         </div>
         {filtered.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px] text-sm">
+            <table className="w-full min-w-[1700px] text-sm">
               <thead className="bg-slate-950/70">
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-3">Rank</th>
@@ -190,6 +205,8 @@ export function TargetingPage() {
                   <th className="px-4 py-3">GCoS %</th>
                   <th className="px-4 py-3">Comm.</th>
                   <th className="px-4 py-3">Resources MMboe</th>
+                  <th className="px-4 py-3">Simple EMV ($M)</th>
+                  <th className="px-4 py-3">Decision Signal</th>
                   <th className="px-4 py-3">Data Conf.</th>
                   <th className="px-4 py-3">Tier</th>
                   <th className="px-4 py-3">Recommended Action</th>
@@ -212,6 +229,20 @@ export function TargetingPage() {
                       <td className="px-4 py-4 font-semibold text-slate-100">{Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%</td>
                       <td className="px-4 py-4 text-slate-300">{p.commercialScore}</td>
                       <td className="px-4 py-4 text-slate-300">{p.resourceEstimate}</td>
+                      <td className="px-4 py-4">
+                        {p.economicAssessment ? (
+                          <span className={`font-semibold ${p.economicAssessment.simpleEMVUsdMM >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                            ${p.economicAssessment.simpleEMVUsdMM.toFixed(0)}M
+                          </span>
+                        ) : <span className="text-slate-600">—</span>}
+                      </td>
+                      <td className="px-4 py-4">
+                        {p.economicAssessment ? (
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${decisionSignalBadge[p.economicAssessment.decisionSignal]}`}>
+                            {getDecisionSignalLabel(p.economicAssessment.decisionSignal)}
+                          </span>
+                        ) : <span className="text-slate-600">—</span>}
+                      </td>
                       <td className="px-4 py-4">
                         <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${
                           (p.dataConfidence ?? 0) >= 70

@@ -10,6 +10,8 @@ import {
   type RecommendedAction,
 } from '../domain/recommendationEngine';
 import { getExplorationStage, getExplorationStageLabel } from '../domain/earlyExploration';
+import { getEconomicGradeLabel } from '../domain/economics';
+import type { EconomicAssessment } from '../domain/economicTypes';
 
 const colors = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
 
@@ -46,6 +48,13 @@ const actionBadgeClass: Record<RecommendedAction, string> = {
   farm_in_candidate: 'border-blue-500/40 bg-blue-500/15 text-blue-200',
   watchlist: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
   do_not_prioritize: 'border-red-500/40 bg-red-500/15 text-red-300',
+};
+
+const economicGradeBadge: Record<EconomicAssessment['economicGrade'], string> = {
+  strong: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
+  moderate: 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200',
+  weak: 'border-amber-500/30 bg-amber-500/15 text-amber-200',
+  negative: 'border-red-500/30 bg-red-500/15 text-red-300',
 };
 
 export function DashboardPage() {
@@ -137,7 +146,7 @@ export function DashboardPage() {
         </div>
         {ranked.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1900px] text-sm">
+            <table className="w-full min-w-[2100px] text-sm">
               <thead className="bg-slate-950/70">
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
                   <th className="px-4 py-3">Rank</th>
@@ -148,6 +157,8 @@ export function DashboardPage() {
                   <th className="px-4 py-3">GCoS %</th>
                   <th className="px-4 py-3">Commercial Score</th>
                   <th className="px-4 py-3">Resource Estimate MMboe</th>
+                  <th className="px-4 py-3">Simple EMV ($M)</th>
+                  <th className="px-4 py-3">Econ Grade</th>
                   <th className="px-4 py-3">Priority</th>
                   <th className="px-4 py-3">Main Risk</th>
                   <th className="px-4 py-3">Data Confidence</th>
@@ -170,6 +181,20 @@ export function DashboardPage() {
                     <td className="px-4 py-4 font-semibold text-slate-100">{Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%</td>
                     <td className="px-4 py-4 text-slate-300">{p.commercialScore}</td>
                     <td className="px-4 py-4 text-slate-300">{p.resourceEstimate}</td>
+                    <td className="px-4 py-4">
+                      {p.economicAssessment ? (
+                        <span className={`font-semibold ${p.economicAssessment.simpleEMVUsdMM >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                          ${p.economicAssessment.simpleEMVUsdMM.toFixed(0)}M
+                        </span>
+                      ) : <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="px-4 py-4">
+                      {p.economicAssessment ? (
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${economicGradeBadge[p.economicAssessment.economicGrade]}`}>
+                          {getEconomicGradeLabel(p.economicAssessment.economicGrade)}
+                        </span>
+                      ) : <span className="text-slate-600">—</span>}
+                    </td>
                     <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${priorityBadgeClass[p.priority ?? 'low']}`}>{p.priority}</span></td>
                     <td className="px-4 py-4"><span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${riskBadgeClass[p.mainRisk ?? 'timing']}`}>{p.mainRisk}</span></td>
                     <td className="px-4 py-4">

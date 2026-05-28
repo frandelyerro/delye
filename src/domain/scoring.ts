@@ -10,7 +10,9 @@ import {
 } from './explainability';
 import { recommendationByPriority } from './recommendations';
 import { assessPetroleumSystem } from './geoscienceEngine';
+import { assessEconomics } from './economics';
 import type { EvidenceConfidence, GeoscienceAssessment } from './evidence';
+import type { EconomicAssessment } from './economicTypes';
 
 // Penalty applied to dataConfidence for evidence-derived prospects based on overall evidence quality.
 // Manual scoring path is unaffected.
@@ -89,7 +91,7 @@ export const scoreProspect = (prospect: Prospect): Prospect => {
   const recommendation = getRecommendation({ ...workingProspect, geologicalChanceOfSuccess, priority });
   const explanation = generateExplanation({ ...workingProspect, geologicalChanceOfSuccess, priority, mainRisk, dataConfidence, recommendation });
 
-  return {
+  const scoredProspect: Prospect = {
     ...workingProspect,
     geologicalChanceOfSuccess,
     mainRisk,
@@ -99,6 +101,10 @@ export const scoreProspect = (prospect: Prospect): Prospect => {
     explanation,
     ...(geoscienceAssessment ? { geoscienceAssessment } : {}),
   };
+
+  const economicAssessment: EconomicAssessment = assessEconomics(scoredProspect);
+
+  return { ...scoredProspect, economicAssessment };
 };
 
 export const scoreProspects = (prospects: Prospect[]): Prospect[] =>

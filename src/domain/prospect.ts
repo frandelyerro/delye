@@ -1,4 +1,5 @@
 import type { GeoscienceAssessment, ProspectEvidence, ScoringMode, TargetPhase } from './evidence';
+import type { EconomicAssumptions, EconomicAssessment } from './economicTypes';
 
 export type Priority = 'high' | 'medium' | 'low';
 export type MainRisk = 'source' | 'migration' | 'reservoir' | 'seal' | 'trap' | 'timing';
@@ -29,6 +30,8 @@ export type Prospect = {
   targetPhase?: TargetPhase;
   evidence?: ProspectEvidence;
   geoscienceAssessment?: GeoscienceAssessment;
+  economicAssumptions?: EconomicAssumptions;
+  economicAssessment?: EconomicAssessment;
 };
 
 export type ProspectInput = Omit<Prospect, 'geologicalChanceOfSuccess' | 'priority' | 'mainRisk' | 'dataConfidence' | 'recommendation' | 'explanation'>;

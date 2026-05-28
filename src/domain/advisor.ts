@@ -15,6 +15,7 @@ import {
   getTierLabel,
 } from './recommendationEngine';
 import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk } from './portfolioIntelligence';
+import { getEconomicAssumptionDefaults, getDecisionSignalLabel } from './economics';
 
 const findMentionedProspect = (question: string, prospects: Prospect[]): Prospect | undefined => {
   const lowerQuestion = question.toLowerCase();
@@ -268,5 +269,60 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return lines.length ? lines.join(' ') : 'Portfolio analysis inconclusive — review prospect data inputs.';
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", or "what should we do next as an exploration team".';
+  // ---- Decision Economics queries ----
+
+  if (q.includes('positive emv') || (q.includes('emv') && (q.includes('positive') || q.includes('economic')))) {
+    const positive = prospects.filter((p) => (p.economicAssessment?.simpleEMVUsdMM ?? 0) > 0);
+    if (!positive.length) return 'No prospects currently show a positive Simple EMV under default assumptions.';
+    const sorted = [...positive].sort((a, b) => (b.economicAssessment!.simpleEMVUsdMM) - (a.economicAssessment!.simpleEMVUsdMM));
+    return `Prospects with positive EMV (${positive.length}): ${sorted.slice(0, 5).map((p) => `${p.name} ($${p.economicAssessment!.simpleEMVUsdMM.toFixed(0)}M)`).join(', ')}.`;
+  }
+
+  if (q.includes('negative emv') || (q.includes('emv') && q.includes('negative'))) {
+    const negative = prospects.filter((p) => (p.economicAssessment?.simpleEMVUsdMM ?? 0) < 0);
+    if (!negative.length) return 'No prospects currently show a negative Simple EMV.';
+    return `Prospects with negative EMV (${negative.length}): ${negative.map((p) => `${p.name} ($${p.economicAssessment!.simpleEMVUsdMM.toFixed(0)}M)`).join(', ')}.`;
+  }
+
+  if (q.includes('best economic') || (q.includes('highest emv') || q.includes('best emv'))) {
+    const withEcon = prospects.filter((p) => p.economicAssessment);
+    if (!withEcon.length) return 'No economic assessments available.';
+    const best = [...withEcon].sort((a, b) => (b.economicAssessment!.simpleEMVUsdMM) - (a.economicAssessment!.simpleEMVUsdMM))[0];
+    const ea = best.economicAssessment!;
+    return `Best economic prospect: ${best.name} — Simple EMV $${ea.simpleEMVUsdMM.toFixed(0)}M, risked resources ${ea.riskedResourceMMboe.toFixed(1)} MMboe, economic grade: ${ea.economicGrade}, decision signal: ${getDecisionSignalLabel(ea.decisionSignal)}.`;
+  }
+
+  if ((q.includes('high resource') || q.includes('large resource')) && (q.includes('low gcos') || q.includes('low chance'))) {
+    const matches = prospects.filter((p) => p.resourceEstimate >= 100 && (p.geologicalChanceOfSuccess ?? 0) < 0.20);
+    if (!matches.length) return 'No prospects currently have high resource (≥100 MMboe) with low GCoS (<20%).';
+    return `High resource / low GCoS prospects (${matches.length}): ${matches.map((p) => `${p.name} (${p.resourceEstimate} MMboe, ${Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}% GCoS, EMV $${(p.economicAssessment?.simpleEMVUsdMM ?? 0).toFixed(0)}M)`).join('; ')}.`;
+  }
+
+  if (q.includes('de-risk before investment') || q.includes('de risk before investment') || (q.includes('investment') && q.includes('de-risk'))) {
+    const deRisk = prospects.filter((p) => p.economicAssessment?.decisionSignal === 'de_risk_before_investment');
+    if (!deRisk.length) return 'No prospects currently flagged as "de-risk before investment".';
+    return `Prospects to de-risk before investment (${deRisk.length}): ${deRisk.map((p) => `${p.name} (GCoS ${Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%, DC ${p.dataConfidence ?? 0}/100)`).join('; ')}. These prospects show geological potential but lack data confidence.`;
+  }
+
+  if (q.includes('look economic') || (q.includes('economic') && findMentionedProspect(q, prospects))) {
+    const target = findMentionedProspect(q, prospects);
+    if (target && target.economicAssessment) {
+      const ea = target.economicAssessment;
+      return `${target.name} economics: Simple EMV $${ea.simpleEMVUsdMM.toFixed(0)}M, risked resources ${ea.riskedResourceMMboe.toFixed(1)} MMboe, economic grade: ${ea.economicGrade}. Decision signal: ${getDecisionSignalLabel(ea.decisionSignal)}. ${ea.warnings.length ? 'Warnings: ' + ea.warnings[0] : ''}`;
+    }
+    if (target) return `${target.name} does not have an economic assessment — save the prospect to recalculate.`;
+  }
+
+  if (q.includes('portfolio risked resource') || (q.includes('risked resource') && q.includes('portfolio'))) {
+    const total = prospects.reduce((acc, p) => acc + (p.economicAssessment?.riskedResourceMMboe ?? 0), 0);
+    const unrisked = prospects.reduce((acc, p) => acc + p.resourceEstimate, 0);
+    return `Portfolio risked resources: ${total.toFixed(1)} MMboe (vs ${unrisked.toFixed(0)} MMboe unrisked). Risked-to-unrisked ratio: ${unrisked > 0 ? ((total / unrisked) * 100).toFixed(1) : 0}%.`;
+  }
+
+  if (q.includes('what assumptions') || q.includes('default assumptions') || (q.includes('economic assumptions') && (q.includes('what') || q.includes('default')))) {
+    const d = getEconomicAssumptionDefaults();
+    return `Default economic assumptions: oil price $${d.oilPriceUsdPerBbl}/bbl, development cost $${d.developmentCostUsdMM}M, exploration well cost $${d.explorationWellCostUsdMM}M, seismic cost $${d.seismicCostUsdMM}M, lease cost $${d.leaseOrEntryCostUsdMM}M, operating cost $${d.operatingCostUsdPerBbl}/bbl, royalty ${d.royaltyRate * 100}%, NRI ${d.netRevenueInterest}, WI ${d.workingInterest}. These can be customised per prospect in the Edit Prospect form.`;
+  }
+
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", or "what are the default economic assumptions".';
 };
