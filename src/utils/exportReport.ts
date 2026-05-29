@@ -1,5 +1,25 @@
 import { Prospect } from '../domain/prospect';
 
+export const downloadJson = (filename: string, data: unknown): void => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+export const downloadText = (filename: string, content: string): void => {
+  const blob = new Blob([content], { type: 'text/plain; charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 export const exportProspectReport = (prospect: Prospect): void => {
   const payload = {
     name: prospect.name,
@@ -14,11 +34,5 @@ export const exportProspectReport = (prospect: Prospect): void => {
     recommendation: prospect.recommendation,
     explanation: prospect.explanation
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${prospect.name.toLowerCase().replace(/\s+/g, '-')}-report.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadJson(`${prospect.name.toLowerCase().replace(/\s+/g, '-')}-report.json`, payload);
 };

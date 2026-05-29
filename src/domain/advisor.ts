@@ -16,6 +16,8 @@ import {
 } from './recommendationEngine';
 import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk } from './portfolioIntelligence';
 import { getEconomicAssumptionDefaults, getDecisionSignalLabel } from './economics';
+import { assessMLReadiness } from './mlReadiness';
+import { compareExpertAndML } from './mlModel';
 
 const findMentionedProspect = (question: string, prospects: Prospect[]): Prospect | undefined => {
   const lowerQuestion = question.toLowerCase();
@@ -324,5 +326,78 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Default economic assumptions: oil price $${d.oilPriceUsdPerBbl}/bbl, development cost $${d.developmentCostUsdMM}M, exploration well cost $${d.explorationWellCostUsdMM}M, seismic cost $${d.seismicCostUsdMM}M, lease cost $${d.leaseOrEntryCostUsdMM}M, operating cost $${d.operatingCostUsdPerBbl}/bbl, royalty ${d.royaltyRate * 100}%, NRI ${d.netRevenueInterest}, WI ${d.workingInterest}. These can be customised per prospect in the Edit Prospect form.`;
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", or "what are the default economic assumptions".';
+  // ---- ML queries ----
+
+  if (
+    q.includes('is the ml model trained') ||
+    q.includes('is ml trained') ||
+    q.includes('ml model trained') ||
+    (q.includes('ml') && q.includes('trained'))
+  ) {
+    return 'No trained ML model is connected yet. The current ML Lab contains a deterministic baseline model only. A real trained model requires labeled historical well outcome data (discoveries, dry holes, commercial wells) that has not yet been collected. See the ML Lab page (/ml-lab) for readiness details.';
+  }
+
+  if (
+    q.includes('can we train ml') ||
+    q.includes('can we train') ||
+    (q.includes('train') && q.includes('ml'))
+  ) {
+    const readiness = assessMLReadiness(prospects);
+    if (readiness.status === 'ready_for_training') {
+      return `The portfolio meets baseline training thresholds, but real training requires labeled historical outcomes (discoveries, dry holes). Current status: ${readiness.status} (${readiness.readinessScore}/100). Export features from ML Lab and connect a training pipeline.`;
+    }
+    return `Not yet ready for ML training. Status: ${readiness.status} (${readiness.readinessScore}/100). Missing: ${readiness.missingRequirements.slice(0, 2).join('; ')}. Collect labeled historical well outcomes and increase evidence-derived prospect coverage.`;
+  }
+
+  if (
+    q.includes('data for ml') ||
+    q.includes('ml data') ||
+    q.includes('data do we need for ml') ||
+    q.includes('ml data requirements') ||
+    (q.includes('ml') && q.includes('need') && q.includes('data'))
+  ) {
+    return 'To train a real ML model you need: (1) labeled historical well outcomes — commercial discoveries, technical discoveries, dry holes, non-commercial wells; (2) at least 100 labeled examples; (3) at least 30 evidence-derived prospects with structured geological evidence; (4) basin and play-type labels; (5) seismic, well log, and geochemical attributes where available. Synthetic labels derived from expert scores are development-only and not suitable for real ML claims.';
+  }
+
+  if (
+    q.includes('export training dataset') ||
+    q.includes('training dataset') ||
+    (q.includes('export') && q.includes('training'))
+  ) {
+    return 'You can export the synthetic training dataset from the ML Lab page (/ml-lab) in JSON or CSV format. The dataset is built from current portfolio features with synthetic labels derived from expert-system scores. Remember: synthetic labels are development-only and must not be used for real ML claims or investment decisions.';
+  }
+
+  if (
+    q.includes('how does ml compare') ||
+    q.includes('ml vs expert') ||
+    q.includes('ml compared') ||
+    (q.includes('ml') && q.includes('compare'))
+  ) {
+    const target = findMentionedProspect(q, prospects);
+    if (target) {
+      const cmp = compareExpertAndML(target);
+      return `${target.name}: expert GCoS ${Math.round(cmp.expertGCoS * 100)}%, baseline predicted ${Math.round(cmp.predictedGCoS * 100)}%, delta ${cmp.delta >= 0 ? '+' : ''}${Math.round(cmp.delta * 100)}pp, agreement: ${cmp.agreement}. ${cmp.interpretation} Note: baseline is deterministic, not a trained ML model.`;
+    }
+    const highDivergence = prospects
+      .map((p) => ({ p, cmp: compareExpertAndML(p) }))
+      .filter(({ cmp }) => cmp.agreement === 'low')
+      .map(({ p }) => p.name);
+    return highDivergence.length
+      ? `Prospects with low expert/baseline agreement (${highDivergence.length}): ${highDivergence.join(', ')}. These prospects have the largest divergence between expert-system GCoS and the deterministic baseline — they benefit most from additional evidence collection. No trained ML model is connected yet.`
+      : 'All prospects currently show medium or high agreement between expert-system GCoS and the deterministic baseline. No trained ML model is connected yet — baseline is development-only.';
+  }
+
+  if (
+    q.includes('ml-ready prospects') ||
+    q.includes('ml ready prospects') ||
+    q.includes('which prospects are ml') ||
+    (q.includes('ml') && q.includes('ready'))
+  ) {
+    const readiness = assessMLReadiness(prospects);
+    const evidenceDerived = prospects.filter((p) => p.scoringMode === 'evidence_derived');
+    const highDC = prospects.filter((p) => (p.dataConfidence ?? 0) >= 70);
+    return `ML readiness: ${readiness.readinessScore}/100 (${readiness.status}). Evidence-derived prospects (${evidenceDerived.length}): ${evidenceDerived.length ? evidenceDerived.map((p) => p.name).join(', ') : 'none'}. High data confidence (${highDC.length}): ${highDC.length ? highDC.map((p) => p.name).join(', ') : 'none'}. ${readiness.missingRequirements[0] ?? 'Portfolio is ready for baseline testing.'}`;
+  }
+
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", or "which prospects are ML-ready".';
 };
