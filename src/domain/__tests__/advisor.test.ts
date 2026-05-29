@@ -74,3 +74,47 @@ describe('advisor targeting queries', () => {
   });
 });
 
+describe('advisor ML queries', () => {
+  it('responds to "is the ml model trained" with no-model message', () => {
+    const response = getAdvisorResponse('Is the ML model trained?', prospects);
+    expect(response.toLowerCase()).toMatch(/no trained|not connected|not yet/i);
+  });
+
+  it('responds to "is ml trained" with no-model message', () => {
+    const response = getAdvisorResponse('is ml trained?', prospects);
+    expect(response.toLowerCase()).toMatch(/no trained|not connected|not yet/i);
+  });
+
+  it('responds to "can we train ml" with readiness info', () => {
+    const response = getAdvisorResponse('Can we train ML now?', prospects);
+    expect(response.length).toBeGreaterThan(0);
+    expect(response.toLowerCase()).toMatch(/train|readiness|ready|labeled/i);
+  });
+
+  it('responds to "data for ml" with requirements list', () => {
+    const response = getAdvisorResponse('What data do we need for ML?', prospects);
+    expect(response).toMatch(/labeled|historical|outcome/i);
+  });
+
+  it('responds to "export training dataset"', () => {
+    const response = getAdvisorResponse('How do I export the training dataset?', prospects);
+    expect(response.toLowerCase()).toMatch(/export|ml lab|synthetic/i);
+  });
+
+  it('responds to "how does ml compare" with comparison info', () => {
+    const response = getAdvisorResponse('How does ML compare to expert GCoS?', prospects);
+    expect(response.length).toBeGreaterThan(0);
+    expect(response.toLowerCase()).toMatch(/baseline|deterministic|no trained/i);
+  });
+
+  it('responds to "ml vs expert" with comparison', () => {
+    const response = getAdvisorResponse('ml vs expert gcos', prospects);
+    expect(response.length).toBeGreaterThan(0);
+  });
+
+  it('responds to "which prospects are ml-ready"', () => {
+    const response = getAdvisorResponse('Which prospects are ML-ready?', prospects);
+    expect(response.toLowerCase()).toMatch(/readiness|evidence|confidence/i);
+  });
+});
+

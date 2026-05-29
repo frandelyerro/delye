@@ -21,6 +21,7 @@ import {
 import { assessExplorationMaturity } from '../domain/earlyExploration';
 import { getDecisionSignalLabel, getEconomicGradeLabel } from '../domain/economics';
 import type { EconomicAssessment } from '../domain/economicTypes';
+import { predictWithBaselineModel, compareExpertAndML } from '../domain/mlModel';
 
 const priorityBadgeClass = {
   high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
@@ -492,5 +493,77 @@ export function ProspectDetailPage() {
         </div>
       </section>
     )}
+
+    {(() => {
+      const mlPrediction = predictWithBaselineModel(prospect);
+      const mlCompare = compareExpertAndML(prospect);
+      const agreementBadge = {
+        high: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+        medium: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+        low: 'border-red-500/40 bg-red-500/15 text-red-300',
+      };
+      return (
+        <section className="rounded-lg border border-slate-700 bg-slate-900/50 p-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-400">ML Readiness Preview</h2>
+              <p className="mt-1 text-xs text-amber-600">
+                No trained ML model is connected yet. This is a deterministic baseline preview.
+              </p>
+            </div>
+            <span className="inline-flex rounded-full border border-amber-700 bg-amber-950/30 px-3 py-1 text-xs font-semibold text-amber-300">
+              No ML Model
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded border border-slate-800 bg-slate-950 p-3">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Expert-system GCoS</div>
+              <div className="mt-2 text-xl font-semibold text-slate-100">
+                {Math.round(mlCompare.expertGCoS * 100)}%
+              </div>
+              <div className="text-xs text-slate-500 mt-1">source of truth</div>
+            </div>
+            <div className="rounded border border-slate-800 bg-slate-950 p-3">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Baseline Predicted GCoS</div>
+              <div className="mt-2 text-xl font-semibold text-amber-200">
+                {Math.round(mlCompare.predictedGCoS * 100)}%
+              </div>
+              <div className="text-xs text-slate-500 mt-1">deterministic baseline only</div>
+            </div>
+            <div className="rounded border border-slate-800 bg-slate-950 p-3">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Delta</div>
+              <div className={`mt-2 text-xl font-semibold ${mlCompare.delta >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                {mlCompare.delta >= 0 ? '+' : ''}{Math.round(mlCompare.delta * 100)}pp
+              </div>
+            </div>
+            <div className="rounded border border-slate-800 bg-slate-950 p-3">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Agreement</div>
+              <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${agreementBadge[mlCompare.agreement]}`}>
+                {mlCompare.agreement}
+              </span>
+            </div>
+          </div>
+          <div className="mt-3 rounded border border-slate-800 bg-slate-950 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">Top Factors</div>
+            <ul className="space-y-1">
+              {mlPrediction.topFactors.map((f, i) => (
+                <li key={i} className="text-xs text-slate-300">
+                  <span className={f.direction === 'positive' ? 'text-emerald-400' : 'text-red-400'}>
+                    {f.direction === 'positive' ? '▲' : '▼'}
+                  </span>
+                  {' '}{f.explanation}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="mt-3 rounded border border-amber-900/30 bg-amber-950/10 p-3">
+            <p className="text-xs text-amber-700">
+              ⚠ {mlPrediction.warnings[0]} Expert-system GCoS remains the authoritative score for all targeting and investment decisions.
+              Visit <Link to="/ml-lab" className="underline text-amber-500 hover:text-amber-400">ML Lab</Link> to view baseline predictions for the full portfolio.
+            </p>
+          </div>
+        </section>
+      );
+    })()}
   </div>;
 }

@@ -15,6 +15,7 @@ PetroTarget AI is a frontend MVP for petroleum exploration teams. It ranks prosp
 - Supports **evidence editing**: switch any prospect between manual and evidence-derived scoring directly in the Create/Edit form. Fill structured petroleum system evidence per component (source, migration, reservoir, seal, trap, timing) and see a live derived scoring preview before saving. See [docs/geoscience-engine.md#editing-structured-evidence](docs/geoscience-engine.md#editing-structured-evidence).
 - Includes **Decision Economics**: screening-level EMV model (GCoS × Net Revenue − CAPEX) with economic grade (strong/moderate/weak/negative), decision signal, risked/unrisked resource breakdown, and per-prospect assumption overrides. See [docs/decision-economics.md](docs/decision-economics.md).
 - Includes **Backend Foundation**: optional Supabase integration via `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` env vars. Without credentials, all data persists to localStorage. With credentials, prospects sync to a Supabase PostgreSQL table. See [docs/backend-foundation.md](docs/backend-foundation.md).
+- Includes **ML Core v1** (`/ml-lab`): ML feature extraction (30+ features per prospect), synthetic training dataset export (JSON/CSV), deterministic baseline model preview with expert vs. predicted GCoS comparison, and ML readiness assessment. **No trained ML model is connected yet** — this is the foundation for future ML-assisted geoscience. See [docs/ml-core.md](docs/ml-core.md).
 
 ## Backend Foundation
 
