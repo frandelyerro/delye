@@ -18,6 +18,7 @@ import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk } from './portf
 import { getEconomicAssumptionDefaults, getDecisionSignalLabel } from './economics';
 import { assessMLReadiness } from './mlReadiness';
 import { compareExpertAndML } from './mlModel';
+import { isKnownOutcome, isGeologicalSuccess, isCommercialSuccess, getOutcomeLabelText } from './outcomes';
 
 const findMentionedProspect = (question: string, prospects: Prospect[]): Prospect | undefined => {
   const lowerQuestion = question.toLowerCase();
@@ -399,5 +400,62 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `ML readiness: ${readiness.readinessScore}/100 (${readiness.status}). Evidence-derived prospects (${evidenceDerived.length}): ${evidenceDerived.length ? evidenceDerived.map((p) => p.name).join(', ') : 'none'}. High data confidence (${highDC.length}): ${highDC.length ? highDC.map((p) => p.name).join(', ') : 'none'}. ${readiness.missingRequirements[0] ?? 'Portfolio is ready for baseline testing.'}`;
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", or "which prospects are ML-ready".';
+  // ---- Outcome queries ----
+
+  if (
+    q.includes('prospects with outcomes') ||
+    q.includes('which prospects have outcomes') ||
+    q.includes('labeled prospects') ||
+    (q.includes('outcome') && (q.includes('which') || q.includes('list') || q.includes('have')))
+  ) {
+    const withOutcomes = prospects.filter((p) => p.outcome && isKnownOutcome(p.outcome));
+    if (!withOutcomes.length) {
+      return 'No prospects have recorded historical outcomes yet. Add well outcomes in the Edit Prospect form (Historical Outcome section) to build a real ML training dataset. No trained ML model is connected.';
+    }
+    return `Prospects with recorded outcomes (${withOutcomes.length}): ${withOutcomes.map((p) => `${p.name} (${getOutcomeLabelText(p.outcome!.label)})`).join(', ')}. These are included in the real training dataset export on the ML Lab page. No trained ML model is connected yet.`;
+  }
+
+  if (
+    q.includes('how many labeled') ||
+    q.includes('labeled examples') ||
+    q.includes('how many outcomes') ||
+    (q.includes('labeled') && q.includes('count'))
+  ) {
+    const readiness = assessMLReadiness(prospects);
+    return `Labeled examples: ${readiness.labeledExamples} of ${readiness.totalProspects} prospects have known historical outcomes. Known success/failure count: ${readiness.knownSuccessFailureCount}. ML training requires at least 100 labeled examples and 50 known success/failure outcomes. No trained ML model is connected yet — collect real historical well outcomes first.`;
+  }
+
+  if (
+    q.includes('can we train') && (q.includes('outcome') || q.includes('labeled')) ||
+    (q.includes('ready to train') && !q.includes('ml model trained'))
+  ) {
+    const readiness = assessMLReadiness(prospects);
+    return `Training readiness: ${readiness.readinessScore}/100 (${readiness.status}). Labeled examples: ${readiness.labeledExamples}/100 required. Known success/failure: ${readiness.knownSuccessFailureCount}/50 required. Evidence-derived prospects: ${readiness.evidenceDerivedCount}/30 required. ${readiness.labeledExamples < 100 ? 'Collect more historical well outcomes before initiating ML training.' : 'Minimum labeled examples reached — proceed to feature export and model training pipeline setup.'}`;
+  }
+
+  if (
+    q.includes('dry holes') ||
+    q.includes('dry hole prospects') ||
+    (q.includes('outcome') && q.includes('dry'))
+  ) {
+    const dryHoles = prospects.filter((p) => p.outcome?.label === 'dry_hole');
+    if (!dryHoles.length) return 'No prospects currently recorded as dry holes. Add historical well outcomes in the Edit Prospect form to build a real ML training dataset.';
+    return `Dry hole prospects (${dryHoles.length}): ${dryHoles.map((p) => `${p.name}${p.outcome?.wellName ? ` (${p.outcome.wellName})` : ''}${p.outcome?.drillYear ? `, ${p.outcome.drillYear}` : ''}`).join('; ')}. These are included in the real training dataset as negative examples.`;
+  }
+
+  if (
+    q.includes('commercial discoveries') ||
+    q.includes('discovery prospects') ||
+    (q.includes('outcome') && (q.includes('commercial') || q.includes('discover')))
+  ) {
+    const discoveries = prospects.filter((p) => p.outcome && isCommercialSuccess(p.outcome));
+    const technical = prospects.filter((p) => p.outcome && isGeologicalSuccess(p.outcome) && !isCommercialSuccess(p.outcome));
+    if (!discoveries.length && !technical.length) return 'No discovery outcomes recorded yet. Add historical well outcomes in the Edit Prospect form.';
+    const lines: string[] = [];
+    if (discoveries.length) lines.push(`Commercial discoveries (${discoveries.length}): ${discoveries.map((p) => p.name).join(', ')}.`);
+    if (technical.length) lines.push(`Technical discoveries (${technical.length}): ${technical.map((p) => p.name).join(', ')}.`);
+    return lines.join(' ') + ' These are positive examples in the real training dataset. No trained ML model is connected yet.';
+  }
+
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", or "commercial discoveries".';
 };

@@ -104,10 +104,12 @@ Without these labeled outcomes, any "trained" model would be circular (trained o
 
 ### Stage 1: Collect Labeled Dataset
 - Source historical well outcome data from company records, public databases, or partner companies.
+- Record outcomes in PetroTarget AI using the **Historical Outcome** section in the Edit Prospect form (each prospect has an optional `outcome` field).
 - Map each historical well to the features defined in `MLFeatureVector`.
-- Label each example with an `OutcomeLabel`.
+- Label each example with an `OutcomeLabel` (`commercial_discovery`, `technical_discovery`, `dry_hole`, `non_commercial`).
 - Validate using `validateTrainingExample()`.
-- Export using `exportTrainingDatasetAsJson()` or `exportTrainingDatasetAsCsv()`.
+- Export using the **Export Real Training Dataset** buttons on the ML Lab page, or call `exportTrainingDatasetAsJson()` / `exportTrainingDatasetAsCsv()` directly.
+- See `docs/ml-outcomes.md` for the full outcome tracking spec.
 
 ### Stage 2: Feature Export and Inspection
 - Use the ML Lab page (`/ml-lab`) to export the current feature vectors.

@@ -38,6 +38,8 @@ import {
 import { createDefaultEvidence } from '../domain/evidenceDefaults';
 import { getEconomicAssumptionDefaults } from '../domain/economics';
 import type { EconomicAssumptions } from '../domain/economicTypes';
+import type { OutcomeLabel, ProspectOutcome } from '../domain/outcomes';
+import { getOutcomeLabelText } from '../domain/outcomes';
 
 // ── Form state type ────────────────────────────────────────────────────────────
 
@@ -171,6 +173,10 @@ export function ProspectFormPage() {
     () => existing?.economicAssumptions ?? {}
   );
   const [showEconomics, setShowEconomics] = useState(false);
+  const [showOutcome, setShowOutcome] = useState(false);
+  const [outcome, setOutcome] = useState<ProspectOutcome | undefined>(
+    () => existing?.outcome
+  );
 
   const title = isEdit ? 'Edit prospect' : 'New prospect';
   const backPath = existing ? `/prospects/${existing.id}` : '/';
@@ -328,6 +334,8 @@ export function ProspectFormPage() {
     const econOverrides = Object.fromEntries(Object.entries(economicAssumptions).filter(([, v]) => v !== undefined)) as EconomicAssumptions;
     const econFields = Object.keys(econOverrides).length > 0 ? { economicAssumptions: econOverrides } : {};
 
+    const outcomeField = outcome ? { outcome } : {};
+
     if (scoringMode === 'evidence_derived') {
       const evErrors = validateEvidenceFields(evidence);
       if (evErrors.length) { setErrors(evErrors); return; }
@@ -335,9 +343,9 @@ export function ProspectFormPage() {
         sourceScore: 0.5, migrationScore: 0.5, reservoirScore: 0.5,
         sealScore: 0.5, trapScore: 0.5, timingScore: 0.5,
       };
-      prospect = { ...base, ...placeholders, scoringMode: 'evidence_derived', targetPhase, evidence, ...econFields };
+      prospect = { ...base, ...placeholders, scoringMode: 'evidence_derived', targetPhase, evidence, ...econFields, ...outcomeField };
     } else {
-      prospect = { ...base, scoringMode: 'manual', ...econFields };
+      prospect = { ...base, scoringMode: 'manual', ...econFields, ...outcomeField };
     }
 
     const validationErrors = validateProspect(prospect);
@@ -724,6 +732,158 @@ export function ProspectFormPage() {
               {numField('Net Revenue Interest (0–1)', 'netRevenueInterest', d.netRevenueInterest, 0, 1)}
               {numField('Working Interest (0–1)', 'workingInterest', d.workingInterest, 0, 1)}
               {numField('Royalty Rate (0–1)', 'royaltyRate', d.royaltyRate, 0, 1)}
+            </div>
+          );
+        })()}
+      </section>
+
+      {/* Historical Outcome (collapsible) */}
+      <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 text-left"
+          onClick={() => setShowOutcome((v) => !v)}
+        >
+          <div>
+            <h2 className="text-lg font-semibold">Historical Outcome</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Optional — record a real well outcome to build the supervised ML training dataset.
+              {outcome ? ` Currently set: ${getOutcomeLabelText(outcome.label)}.` : ' No outcome recorded yet.'}
+            </p>
+          </div>
+          <span className="shrink-0 text-slate-400 text-lg">{showOutcome ? '▲' : '▼'}</span>
+        </button>
+
+        {showOutcome && (() => {
+          const ALL_OUTCOME_LABELS: OutcomeLabel[] = [
+            'commercial_discovery', 'technical_discovery', 'dry_hole', 'non_commercial', 'unknown',
+          ];
+          const current: ProspectOutcome = outcome ?? {
+            label: 'unknown',
+            targetVariable: 'geological_success',
+            resultConfidence: 'medium',
+            source: 'historical',
+          };
+          const update = (patch: Partial<ProspectOutcome>) =>
+            setOutcome({ ...current, ...patch });
+
+          return (
+            <div className="mt-4 space-y-4">
+              <div className="rounded border border-amber-900/40 bg-amber-950/20 p-3">
+                <p className="text-xs text-amber-300">
+                  ⚠ Historical outcomes are used only for ML training dataset construction.
+                  They do not modify the expert-system GCoS or any targeting recommendation.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <label className="block text-sm text-slate-300">
+                  Outcome Label
+                  <select
+                    className={ic}
+                    value={current.label}
+                    onChange={(e) => update({ label: e.target.value as OutcomeLabel })}
+                  >
+                    {ALL_OUTCOME_LABELS.map((l) => (
+                      <option key={l} value={l}>{getOutcomeLabelText(l)}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-sm text-slate-300">
+                  Target Variable
+                  <select
+                    className={ic}
+                    value={current.targetVariable}
+                    onChange={(e) => update({ targetVariable: e.target.value as ProspectOutcome['targetVariable'] })}
+                  >
+                    <option value="geological_success">Geological Success</option>
+                    <option value="commercial_success">Commercial Success</option>
+                    <option value="hydrocarbon_presence">Hydrocarbon Presence</option>
+                  </select>
+                </label>
+
+                <label className="block text-sm text-slate-300">
+                  Result Confidence
+                  <select
+                    className={ic}
+                    value={current.resultConfidence}
+                    onChange={(e) => update({ resultConfidence: e.target.value as ProspectOutcome['resultConfidence'] })}
+                  >
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+
+                <label className="block text-sm text-slate-300">
+                  Data Source
+                  <select
+                    className={ic}
+                    value={current.source}
+                    onChange={(e) => update({ source: e.target.value as ProspectOutcome['source'] })}
+                  >
+                    <option value="historical">Historical Records</option>
+                    <option value="manual">Manual Entry</option>
+                  </select>
+                </label>
+
+                <label className="block text-sm text-slate-300">
+                  Well Name <span className="text-xs text-slate-500">(optional)</span>
+                  <input
+                    type="text"
+                    className={ic}
+                    value={current.wellName ?? ''}
+                    placeholder="e.g. Well-1A"
+                    onChange={(e) => update({ wellName: e.target.value || undefined })}
+                  />
+                </label>
+
+                <label className="block text-sm text-slate-300">
+                  Drill Year <span className="text-xs text-slate-500">(optional)</span>
+                  <input
+                    type="number"
+                    className={ic}
+                    value={current.drillYear ?? ''}
+                    min={1900}
+                    max={2100}
+                    placeholder="e.g. 2019"
+                    onChange={(e) => update({ drillYear: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  />
+                </label>
+
+                <label className="block text-sm text-slate-300">
+                  Operator <span className="text-xs text-slate-500">(optional)</span>
+                  <input
+                    type="text"
+                    className={ic}
+                    value={current.operator ?? ''}
+                    placeholder="e.g. Operator Corp"
+                    onChange={(e) => update({ operator: e.target.value || undefined })}
+                  />
+                </label>
+
+                <label className="block text-sm text-slate-300 md:col-span-2">
+                  Notes <span className="text-xs text-slate-500">(optional)</span>
+                  <input
+                    type="text"
+                    className={ic}
+                    value={current.notes ?? ''}
+                    placeholder="e.g. Commercial gas discovery, 3 development wells"
+                    onChange={(e) => update({ notes: e.target.value || undefined })}
+                  />
+                </label>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  className="rounded border border-red-800 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-950"
+                  onClick={() => setOutcome(undefined)}
+                >
+                  Clear outcome
+                </button>
+                <span className="text-xs text-slate-500">Clearing removes the outcome from this prospect and excludes it from the real training dataset.</span>
+              </div>
             </div>
           );
         })()}

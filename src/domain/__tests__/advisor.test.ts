@@ -118,3 +118,30 @@ describe('advisor ML queries', () => {
   });
 });
 
+describe('advisor outcome queries', () => {
+  it('responds to "prospects with outcomes" with no-outcomes message when none', () => {
+    const response = getAdvisorResponse('Which prospects have outcomes?', prospects);
+    expect(response.toLowerCase()).toMatch(/no prospects|no trained|no outcome|add well/i);
+  });
+
+  it('responds to "how many labeled examples" with count info', () => {
+    const response = getAdvisorResponse('How many labeled examples do we have?', prospects);
+    expect(response.toLowerCase()).toMatch(/labeled|examples|outcomes/i);
+  });
+
+  it('responds to "dry holes" query', () => {
+    const response = getAdvisorResponse('Which prospects are dry holes?', prospects);
+    expect(response.toLowerCase()).toMatch(/dry hole|no prospects|no trained/i);
+  });
+
+  it('responds to "commercial discoveries" query', () => {
+    const response = getAdvisorResponse('Which prospects are commercial discoveries?', prospects);
+    expect(response.toLowerCase()).toMatch(/discovery|commercial|no discovery|no trained/i);
+  });
+
+  it('responds to outcome query with no trained model message', () => {
+    const response = getAdvisorResponse('List all prospects with outcomes', prospects);
+    expect(response.toLowerCase()).toMatch(/no trained|no outcome|add well/i);
+  });
+});
+

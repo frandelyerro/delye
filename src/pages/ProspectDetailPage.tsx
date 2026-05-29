@@ -22,6 +22,7 @@ import { assessExplorationMaturity } from '../domain/earlyExploration';
 import { getDecisionSignalLabel, getEconomicGradeLabel } from '../domain/economics';
 import type { EconomicAssessment } from '../domain/economicTypes';
 import { predictWithBaselineModel, compareExpertAndML } from '../domain/mlModel';
+import { getOutcomeLabelText, getOutcomeSummary, isKnownOutcome } from '../domain/outcomes';
 
 const priorityBadgeClass = {
   high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
@@ -489,6 +490,81 @@ export function ProspectDetailPage() {
             className="inline-flex shrink-0 rounded border border-cyan-800 px-4 py-2 text-sm font-medium text-cyan-200 hover:bg-cyan-950"
           >
             Convert to evidence-derived scoring
+          </Link>
+        </div>
+      </section>
+    )}
+
+    {/* Historical Outcome */}
+    {prospect.outcome ? (() => {
+      const o = prospect.outcome!;
+      const outcomeBadgeClass: Record<string, string> = {
+        commercial_discovery: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+        technical_discovery: 'border-teal-500/40 bg-teal-500/15 text-teal-200',
+        dry_hole: 'border-red-500/40 bg-red-500/15 text-red-300',
+        non_commercial: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+        unknown: 'border-slate-600 bg-slate-800 text-slate-400',
+      };
+      return (
+        <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-lg font-semibold">Historical Outcome</h2>
+              <p className="mt-1 text-xs text-slate-400">
+                Recorded well outcome — used for ML training dataset construction only.
+                Does not affect the expert-system GCoS or targeting recommendation.
+              </p>
+            </div>
+            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${outcomeBadgeClass[o.label]}`}>
+              {getOutcomeLabelText(o.label)}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+            {[
+              ['Label', getOutcomeLabelText(o.label)],
+              ['Target Variable', o.targetVariable.replace(/_/g, ' ')],
+              ['Result Confidence', o.resultConfidence],
+              ['Source', o.source],
+              ...(o.wellName ? [['Well Name', o.wellName]] : []),
+              ...(o.drillYear ? [['Drill Year', String(o.drillYear)]] : []),
+              ...(o.operator ? [['Operator', o.operator]] : []),
+            ].map(([label, value]) => (
+              <div key={label} className="rounded border border-slate-800 bg-slate-950 p-3">
+                <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
+                <div className="mt-2 text-sm capitalize text-slate-200">{value}</div>
+              </div>
+            ))}
+          </div>
+          {o.notes && (
+            <div className="mt-3 rounded border border-slate-800 bg-slate-950 p-3">
+              <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Notes</div>
+              <p className="text-xs text-slate-300">{o.notes}</p>
+            </div>
+          )}
+          {isKnownOutcome(o) && (
+            <div className="mt-3 rounded border border-emerald-900/40 bg-emerald-950/15 p-3">
+              <p className="text-xs text-emerald-400">
+                ✓ This outcome is included in the real historical training dataset. Export it from the ML Lab page.
+              </p>
+            </div>
+          )}
+        </section>
+      );
+    })() : (
+      <section className="rounded-lg border border-slate-700 bg-slate-900/50 p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-400">Historical Outcome</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              No well outcome recorded for this prospect. Add a historical outcome in the Edit Prospect form
+              to include this prospect in the real ML training dataset.
+            </p>
+          </div>
+          <Link
+            to={`/prospects/${prospect.id}/edit`}
+            className="inline-flex shrink-0 rounded border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
+          >
+            Add outcome
           </Link>
         </div>
       </section>

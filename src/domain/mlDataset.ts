@@ -1,5 +1,7 @@
 import type { Prospect } from './prospect';
-import type { MLTrainingExample, OutcomeLabel, TargetVariable } from './mlTypes';
+import type { MLTrainingExample, TargetVariable } from './mlTypes';
+import type { OutcomeLabel } from './outcomes';
+import { isKnownOutcome } from './outcomes';
 import { extractMLFeatures } from './mlFeatures';
 import type { MLFeatureVector } from './mlTypes';
 
@@ -31,6 +33,17 @@ export const createTrainingExample = (
     ...metadata,
   },
 });
+
+export const createTrainingDatasetFromOutcomes = (prospects: Prospect[]): MLTrainingExample[] =>
+  prospects
+    .filter((p) => p.outcome && isKnownOutcome(p.outcome))
+    .map((p) => {
+      const outcome = p.outcome!;
+      return createTrainingExample(p, outcome.label, outcome.targetVariable, {
+        source: outcome.source,
+        notes: outcome.notes,
+      });
+    });
 
 export const createSyntheticTrainingDataset = (prospects: Prospect[]): MLTrainingExample[] =>
   prospects.map((p) =>
