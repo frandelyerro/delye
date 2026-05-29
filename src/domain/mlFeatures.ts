@@ -1,6 +1,7 @@
 import type { Prospect } from './prospect';
 import type { MLFeatureVector } from './mlTypes';
 import { getProspectivityTier, type ProspectivityTier } from './recommendationEngine';
+import { scoreProspect } from './scoring';
 
 export const mapProspectivityTierToNumber = (tier: ProspectivityTier | undefined): number => {
   if (tier === 'tier_1') return 4;
@@ -39,42 +40,44 @@ export const calculateEvidenceCompleteness = (prospect: Prospect): number => {
 };
 
 export const extractMLFeatures = (prospect: Prospect): MLFeatureVector => {
-  const gcos = prospect.geologicalChanceOfSuccess ?? 0;
-  const dc = prospect.dataConfidence ?? 0;
-  const mainRisk = prospect.mainRisk ?? 'timing';
-  const tier = getProspectivityTier(prospect);
-  const { positiveEvidenceCount, negativeEvidenceCount, missingEvidenceCount } = countEvidenceSignals(prospect);
-  const evidenceCompleteness = calculateEvidenceCompleteness(prospect);
-  const isEvidenceDerived = prospect.scoringMode === 'evidence_derived' ? 1 : 0;
+  // Ensure derived fields (GCoS, dataConfidence, mainRisk, etc.) are present
+  const p = prospect.geologicalChanceOfSuccess === undefined ? scoreProspect(prospect) : prospect;
+  const gcos = p.geologicalChanceOfSuccess ?? 0;
+  const dc = p.dataConfidence ?? 0;
+  const mainRisk = p.mainRisk ?? 'timing';
+  const tier = getProspectivityTier(p);
+  const { positiveEvidenceCount, negativeEvidenceCount, missingEvidenceCount } = countEvidenceSignals(p);
+  const evidenceCompleteness = calculateEvidenceCompleteness(p);
+  const isEvidenceDerived = p.scoringMode === 'evidence_derived' ? 1 : 0;
 
-  const riskedResource = prospect.economicAssessment
-    ? prospect.economicAssessment.riskedResourceMMboe
-    : prospect.resourceEstimate * gcos;
+  const riskedResource = p.economicAssessment
+    ? p.economicAssessment.riskedResourceMMboe
+    : p.resourceEstimate * gcos;
 
-  const simpleEMV = prospect.economicAssessment
-    ? prospect.economicAssessment.simpleEMVUsdMM
+  const simpleEMV = p.economicAssessment
+    ? p.economicAssessment.simpleEMVUsdMM
     : 0;
 
   return {
-    prospectId: prospect.id,
-    basin: prospect.basin,
-    playType: prospect.playType,
-    scoringMode: (prospect.scoringMode as 'manual' | 'evidence_derived' | undefined) ?? 'manual',
+    prospectId: p.id,
+    basin: p.basin,
+    playType: p.playType,
+    scoringMode: (p.scoringMode as 'manual' | 'evidence_derived' | undefined) ?? 'manual',
 
-    sourceScore: prospect.sourceScore,
-    migrationScore: prospect.migrationScore,
-    reservoirScore: prospect.reservoirScore,
-    sealScore: prospect.sealScore,
-    trapScore: prospect.trapScore,
-    timingScore: prospect.timingScore,
+    sourceScore: p.sourceScore,
+    migrationScore: p.migrationScore,
+    reservoirScore: p.reservoirScore,
+    sealScore: p.sealScore,
+    trapScore: p.trapScore,
+    timingScore: p.timingScore,
 
     gcosExpert: gcos,
     dataConfidence: dc,
-    commercialScore: prospect.commercialScore,
-    resourceEstimate: prospect.resourceEstimate,
+    commercialScore: p.commercialScore,
+    resourceEstimate: p.resourceEstimate,
 
-    latitude: prospect.latitude,
-    longitude: prospect.longitude,
+    latitude: p.latitude,
+    longitude: p.longitude,
 
     mainRisk_source: mainRisk === 'source' ? 1 : 0,
     mainRisk_migration: mainRisk === 'migration' ? 1 : 0,

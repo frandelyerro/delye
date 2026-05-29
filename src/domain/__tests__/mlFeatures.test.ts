@@ -68,6 +68,31 @@ describe('extractMLFeatures', () => {
     expect(flags.every((f) => f === 0 || f === 1)).toBe(true);
   });
 
+  it('calls scoreProspect internally when geologicalChanceOfSuccess is missing', () => {
+    const unscored: Prospect = {
+      id: 'unscored-1',
+      name: 'Unscored',
+      basin: 'Test',
+      block: 'A',
+      playType: 'Structural',
+      latitude: 0,
+      longitude: 0,
+      sourceScore: 0.6,
+      migrationScore: 0.6,
+      reservoirScore: 0.6,
+      sealScore: 0.6,
+      trapScore: 0.6,
+      timingScore: 0.6,
+      commercialScore: 65,
+      resourceEstimate: 100,
+      // geologicalChanceOfSuccess intentionally absent
+    };
+    const fv = extractMLFeatures(unscored);
+    expect(fv.gcosExpert).toBeGreaterThan(0);
+    expect(fv.dataConfidence).toBeGreaterThan(0);
+    expect(typeof fv.mainRisk_source).toBe('number');
+  });
+
   it('evidenceCompleteness = 0 for manual prospect', () => {
     const fv = extractMLFeatures(manualProspect);
     expect(fv.evidenceCompleteness).toBe(0);
