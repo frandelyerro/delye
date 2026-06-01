@@ -457,5 +457,53 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return lines.join(' ') + ' These are positive examples in the real training dataset. No trained ML model is connected yet.';
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", or "commercial discoveries".';
+  // ---- Dataset import queries ----
+
+  if (
+    q.includes('how do i import') ||
+    q.includes('how to import') ||
+    q.includes('import ml data') ||
+    q.includes('import dataset') ||
+    (q.includes('import') && q.includes('csv'))
+  ) {
+    return 'To import a historical ML dataset: go to the ML Lab page (/ml-lab) and scroll to the "Import Historical Dataset" section. Upload a CSV file containing the required columns (prospect_id, prospect_name, basin, play_type, latitude, longitude, component scores, outcome_label, target_variable, and others). The tool will validate your CSV, flag missing columns and invalid values, and allow you to preview rows before importing into the portfolio. Synthetic rows (is_synthetic=true) and unknown outcome labels are excluded from the real labeled training set. Download the minimum CSV template from ML Lab to see the exact required format.';
+  }
+
+  if (
+    q.includes('dataset fail') ||
+    q.includes('validation failed') ||
+    q.includes('why did') && q.includes('fail') ||
+    (q.includes('import') && q.includes('fail'))
+  ) {
+    return 'Dataset validation failures have two severity levels. Critical issues block row import: missing required columns, invalid lat/lon coordinates (outside [-90,90] / [-180,180]), scores outside [0,1], data_confidence or commercial_score outside [0,100], resource_estimate_mmboe below 0, unrecognised outcome_label or target_variable, or invalid main_risk. Warnings do not block import but indicate quality problems: synthetic rows, unknown outcome labels, no dry holes (class imbalance), and post-drill leakage columns. Fix critical issues in your source data and re-upload.';
+  }
+
+  if (
+    q.includes('columns required') ||
+    q.includes('required columns') ||
+    q.includes('what columns') && q.includes('import') ||
+    (q.includes('column') && q.includes('import') && q.includes('need'))
+  ) {
+    return 'Required columns for ML dataset import: prospect_id, prospect_name, basin, country, block, play_type, latitude, longitude, source_score, migration_score, reservoir_score, seal_score, trap_score, timing_score, gcos_expert, main_risk, data_confidence, resource_estimate_mmboe, commercial_score, scoring_mode, outcome_label, target_variable, hydrocarbon_present, geological_success, commercial_success, result_confidence, data_source, is_synthetic. Optional geology columns: toc_percent, ro_percent, tmax_c, porosity_percent, permeability_md, seal_thickness_m, closure_area_km2. Download the CSV template from the ML Lab page for the exact format.';
+  }
+
+  if (
+    q.includes('can i train') && q.includes('dataset') ||
+    q.includes('train with this') ||
+    (q.includes('ready to train') && (q.includes('import') || q.includes('dataset')))
+  ) {
+    const readiness = assessMLReadiness(prospects);
+    return `Training readiness: ${readiness.readinessScore}/100 (${readiness.status}). An imported dataset is ready for training when it provides at least 100 labeled real outcomes (outcome_label ≠ unknown, is_synthetic = false), at least 50 known success/failure examples (discoveries + dry holes), and at least 30 evidence-derived prospects. Synthetic labels (is_synthetic=true) do NOT count as real training examples. Current portfolio labeled count: ${readiness.labeledExamples}/100 required. Import a real historical dataset from the ML Lab page (/ml-lab) and ensure is_synthetic=false for real well outcomes.`;
+  }
+
+  if (
+    q.includes('post-drill leakage') ||
+    q.includes('post drill leakage') ||
+    q.includes('leakage') && q.includes('column') ||
+    q.includes('what is leakage')
+  ) {
+    return 'Post-drill leakage refers to columns that contain information only available AFTER a well has been drilled: actual_net_pay_m, actual_porosity_percent, actual_permeability_md, actual_initial_rate_bopd, actual_reserves_mmboe, actual_recoverable_resource_mmboe, actual_development_status. If these are used as predictive ML features, the model will appear to perform well in training but will fail completely on new undrilled prospects — because the "feature" values are not available at prediction time. These columns should be used for outcome labeling and evaluation only, never as model inputs. PetroTarget AI will flag these columns as warnings during import.';
+  }
+
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", or "what is post-drill leakage".';
 };

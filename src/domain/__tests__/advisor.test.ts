@@ -145,3 +145,45 @@ describe('advisor outcome queries', () => {
   });
 });
 
+describe('advisor ML dataset import queries', () => {
+  it('responds to "how do i import" with CSV format guidance', () => {
+    const response = getAdvisorResponse('How do I import a dataset?', prospects);
+    expect(response.toLowerCase()).toMatch(/csv|ml lab|import/i);
+  });
+
+  it('responds to "import dataset" query with CSV format guidance', () => {
+    const response = getAdvisorResponse('How do I import a dataset into ML Lab?', prospects);
+    expect(response.toLowerCase()).toMatch(/csv|ml lab|import/i);
+  });
+
+  it('responds to "dataset validation failed" with issue explanation', () => {
+    const response = getAdvisorResponse('My dataset validation failed, why?', prospects);
+    expect(response.toLowerCase()).toMatch(/critical|warning|column/i);
+  });
+
+  it('responds to "required columns" with column list', () => {
+    const response = getAdvisorResponse('What are the required columns for the dataset?', prospects);
+    expect(response).toMatch(/prospect_id|basin|outcome_label/i);
+  });
+
+  it('responds to "columns required" query', () => {
+    const response = getAdvisorResponse('What columns are required to import?', prospects);
+    expect(response.toLowerCase()).toMatch(/column|required|import/i);
+  });
+
+  it('responds to "can i train" with training readiness info', () => {
+    const response = getAdvisorResponse('Can I train the model with my dataset?', prospects);
+    expect(response.toLowerCase()).toMatch(/train|label|historical|dry hole/i);
+  });
+
+  it('responds to "post-drill leakage" with leakage column warning', () => {
+    const response = getAdvisorResponse('What is post-drill leakage in ML?', prospects);
+    expect(response.toLowerCase()).toMatch(/post.drill|leakage|actual_/i);
+  });
+
+  it('responds to "leakage column" with warning', () => {
+    const response = getAdvisorResponse('What is a leakage column?', prospects);
+    expect(response.toLowerCase()).toMatch(/leakage|post.drill|actual_/i);
+  });
+});
+

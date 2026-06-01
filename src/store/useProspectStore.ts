@@ -21,6 +21,7 @@ type ProspectStore = {
   persistToStorage: () => void;
   loadFromRepository: () => Promise<void>;
   saveToRepository: () => Promise<{ saved: number; errors: string[] }>;
+  importProspects: (prospects: Prospect[]) => { imported: number; skippedDuplicates: number };
 };
 
 const canUseStorage = () => typeof window !== 'undefined' && Boolean(window.localStorage);
@@ -138,5 +139,27 @@ export const useProspectStore = create<ProspectStore>((set) => ({
       }
     }
     return result;
+  },
+
+  importProspects: (incoming) => {
+    const { prospects: current } = useProspectStore.getState();
+    const existingIds = new Set(current.map((p) => p.id));
+    let imported = 0;
+    let skippedDuplicates = 0;
+    const newProspects: Prospect[] = [];
+    for (const p of incoming) {
+      if (existingIds.has(p.id)) {
+        skippedDuplicates++;
+      } else {
+        newProspects.push(scoreProspect(p));
+        imported++;
+      }
+    }
+    if (newProspects.length > 0) {
+      const merged = scoreProspects([...current, ...newProspects]);
+      writeStoredProspects(merged);
+      set({ prospects: merged });
+    }
+    return { imported, skippedDuplicates };
   },
 }));
