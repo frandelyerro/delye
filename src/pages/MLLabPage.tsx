@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { useProspectStore } from '../store/useProspectStore';
 import { assessMLReadiness } from '../domain/mlReadiness';
 import { extractMLFeaturesForPortfolio } from '../domain/mlFeatures';
@@ -8,7 +9,16 @@ import {
   exportTrainingDatasetAsCsv,
   exportTrainingDatasetAsJson,
 } from '../domain/mlDataset';
+import {
+  parseCsvText,
+  validateImportedDataset,
+  convertImportedRowsToProspects,
+  getMinimumTemplateContent,
+  getRecommendedTemplateContent,
+  type DatasetImportPreview,
+} from '../domain/mlDatasetImport';
 import { isKnownOutcome, getOutcomeLabelText } from '../domain/outcomes';
+import type { OutcomeLabel } from '../domain/mlTypes';
 import { downloadJson, downloadText } from '../utils/exportReport';
 
 const statusBadge: Record<string, string> = {
@@ -32,13 +42,56 @@ const agreementBadge: Record<string, string> = {
 };
 
 export function MLLabPage() {
-  const { prospects } = useProspectStore();
+  const { prospects, importProspects } = useProspectStore();
   const readiness = assessMLReadiness(prospects);
   const features = extractMLFeaturesForPortfolio(prospects);
   const modelStatus = getMLModelStatus();
 
   const prospectsWithOutcomes = prospects.filter((p) => p.outcome && isKnownOutcome(p.outcome));
   const hasRealOutcomes = prospectsWithOutcomes.length > 0;
+
+  // Import state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<DatasetImportPreview | null>(null);
+  const [importConfirming, setImportConfirming] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skippedDuplicates: number } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFileName(file.name);
+    setImportResult(null);
+    setImportError(null);
+    setImportConfirming(false);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = evt.target?.result as string;
+        const { headers, rows, issues: parseIssues } = parseCsvText(text);
+        const preview = validateImportedDataset(headers, rows);
+        preview.issues.unshift(...parseIssues.filter((i) => !preview.issues.some((pi) => pi.message === i.message)));
+        setImportPreview(preview);
+      } catch (err) {
+        setImportError((err as Error).message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImportConfirm = () => {
+    if (!importPreview) return;
+    const allRows = importPreview.rows;
+    const { prospects: converted, issues } = convertImportedRowsToProspects(allRows);
+    if (issues.some((i) => i.severity === 'critical')) {
+      setImportError(`Import failed: ${issues.filter((i) => i.severity === 'critical').map((i) => i.message).join('; ')}`);
+      return;
+    }
+    const result = importProspects(converted);
+    setImportResult(result);
+    setImportConfirming(false);
+  };
 
   const handleExportFeaturesJson = () => {
     downloadJson('ml-features.json', features);
@@ -377,6 +430,234 @@ export function MLLabPage() {
             See <code className="text-amber-200">docs/ml-core.md</code> for the training roadmap.
           </p>
         </div>
+      </section>
+
+      {/* F. Import Historical Dataset */}
+      <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Import Historical Dataset</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              Upload a CSV file with real historical well outcomes to build a supervised ML training dataset.
+              The tool validates your file, flags issues, and lets you import valid rows into the portfolio.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800"
+              onClick={() => downloadText('ml-dataset-template-minimum.csv', getMinimumTemplateContent())}
+            >
+              Download Minimum Template
+            </button>
+            <button
+              type="button"
+              className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800"
+              onClick={() => downloadText('ml-dataset-template-recommended.csv', getRecommendedTemplateContent())}
+            >
+              Download Recommended Template
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600">
+            <span>Select CSV file</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="sr-only"
+              onChange={handleFileChange}
+            />
+          </label>
+          {importFileName && (
+            <span className="ml-3 text-sm text-slate-300">{importFileName}</span>
+          )}
+        </div>
+
+        {importError && (
+          <div className="mt-3 rounded border border-red-800 bg-red-950/40 p-3">
+            <p className="text-xs text-red-300">⚠ {importError}</p>
+          </div>
+        )}
+
+        {importResult && (
+          <div className="mt-3 rounded border border-emerald-800/50 bg-emerald-950/30 p-3">
+            <p className="text-xs text-emerald-300 font-medium">
+              ✓ Import complete: {importResult.imported} prospect{importResult.imported !== 1 ? 's' : ''} imported.
+              {importResult.skippedDuplicates > 0 && ` ${importResult.skippedDuplicates} skipped (duplicate ID).`}
+            </p>
+          </div>
+        )}
+
+        {importPreview && (() => {
+          const { readiness: dr, issues, rowCount, rows, headers } = importPreview;
+          const criticals = issues.filter((i) => i.severity === 'critical');
+          const warnings = issues.filter((i) => i.severity === 'warning');
+          const outcomeCounts: Record<OutcomeLabel, number> = {
+            commercial_discovery: 0, technical_discovery: 0,
+            dry_hole: 0, non_commercial: 0, unknown: 0,
+          };
+          for (const row of rows) {
+            const l = row['outcome_label']?.trim().toLowerCase() as OutcomeLabel;
+            if (l && l in outcomeCounts) outcomeCounts[l]++;
+          }
+
+          return (
+            <div className="mt-4 space-y-4">
+              {/* Summary */}
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+                {[
+                  ['Rows', String(rowCount)],
+                  ['Columns', String(headers.length)],
+                  ['Valid Rows', String(dr.validRows)],
+                  ['Labeled Rows', String(dr.labeledRows)],
+                  ['Critical Issues', String(dr.criticalIssues)],
+                  ['Warnings', String(dr.warnings)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded border border-slate-800 bg-slate-950 p-3">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
+                    <div className={`mt-1 text-xl font-semibold ${label === 'Critical Issues' && dr.criticalIssues > 0 ? 'text-red-300' : label === 'Warnings' && dr.warnings > 0 ? 'text-amber-300' : 'text-slate-100'}`}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Readiness + outcomes */}
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded border border-slate-800 bg-slate-950 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Outcome Distribution (preview rows)</div>
+                  <div className="space-y-1">
+                    {(Object.entries(outcomeCounts) as [OutcomeLabel, number][]).map(([label, count]) => (
+                      <div key={label} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">{getOutcomeLabelText(label)}</span>
+                        <span className={count > 0 ? 'font-medium text-slate-200' : 'text-slate-600'}>{count}</span>
+                      </div>
+                    ))}
+                    {dr.syntheticRows > 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-amber-400">Synthetic rows</span>
+                        <span className="font-medium text-amber-200">{dr.syntheticRows}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded border border-slate-800 bg-slate-950 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Import Readiness</div>
+                  <div className={`text-2xl font-semibold ${dr.readinessScore >= 70 ? 'text-emerald-300' : dr.readinessScore >= 40 ? 'text-amber-300' : 'text-red-300'}`}>
+                    {dr.readinessScore}/100
+                  </div>
+                  <div className="mt-2 text-xs text-slate-400">
+                    {dr.canImport ? `${dr.validRows} valid row${dr.validRows !== 1 ? 's' : ''} can be imported.` : 'Fix critical issues before importing.'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Issues */}
+              {issues.length > 0 && (
+                <div className="rounded border border-slate-700 bg-slate-950 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                    Validation Issues ({issues.length})
+                  </div>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {criticals.length > 0 && (
+                      <>
+                        <div className="text-xs font-medium text-red-400 mt-1">Critical ({criticals.length})</div>
+                        {criticals.slice(0, 20).map((issue, i) => (
+                          <div key={i} className="text-xs text-red-300">✗ {issue.message}</div>
+                        ))}
+                        {criticals.length > 20 && <div className="text-xs text-red-500">… and {criticals.length - 20} more critical issues</div>}
+                      </>
+                    )}
+                    {warnings.length > 0 && (
+                      <>
+                        <div className="text-xs font-medium text-amber-400 mt-2">Warnings ({warnings.length})</div>
+                        {warnings.slice(0, 10).map((issue, i) => (
+                          <div key={i} className="text-xs text-amber-300">⚠ {issue.message}</div>
+                        ))}
+                        {warnings.length > 10 && <div className="text-xs text-amber-500">… and {warnings.length - 10} more warnings</div>}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Preview table */}
+              {rows.length > 0 && (
+                <div className="rounded border border-slate-800 bg-slate-900">
+                  <div className="border-b border-slate-800 px-4 py-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-300">Row Preview (first {rows.length} of {rowCount})</span>
+                    <span className="text-xs text-slate-500">{headers.length} columns</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-slate-950/70">
+                        <tr>
+                          {headers.slice(0, 8).map((h) => (
+                            <th key={h} className="px-3 py-2 text-left uppercase tracking-wide text-slate-500 whitespace-nowrap">{h}</th>
+                          ))}
+                          {headers.length > 8 && <th className="px-3 py-2 text-slate-600">+{headers.length - 8} more</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row, i) => (
+                          <tr key={i} className="border-t border-slate-800 hover:bg-slate-800/30">
+                            {headers.slice(0, 8).map((h) => (
+                              <td key={h} className="px-3 py-1.5 text-slate-300 whitespace-nowrap max-w-[120px] truncate" title={row[h]}>
+                                {row[h] ?? ''}
+                              </td>
+                            ))}
+                            {headers.length > 8 && <td className="px-3 py-1.5 text-slate-600">…</td>}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex flex-wrap items-center gap-3">
+                {dr.canImport && !importResult && (
+                  importConfirming ? (
+                    <>
+                      <span className="text-xs text-slate-300">Import {dr.validRows} valid row{dr.validRows !== 1 ? 's' : ''} into portfolio?</span>
+                      <button
+                        type="button"
+                        className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium hover:bg-emerald-600"
+                        onClick={handleImportConfirm}
+                      >
+                        Confirm import
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
+                        onClick={() => setImportConfirming(false)}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium hover:bg-emerald-600"
+                      onClick={() => setImportConfirming(true)}
+                    >
+                      Import valid rows into portfolio
+                    </button>
+                  )
+                )}
+                <button
+                  type="button"
+                  className="rounded border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
+                  onClick={() => downloadJson('ml-import-preview.json', importPreview)}
+                >
+                  Export cleaned JSON
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </section>
     </div>
   );
