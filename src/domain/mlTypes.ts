@@ -1,9 +1,5 @@
-export type OutcomeLabel =
-  | 'commercial_discovery'
-  | 'technical_discovery'
-  | 'dry_hole'
-  | 'non_commercial'
-  | 'unknown';
+export type { OutcomeLabel } from './outcomes';
+import type { OutcomeLabel } from './outcomes';
 
 export type TargetVariable =
   | 'geological_success'

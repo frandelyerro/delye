@@ -1,9 +1,11 @@
 import type { Prospect } from './prospect';
+import { isKnownOutcome, isGeologicalSuccess } from './outcomes';
 
 export type MLReadinessResult = {
   readinessScore: number;
   status: 'not_ready' | 'partial' | 'ready_for_baseline' | 'ready_for_training';
   labeledExamples: number;
+  knownSuccessFailureCount: number;
   totalProspects: number;
   evidenceDerivedCount: number;
   missingRequirements: string[];
@@ -15,7 +17,12 @@ export const assessMLReadiness = (prospects: Prospect[]): MLReadinessResult => {
   const evidenceDerivedCount = prospects.filter(
     (p) => p.scoringMode === 'evidence_derived'
   ).length;
-  const labeledExamples = 0;
+  const labeledExamples = prospects.filter(
+    (p) => p.outcome && isKnownOutcome(p.outcome)
+  ).length;
+  const knownSuccessFailureCount = prospects.filter(
+    (p) => p.outcome && isKnownOutcome(p.outcome) && (isGeologicalSuccess(p.outcome) || p.outcome.label === 'dry_hole')
+  ).length;
 
   const missingRequirements: string[] = [];
   const recommendations: string[] = [];
@@ -25,6 +32,7 @@ export const assessMLReadiness = (prospects: Prospect[]): MLReadinessResult => {
       readinessScore: 0,
       status: 'not_ready',
       labeledExamples: 0,
+      knownSuccessFailureCount: 0,
       totalProspects: 0,
       evidenceDerivedCount: 0,
       missingRequirements: ['No prospects in portfolio.'],
@@ -35,6 +43,7 @@ export const assessMLReadiness = (prospects: Prospect[]): MLReadinessResult => {
   // Check training requirements (thresholds per spec)
   const hasEnoughForTraining =
     labeledExamples >= 100 &&
+    knownSuccessFailureCount >= 50 &&
     evidenceDerivedCount >= 30;
 
   // Check baseline requirements
@@ -52,7 +61,12 @@ export const assessMLReadiness = (prospects: Prospect[]): MLReadinessResult => {
 
   if (labeledExamples < 100) {
     missingRequirements.push(`At least 100 labeled historical examples required for training (have ${labeledExamples}).`);
-    recommendations.push('Collect historical well outcome data (discoveries, dry holes, commercial wells) and label prospects.');
+    recommendations.push('Collect historical well outcome data (discoveries, dry holes, commercial wells) and label prospects using the Historical Outcome section in each prospect form.');
+  }
+
+  if (knownSuccessFailureCount < 50) {
+    missingRequirements.push(`At least 50 known success/failure outcomes required for training (have ${knownSuccessFailureCount}).`);
+    recommendations.push('Ensure labeled outcomes include both discoveries and dry holes for a balanced training set.');
   }
 
   if (evidenceDerivedCount < 30) {
@@ -97,6 +111,7 @@ export const assessMLReadiness = (prospects: Prospect[]): MLReadinessResult => {
     readinessScore,
     status,
     labeledExamples,
+    knownSuccessFailureCount,
     totalProspects,
     evidenceDerivedCount,
     missingRequirements,

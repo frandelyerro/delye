@@ -85,6 +85,7 @@ Core data table. The only table active in v1.
 | target_phase | text | nullable — 'oil', 'gas', 'condensate', 'unknown' |
 | evidence | jsonb | nullable — structured petroleum system evidence |
 | economic_assumptions | jsonb | nullable — per-prospect EMV assumption overrides |
+| outcome | jsonb | nullable — historical well outcome (label, confidence, well name, drill year, operator, notes) |
 | created_at | timestamptz | default now() |
 | updated_at | timestamptz | default now() |
 
@@ -122,9 +123,13 @@ create table if not exists public.prospects (
   target_phase text,
   evidence jsonb,
   economic_assumptions jsonb,
+  outcome jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Add outcome column to existing tables (migration)
+alter table public.prospects add column if not exists outcome jsonb;
 
 -- Enable Row Level Security
 alter table public.prospects enable row level security;

@@ -2,6 +2,7 @@ import { mockProspects } from '../data/mockProspects';
 import type { Prospect } from '../domain/prospect';
 import type { ProspectEvidence, ScoringMode, TargetPhase } from '../domain/evidence';
 import type { EconomicAssumptions } from '../domain/economicTypes';
+import type { ProspectOutcome } from '../domain/outcomes';
 import { scoreProspect, scoreProspects } from '../domain/scoring';
 import { isSupabaseConfigured, supabase } from './supabaseClient';
 
@@ -38,6 +39,7 @@ export type DbProspectRow = {
   target_phase?: string | null;
   evidence?: unknown | null;
   economic_assumptions?: unknown | null;
+  outcome?: unknown | null;
   owner_id?: string | null;
   project_id?: string | null;
   created_at?: string;
@@ -66,6 +68,7 @@ export const prospectToRow = (prospect: Prospect): Omit<DbProspectRow, 'created_
   target_phase: prospect.targetPhase ?? null,
   evidence: prospect.evidence ?? null,
   economic_assumptions: prospect.economicAssumptions ?? null,
+  outcome: prospect.outcome ?? null,
   owner_id: null,
   project_id: null,
 });
@@ -91,6 +94,7 @@ export const rowToProspect = (row: DbProspectRow): Prospect => {
     targetPhase: (row.target_phase as TargetPhase) ?? undefined,
     evidence: (row.evidence as ProspectEvidence) ?? undefined,
     economicAssumptions: (row.economic_assumptions as EconomicAssumptions) ?? undefined,
+    outcome: (row.outcome as ProspectOutcome) ?? undefined,
   };
   // Regenerate all derived fields (GCoS, priority, dataConfidence, geoscienceAssessment, economicAssessment)
   return scoreProspect(base);

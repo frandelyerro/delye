@@ -4,10 +4,12 @@ import { mockProspects } from '../../data/mockProspects';
 import {
   createTrainingExample,
   createSyntheticTrainingDataset,
+  createTrainingDatasetFromOutcomes,
   exportTrainingDatasetAsJson,
   exportTrainingDatasetAsCsv,
   validateTrainingExample,
 } from '../mlDataset';
+import type { ProspectOutcome } from '../outcomes';
 import type { Prospect } from '../prospect';
 
 const scored = scoreProspects(mockProspects);
@@ -215,5 +217,48 @@ describe('exportTrainingDatasetAsCsv', () => {
 
   it('returns empty string for empty dataset', () => {
     expect(exportTrainingDatasetAsCsv([])).toBe('');
+  });
+});
+
+// ── createTrainingDatasetFromOutcomes ────────────────────────────────────────
+
+describe('createTrainingDatasetFromOutcomes', () => {
+  const knownOutcome: ProspectOutcome = {
+    label: 'commercial_discovery',
+    targetVariable: 'geological_success',
+    resultConfidence: 'high',
+    source: 'historical',
+  };
+  const unknownOutcome: ProspectOutcome = {
+    label: 'unknown',
+    targetVariable: 'geological_success',
+    resultConfidence: 'low',
+    source: 'manual',
+  };
+
+  it('returns empty array for portfolio with no outcomes', () => {
+    expect(createTrainingDatasetFromOutcomes(scored)).toHaveLength(0);
+  });
+
+  it('includes only prospects with known outcomes (not unknown)', () => {
+    const withKnown = { ...scored[0], outcome: knownOutcome };
+    const withUnknown = { ...scored[1], outcome: unknownOutcome };
+    const withNone = scored[2];
+    const dataset = createTrainingDatasetFromOutcomes([withKnown, withUnknown, withNone]);
+    expect(dataset).toHaveLength(1);
+    expect(dataset[0].label).toBe('commercial_discovery');
+  });
+
+  it('uses the outcome label and targetVariable from prospect.outcome', () => {
+    const p = { ...scored[0], outcome: { ...knownOutcome, label: 'dry_hole' as const, targetVariable: 'hydrocarbon_presence' as const } };
+    const dataset = createTrainingDatasetFromOutcomes([p]);
+    expect(dataset[0].label).toBe('dry_hole');
+    expect(dataset[0].target).toBe('hydrocarbon_presence');
+  });
+
+  it('preserves outcome source in metadata', () => {
+    const p = { ...scored[0], outcome: { ...knownOutcome, source: 'historical' as const } };
+    const dataset = createTrainingDatasetFromOutcomes([p]);
+    expect(dataset[0].metadata.source).toBe('historical');
   });
 });

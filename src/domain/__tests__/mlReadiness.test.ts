@@ -117,3 +117,51 @@ describe('assessMLReadiness — recommendations', () => {
     expect(r.recommendations.length).toBeGreaterThan(0);
   });
 });
+
+// ── real outcome counting ────────────────────────────────────────────────────
+
+describe('assessMLReadiness — real outcome counting', () => {
+  it('counts known outcomes from prospect.outcome field', () => {
+    const withOutcome = makeProspect('o1', {
+      outcome: {
+        label: 'commercial_discovery',
+        targetVariable: 'geological_success',
+        resultConfidence: 'high',
+        source: 'historical',
+      },
+    });
+    const withUnknown = makeProspect('o2', {
+      outcome: {
+        label: 'unknown',
+        targetVariable: 'geological_success',
+        resultConfidence: 'low',
+        source: 'manual',
+      },
+    });
+    const withNone = makeProspect('o3');
+
+    const r = assessMLReadiness([withOutcome, withUnknown, withNone]);
+    expect(r.labeledExamples).toBe(1);
+  });
+
+  it('knownSuccessFailureCount counts discoveries and dry holes only', () => {
+    const discovery = makeProspect('sf1', {
+      outcome: { label: 'commercial_discovery', targetVariable: 'geological_success', resultConfidence: 'high', source: 'historical' },
+    });
+    const dryHole = makeProspect('sf2', {
+      outcome: { label: 'dry_hole', targetVariable: 'geological_success', resultConfidence: 'high', source: 'historical' },
+    });
+    const nonCommercial = makeProspect('sf3', {
+      outcome: { label: 'non_commercial', targetVariable: 'geological_success', resultConfidence: 'medium', source: 'historical' },
+    });
+
+    const r = assessMLReadiness([discovery, dryHole, nonCommercial]);
+    expect(r.knownSuccessFailureCount).toBe(2);
+    expect(r.labeledExamples).toBe(3);
+  });
+
+  it('returns knownSuccessFailureCount = 0 for portfolio with no outcomes', () => {
+    const r = assessMLReadiness(scored);
+    expect(r.knownSuccessFailureCount).toBe(0);
+  });
+});
