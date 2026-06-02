@@ -158,6 +158,7 @@ Download the template, fill in your historical data, and upload to ML Lab for va
 
 ## Related Documentation
 
+- [ML Column Mapping](./ml-column-mapping.md) — Adapt external datasets with different column names to the PetroTarget schema
 - [ML Core](./ml-core.md) — Feature extraction, baseline model, and readiness assessment
 - [ML Outcomes](./ml-core.md#outcomes) — Prospect outcome labels and target variables
 - [Decision Economics](./decision-economics.md) — EMV and risked resource calculations

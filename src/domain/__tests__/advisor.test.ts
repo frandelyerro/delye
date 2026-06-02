@@ -187,3 +187,40 @@ describe('advisor ML dataset import queries', () => {
   });
 });
 
+describe('advisor column mapping queries', () => {
+  it('responds to "how do i map dataset columns"', () => {
+    const response = getAdvisorResponse('How do I map dataset columns?', prospects);
+    expect(response.toLowerCase()).toMatch(/map|column|mapping|ml lab/i);
+  });
+
+  it('responds to "my dataset has different column names"', () => {
+    const response = getAdvisorResponse('My dataset has different column names', prospects);
+    expect(response.toLowerCase()).toMatch(/column|preset|alias|different/i);
+  });
+
+  it('responds to "column mapping" query', () => {
+    const response = getAdvisorResponse('Tell me about column mapping', prospects);
+    expect(response.toLowerCase()).toMatch(/map|column|mapping/i);
+  });
+
+  it('responds to "what does dry hole map to"', () => {
+    const response = getAdvisorResponse('What does dry hole map to?', prospects);
+    expect(response.toLowerCase()).toMatch(/dry_hole|dry hole|normali/i);
+  });
+
+  it('responds to "can missing scores be defaulted"', () => {
+    const response = getAdvisorResponse('Can missing scores be defaulted?', prospects);
+    expect(response.toLowerCase()).toMatch(/default|score|0\.5|geoscience/i);
+  });
+
+  it('responds to "what are the preset mappings"', () => {
+    const response = getAdvisorResponse('What are the preset mappings?', prospects);
+    expect(response.toLowerCase()).toMatch(/preset|generic|nsta|nopims|npd|nlog/i);
+  });
+
+  it('responds to "regulator preset" query', () => {
+    const response = getAdvisorResponse('Which regulator preset should I use?', prospects);
+    expect(response.toLowerCase()).toMatch(/preset|nsta|nopims|npd|nlog/i);
+  });
+});
+
