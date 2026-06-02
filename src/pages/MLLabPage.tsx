@@ -17,6 +17,16 @@ import {
   getRecommendedTemplateContent,
   type DatasetImportPreview,
 } from '../domain/mlDatasetImport';
+import {
+  suggestColumnMappings,
+  applyColumnMapping,
+  getRequiredTargetColumns,
+  PRESET_MAPPINGS,
+  type ColumnMapping,
+  type ColumnMappingSuggestion,
+  type TargetImportColumn,
+  type PresetMappingId,
+} from '../domain/mlColumnMapping';
 import { isKnownOutcome, getOutcomeLabelText } from '../domain/outcomes';
 import type { OutcomeLabel } from '../domain/mlTypes';
 import { downloadJson, downloadText } from '../utils/exportReport';
@@ -50,13 +60,33 @@ export function MLLabPage() {
   const prospectsWithOutcomes = prospects.filter((p) => p.outcome && isKnownOutcome(p.outcome));
   const hasRealOutcomes = prospectsWithOutcomes.length > 0;
 
-  // Import state
+  // ── Import state (4-step flow) ────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStep, setImportStep] = useState<1 | 2 | 3 | 4>(1);
   const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importRawHeaders, setImportRawHeaders] = useState<string[]>([]);
+  const [importRawRows, setImportRawRows] = useState<Record<string, string>[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<PresetMappingId | 'none'>('none');
+  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({});
+  const [mappingSuggestions, setMappingSuggestions] = useState<ColumnMappingSuggestion[]>([]);
   const [importPreview, setImportPreview] = useState<DatasetImportPreview | null>(null);
   const [importConfirming, setImportConfirming] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skippedDuplicates: number } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+
+  const NOT_DEFAULTABLE_SET = new Set<TargetImportColumn>([
+    'prospect_id', 'prospect_name', 'basin', 'country', 'play_type',
+    'latitude', 'longitude', 'outcome_label',
+  ]);
+
+  // Get example value for a source column from first 5 rows
+  const getExampleValue = (sourceCol: string): string => {
+    for (const row of importRawRows.slice(0, 5)) {
+      const v = row[sourceCol];
+      if (v && v.trim()) return v.trim().slice(0, 30);
+    }
+    return '';
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,19 +95,63 @@ export function MLLabPage() {
     setImportResult(null);
     setImportError(null);
     setImportConfirming(false);
+    setImportPreview(null);
+    setColumnMapping({});
+    setMappingSuggestions([]);
+    setImportStep(1);
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
         const text = evt.target?.result as string;
         const { headers, rows, issues: parseIssues } = parseCsvText(text);
-        const preview = validateImportedDataset(headers, rows);
-        preview.issues.unshift(...parseIssues.filter((i) => !preview.issues.some((pi) => pi.message === i.message)));
-        setImportPreview(preview);
+        const hasCritical = parseIssues.some((i) => i.severity === 'critical');
+        if (hasCritical) {
+          setImportError(parseIssues.filter((i) => i.severity === 'critical').map((i) => i.message).join('; '));
+          return;
+        }
+        setImportRawHeaders(headers);
+        setImportRawRows(rows);
+        // Auto-suggest mappings
+        const suggestions = suggestColumnMappings(headers);
+        setMappingSuggestions(suggestions);
+        const autoMapping: ColumnMapping = {};
+        for (const s of suggestions) autoMapping[s.targetColumn] = s.sourceColumn;
+        setColumnMapping(autoMapping);
       } catch (err) {
         setImportError((err as Error).message);
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleAutoMap = () => {
+    const suggestions = suggestColumnMappings(importRawHeaders);
+    setMappingSuggestions(suggestions);
+    const autoMapping: ColumnMapping = {};
+    for (const s of suggestions) autoMapping[s.targetColumn] = s.sourceColumn;
+    setColumnMapping(autoMapping);
+  };
+
+  const handleApplyPreset = () => {
+    if (selectedPreset === 'none') return;
+    const preset = PRESET_MAPPINGS.find((p) => p.id === selectedPreset);
+    if (preset) setColumnMapping({ ...columnMapping, ...preset.mapping });
+  };
+
+  const handleApplyMappingAndValidate = () => {
+    setImportError(null);
+    try {
+      const { rows: mappedRows, issues: mappingIssues } = applyColumnMapping(importRawRows, columnMapping);
+      const allHeaders = getRequiredTargetColumns();
+      const preview = validateImportedDataset(allHeaders, mappedRows);
+      // Prepend mapping-level issues
+      const deduped = mappingIssues.filter((mi) => !preview.issues.some((pi) => pi.message === mi.message));
+      preview.issues.unshift(...deduped);
+      setImportPreview(preview);
+      setImportStep(3);
+    } catch (err) {
+      setImportError((err as Error).message);
+    }
   };
 
   const handleImportConfirm = () => {
@@ -91,6 +165,7 @@ export function MLLabPage() {
     const result = importProspects(converted);
     setImportResult(result);
     setImportConfirming(false);
+    setImportStep(4);
   };
 
   const handleExportFeaturesJson = () => {
@@ -432,48 +507,43 @@ export function MLLabPage() {
         </div>
       </section>
 
-      {/* F. Import Historical Dataset */}
+      {/* F. Import Historical Dataset — 4-step flow */}
       <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold">Import Historical Dataset</h2>
             <p className="mt-1 text-sm text-slate-400">
-              Upload a CSV file with real historical well outcomes to build a supervised ML training dataset.
-              The tool validates your file, flags issues, and lets you import valid rows into the portfolio.
+              Upload a CSV with real historical well outcomes. Map external column names to the PetroTarget schema, validate, and import valid rows.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <button
-              type="button"
-              className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800"
-              onClick={() => downloadText('ml-dataset-template-minimum.csv', getMinimumTemplateContent())}
-            >
-              Download Minimum Template
+            <button type="button" className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800"
+              onClick={() => downloadText('ml-dataset-template-minimum.csv', getMinimumTemplateContent())}>
+              Minimum Template
             </button>
-            <button
-              type="button"
-              className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800"
-              onClick={() => downloadText('ml-dataset-template-recommended.csv', getRecommendedTemplateContent())}
-            >
-              Download Recommended Template
+            <button type="button" className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800"
+              onClick={() => downloadText('ml-dataset-template-recommended.csv', getRecommendedTemplateContent())}>
+              Recommended Template
             </button>
           </div>
         </div>
 
-        <div className="mt-4">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600">
-            <span>Select CSV file</span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="sr-only"
-              onChange={handleFileChange}
-            />
-          </label>
-          {importFileName && (
-            <span className="ml-3 text-sm text-slate-300">{importFileName}</span>
-          )}
+        {/* Step indicator */}
+        <div className="mt-4 flex items-center gap-1 text-xs">
+          {(['Upload', 'Map Columns', 'Validate', 'Import'] as const).map((label, idx) => {
+            const step = (idx + 1) as 1 | 2 | 3 | 4;
+            const active = importStep === step;
+            const done = importStep > step;
+            return (
+              <span key={step} className="flex items-center gap-1">
+                <span className={`rounded-full px-2 py-0.5 font-semibold ${active ? 'bg-cyan-700 text-white' : done ? 'bg-emerald-900/60 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
+                  {step}
+                </span>
+                <span className={active ? 'text-slate-200' : done ? 'text-emerald-400' : 'text-slate-600'}>{label}</span>
+                {idx < 3 && <span className="text-slate-700 mx-1">→</span>}
+              </span>
+            );
+          })}
         </div>
 
         {importError && (
@@ -482,19 +552,181 @@ export function MLLabPage() {
           </div>
         )}
 
-        {importResult && (
-          <div className="mt-3 rounded border border-emerald-800/50 bg-emerald-950/30 p-3">
-            <p className="text-xs text-emerald-300 font-medium">
-              ✓ Import complete: {importResult.imported} prospect{importResult.imported !== 1 ? 's' : ''} imported.
-              {importResult.skippedDuplicates > 0 && ` ${importResult.skippedDuplicates} skipped (duplicate ID).`}
-            </p>
+        {/* Step 1: Upload */}
+        {importStep === 1 && (
+          <div className="mt-4 space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600">
+                <span>Select CSV file</span>
+                <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="sr-only" onChange={handleFileChange} />
+              </label>
+              {importFileName && <span className="text-sm text-slate-300">{importFileName}</span>}
+            </div>
+
+            {importRawHeaders.length > 0 && (
+              <>
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Detected Headers ({importRawHeaders.length})
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {importRawHeaders.slice(0, 20).map((h) => (
+                      <span key={h} className="rounded border border-slate-700 bg-slate-800 px-2 py-0.5 text-xs text-slate-300">{h}</span>
+                    ))}
+                    {importRawHeaders.length > 20 && (
+                      <span className="rounded border border-slate-700 bg-slate-800 px-2 py-0.5 text-xs text-slate-500">+{importRawHeaders.length - 20} more</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Preset:</span>
+                    <select
+                      className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-200 focus:outline-none"
+                      value={selectedPreset}
+                      onChange={(e) => setSelectedPreset(e.target.value as PresetMappingId | 'none')}
+                    >
+                      <option value="none">None / Auto-detect</option>
+                      {PRESET_MAPPINGS.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    {selectedPreset !== 'none' && (
+                      <button type="button"
+                        className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                        onClick={handleApplyPreset}>
+                        Apply preset
+                      </button>
+                    )}
+                  </div>
+                  <button type="button"
+                    className="rounded bg-cyan-800 px-3 py-1.5 text-xs font-medium hover:bg-cyan-700"
+                    onClick={() => setImportStep(2)}>
+                    Review column mapping →
+                  </button>
+                </div>
+
+                {selectedPreset !== 'none' && (
+                  <p className="text-xs text-amber-400/80">
+                    ⚠ {PRESET_MAPPINGS.find((p) => p.id === selectedPreset)?.disclaimer}
+                  </p>
+                )}
+              </>
+            )}
           </div>
         )}
 
-        {importPreview && (() => {
+        {/* Step 2: Column Mapping */}
+        {importStep === 2 && (
+          <div className="mt-4 space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="rounded bg-slate-700 px-3 py-1.5 text-xs font-medium hover:bg-slate-600"
+                onClick={handleAutoMap}>Auto-map columns</button>
+              {selectedPreset !== 'none' && (
+                <button type="button" className="rounded bg-slate-700 px-3 py-1.5 text-xs font-medium hover:bg-slate-600"
+                  onClick={handleApplyPreset}>Apply preset: {PRESET_MAPPINGS.find((p) => p.id === selectedPreset)?.name}</button>
+              )}
+              <button type="button" className="rounded border border-slate-600 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800"
+                onClick={() => setColumnMapping({})}>Clear mapping</button>
+              <button type="button" className="rounded border border-slate-600 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800"
+                onClick={() => setImportStep(1)}>← Back</button>
+            </div>
+
+            <div className="rounded border border-slate-800 bg-slate-950 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800">
+                    <th className="px-3 py-2 text-left uppercase tracking-wide text-slate-500 whitespace-nowrap">PetroTarget Field</th>
+                    <th className="px-3 py-2 text-left uppercase tracking-wide text-slate-500">Required?</th>
+                    <th className="px-3 py-2 text-left uppercase tracking-wide text-slate-500">Source Column</th>
+                    <th className="px-3 py-2 text-left uppercase tracking-wide text-slate-500">Confidence</th>
+                    <th className="px-3 py-2 text-left uppercase tracking-wide text-slate-500">Example Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getRequiredTargetColumns().map((target) => {
+                    const required = NOT_DEFAULTABLE_SET.has(target);
+                    const mapped = columnMapping[target];
+                    const suggestion = mappingSuggestions.find((s) => s.targetColumn === target);
+                    const exampleValue = mapped ? getExampleValue(mapped) : '';
+                    const confidenceBadge: Record<string, string> = {
+                      high: 'border-emerald-700 bg-emerald-900/40 text-emerald-300',
+                      medium: 'border-amber-700 bg-amber-900/40 text-amber-300',
+                      low: 'border-slate-600 bg-slate-800 text-slate-400',
+                    };
+                    return (
+                      <tr key={target} className="border-t border-slate-800 hover:bg-slate-900/60">
+                        <td className="px-3 py-1.5 font-mono text-slate-300 whitespace-nowrap">{target}</td>
+                        <td className="px-3 py-1.5">
+                          {required
+                            ? <span className="rounded-full border border-red-700/60 bg-red-900/30 px-1.5 py-0.5 text-[10px] font-semibold text-red-300">REQUIRED</span>
+                            : <span className="rounded-full border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-500">OPTIONAL</span>}
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <select
+                            className="rounded border border-slate-700 bg-slate-900 px-2 py-0.5 text-xs text-slate-200 focus:outline-none max-w-[180px]"
+                            value={mapped ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setColumnMapping((prev) => {
+                                const next = { ...prev };
+                                if (v) next[target] = v;
+                                else delete next[target];
+                                return next;
+                              });
+                            }}
+                          >
+                            <option value="">— not mapped —</option>
+                            {importRawHeaders.map((h) => (
+                              <option key={h} value={h}>{h}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-3 py-1.5">
+                          {suggestion && mapped === suggestion.sourceColumn ? (
+                            <span className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${confidenceBadge[suggestion.confidence]}`}>
+                              {suggestion.confidence.toUpperCase()}
+                            </span>
+                          ) : mapped ? (
+                            <span className="text-slate-600">manual</span>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-1.5 text-slate-500 max-w-[120px] truncate" title={exampleValue}>
+                          {exampleValue || (mapped ? '' : <span className="text-slate-700 italic">unmapped</span>)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Missing required */}
+            {(() => {
+              const missingRequired = getRequiredTargetColumns().filter((t) => NOT_DEFAULTABLE_SET.has(t) && !columnMapping[t]);
+              return missingRequired.length > 0 ? (
+                <div className="rounded border border-red-800/60 bg-red-950/30 p-3">
+                  <div className="text-xs font-semibold text-red-400 mb-1">Missing required mappings ({missingRequired.length})</div>
+                  <div className="text-xs text-red-300">{missingRequired.join(', ')}</div>
+                </div>
+              ) : null;
+            })()}
+
+            <button type="button"
+              className="rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600"
+              onClick={handleApplyMappingAndValidate}>
+              Apply mapping &amp; validate →
+            </button>
+          </div>
+        )}
+
+        {/* Step 3: Validation */}
+        {importStep === 3 && importPreview && (() => {
           const { readiness: dr, issues, rowCount, rows, headers } = importPreview;
           const criticals = issues.filter((i) => i.severity === 'critical');
           const warnings = issues.filter((i) => i.severity === 'warning');
+          const infos = issues.filter((i) => i.severity === 'info');
           const outcomeCounts: Record<OutcomeLabel, number> = {
             commercial_discovery: 0, technical_discovery: 0,
             dry_hole: 0, non_commercial: 0, unknown: 0,
@@ -503,10 +735,13 @@ export function MLLabPage() {
             const l = row['outcome_label']?.trim().toLowerCase() as OutcomeLabel;
             if (l && l in outcomeCounts) outcomeCounts[l]++;
           }
-
           return (
             <div className="mt-4 space-y-4">
-              {/* Summary */}
+              <div className="flex gap-2">
+                <button type="button" className="rounded border border-slate-600 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800"
+                  onClick={() => setImportStep(2)}>← Edit mapping</button>
+              </div>
+
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
                 {[
                   ['Rows', String(rowCount)],
@@ -523,7 +758,6 @@ export function MLLabPage() {
                 ))}
               </div>
 
-              {/* Readiness + outcomes */}
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded border border-slate-800 bg-slate-950 p-3">
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Outcome Distribution (preview rows)</div>
@@ -553,12 +787,9 @@ export function MLLabPage() {
                 </div>
               </div>
 
-              {/* Issues */}
               {issues.length > 0 && (
                 <div className="rounded border border-slate-700 bg-slate-950 p-3">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
-                    Validation Issues ({issues.length})
-                  </div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Validation Issues ({issues.length})</div>
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     {criticals.length > 0 && (
                       <>
@@ -566,7 +797,7 @@ export function MLLabPage() {
                         {criticals.slice(0, 20).map((issue, i) => (
                           <div key={i} className="text-xs text-red-300">✗ {issue.message}</div>
                         ))}
-                        {criticals.length > 20 && <div className="text-xs text-red-500">… and {criticals.length - 20} more critical issues</div>}
+                        {criticals.length > 20 && <div className="text-xs text-red-500">… and {criticals.length - 20} more</div>}
                       </>
                     )}
                     {warnings.length > 0 && (
@@ -575,14 +806,21 @@ export function MLLabPage() {
                         {warnings.slice(0, 10).map((issue, i) => (
                           <div key={i} className="text-xs text-amber-300">⚠ {issue.message}</div>
                         ))}
-                        {warnings.length > 10 && <div className="text-xs text-amber-500">… and {warnings.length - 10} more warnings</div>}
+                        {warnings.length > 10 && <div className="text-xs text-amber-500">… and {warnings.length - 10} more</div>}
+                      </>
+                    )}
+                    {infos.length > 0 && (
+                      <>
+                        <div className="text-xs font-medium text-slate-500 mt-2">Info ({infos.length})</div>
+                        {infos.slice(0, 10).map((issue, i) => (
+                          <div key={i} className="text-xs text-slate-500">ℹ {issue.message}</div>
+                        ))}
                       </>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Preview table */}
               {rows.length > 0 && (
                 <div className="rounded border border-slate-800 bg-slate-900">
                   <div className="border-b border-slate-800 px-4 py-2 flex items-center justify-between">
@@ -596,16 +834,14 @@ export function MLLabPage() {
                           {headers.slice(0, 8).map((h) => (
                             <th key={h} className="px-3 py-2 text-left uppercase tracking-wide text-slate-500 whitespace-nowrap">{h}</th>
                           ))}
-                          {headers.length > 8 && <th className="px-3 py-2 text-slate-600">+{headers.length - 8} more</th>}
+                          {headers.length > 8 && <th className="px-3 py-2 text-slate-600">+{headers.length - 8}</th>}
                         </tr>
                       </thead>
                       <tbody>
                         {rows.map((row, i) => (
                           <tr key={i} className="border-t border-slate-800 hover:bg-slate-800/30">
                             {headers.slice(0, 8).map((h) => (
-                              <td key={h} className="px-3 py-1.5 text-slate-300 whitespace-nowrap max-w-[120px] truncate" title={row[h]}>
-                                {row[h] ?? ''}
-                              </td>
+                              <td key={h} className="px-3 py-1.5 text-slate-300 whitespace-nowrap max-w-[120px] truncate" title={row[h]}>{row[h] ?? ''}</td>
                             ))}
                             {headers.length > 8 && <td className="px-3 py-1.5 text-slate-600">…</td>}
                           </tr>
@@ -616,48 +852,49 @@ export function MLLabPage() {
                 </div>
               )}
 
-              {/* Action buttons */}
               <div className="flex flex-wrap items-center gap-3">
                 {dr.canImport && !importResult && (
                   importConfirming ? (
                     <>
                       <span className="text-xs text-slate-300">Import {dr.validRows} valid row{dr.validRows !== 1 ? 's' : ''} into portfolio?</span>
-                      <button
-                        type="button"
-                        className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium hover:bg-emerald-600"
-                        onClick={handleImportConfirm}
-                      >
-                        Confirm import
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
-                        onClick={() => setImportConfirming(false)}
-                      >
-                        Cancel
-                      </button>
+                      <button type="button" className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium hover:bg-emerald-600"
+                        onClick={handleImportConfirm}>Confirm import</button>
+                      <button type="button" className="rounded border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
+                        onClick={() => setImportConfirming(false)}>Cancel</button>
                     </>
                   ) : (
-                    <button
-                      type="button"
-                      className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium hover:bg-emerald-600"
-                      onClick={() => setImportConfirming(true)}
-                    >
-                      Import valid rows into portfolio
-                    </button>
+                    <button type="button" className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium hover:bg-emerald-600"
+                      onClick={() => setImportConfirming(true)}>Import valid rows into portfolio</button>
                   )
                 )}
-                <button
-                  type="button"
-                  className="rounded border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
-                  onClick={() => downloadJson('ml-import-preview.json', importPreview)}
-                >
-                  Export cleaned JSON
-                </button>
+                <button type="button" className="rounded border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800"
+                  onClick={() => downloadJson('ml-import-preview.json', importPreview)}>Export cleaned JSON</button>
               </div>
             </div>
           );
         })()}
+
+        {/* Step 4: Import complete */}
+        {importStep === 4 && importResult && (
+          <div className="mt-4 space-y-3">
+            <div className="rounded border border-emerald-800/50 bg-emerald-950/30 p-4">
+              <p className="text-sm text-emerald-300 font-semibold">
+                Import complete: {importResult.imported} prospect{importResult.imported !== 1 ? 's' : ''} added to portfolio.
+                {importResult.skippedDuplicates > 0 && ` ${importResult.skippedDuplicates} skipped (duplicate ID).`}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" className="rounded border border-slate-600 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800"
+                onClick={() => { setImportStep(1); setImportResult(null); setImportPreview(null); setColumnMapping({}); setImportFileName(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}>
+                Import another file
+              </button>
+              {importPreview && (
+                <button type="button" className="rounded border border-slate-600 px-3 py-1.5 text-xs text-slate-400 hover:bg-slate-800"
+                  onClick={() => downloadJson('ml-import-preview.json', importPreview)}>Export cleaned JSON</button>
+              )}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

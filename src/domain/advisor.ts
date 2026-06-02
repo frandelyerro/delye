@@ -505,5 +505,56 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return 'Post-drill leakage refers to columns that contain information only available AFTER a well has been drilled: actual_net_pay_m, actual_porosity_percent, actual_permeability_md, actual_initial_rate_bopd, actual_reserves_mmboe, actual_recoverable_resource_mmboe, actual_development_status. If these are used as predictive ML features, the model will appear to perform well in training but will fail completely on new undrilled prospects — because the "feature" values are not available at prediction time. These columns should be used for outcome labeling and evaluation only, never as model inputs. PetroTarget AI will flag these columns as warnings during import.';
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", or "what is post-drill leakage".';
+  // ---- Column mapping queries ----
+
+  if (
+    q.includes('how do i map') ||
+    q.includes('column mapping') ||
+    q.includes('map dataset columns') ||
+    q.includes('map my columns') ||
+    q.includes('mapping workflow')
+  ) {
+    return 'To map external column names to the PetroTarget schema: (1) Upload your CSV in the ML Lab Import section. (2) In Step 2 (Column Mapping), use the mapping table to match each PetroTarget target column to your source column. (3) Click "Auto-map columns" to let the tool suggest matches based on common aliases. (4) Optionally select a preset mapping (Generic Well, NSTA-like, NOPIMS-like, NPD-like, NLOG-like) as a starting point. (5) Review and adjust, then click "Apply mapping & validate". Required fields that cannot be defaulted: prospect_id, prospect_name, basin, country, play_type, latitude, longitude, outcome_label. All other fields can be defaulted if unmapped.';
+  }
+
+  if (
+    q.includes('different column names') ||
+    q.includes('my dataset has different') ||
+    q.includes("column names don't match") ||
+    q.includes('column names do not match') ||
+    q.includes('wrong column names')
+  ) {
+    return 'Real petroleum datasets from regulators and public repositories use different column names (e.g., WELL_NAME, WELLBORE_NAME, LAT, LON, RESULT, STATUS). Use the Column Mapping step in ML Lab → Import Historical Dataset to match your source columns to PetroTarget\'s required schema. The auto-map feature recognizes common aliases. Five preset mappings cover common dataset formats: Generic Well, NSTA-like (UK North Sea), NOPIMS-like (Australia), NPD-like (Norway), NLOG-like (Netherlands). All presets are best-effort — always review before importing.';
+  }
+
+  if (
+    q.includes('dry hole maps to') ||
+    q.includes('what does dry hole map to') ||
+    q.includes('outcome normalization') ||
+    (q.includes('map') && q.includes('dry hole'))
+  ) {
+    return 'Outcome value normalization: "dry" / "dry hole" / "dry_hole" / "plugged and abandoned" / "p&a dry" → dry_hole. "commercial discovery" / "producing discovery" / "producer" / "producing" → commercial_discovery. "discovery" / "hydrocarbon discovery" / "oil discovery" / "gas discovery" → technical_discovery. "non commercial" / "non-commercial" / "subcommercial" / "uneconomic discovery" → non_commercial. "unknown" / "confidential" / "suspended" / blank / unrecognized → unknown. Normalization is case-insensitive and applied automatically during mapping.';
+  }
+
+  if (
+    q.includes('can missing scores be defaulted') ||
+    q.includes('default scores') ||
+    (q.includes('what if') && q.includes('scores')) ||
+    q.includes("don't have scores") ||
+    q.includes('no geoscience scores') ||
+    q.includes('missing component scores')
+  ) {
+    return 'If your dataset does not include geoscience component scores (source_score, migration_score, reservoir_score, seal_score, trap_score, timing_score), the import tool will default them all to 0.5 and gcos_expert to 0.35. A warning is shown: "Component scores were defaulted — results are development-only until real scores are provided." Defaulted scores produce unreliable GCoS calculations and should not be used for real exploration decisions. Collect geoscience risking assessments and re-import with real scores before using the data for ML training or portfolio analysis.';
+  }
+
+  if (
+    q.includes('preset mapping') ||
+    q.includes('preset mappings') ||
+    q.includes('regulator preset') ||
+    (q.includes('preset') && q.includes('import'))
+  ) {
+    return 'Available preset column mappings (best-effort starting points — always verify against your actual dataset): (1) Generic Well Dataset — covers well_id, well_name, basin_name, result. (2) NSTA-like (UK North Sea) — wellbore_name, surface_latitude/longitude, well_result. (3) NOPIMS-like (Australia) — wellbore_id, lat/lon, exploration_result. (4) NPD-like (Norway Sokkeldirektoratet) — wlbwellborename, wlbnsutmdeg/wlewutmdeg, wlbdisconame. (5) NLOG-like (Netherlands) — well_id, y_coord/x_coord, status. All presets are best-effort only. Column names in real regulator datasets may differ from the versions modeled here.';
+  }
+
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I map dataset columns", "my dataset has different column names", "what does dry hole map to", "can missing scores be defaulted", or "what are the preset mappings".';
 };
