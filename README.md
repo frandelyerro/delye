@@ -18,6 +18,7 @@ PetroTarget AI is a frontend MVP for petroleum exploration teams. It ranks prosp
 - Includes **ML Core v1** (`/ml-lab`): ML feature extraction (30+ features per prospect), synthetic training dataset export (JSON/CSV), deterministic baseline model preview with expert vs. predicted GCoS comparison, and ML readiness assessment. **No trained ML model is connected yet** — this is the foundation for future ML-assisted geoscience. See [docs/ml-core.md](docs/ml-core.md).
 - Includes **ML Outcomes v1**: historical well outcome recording per prospect (commercial discovery, technical discovery, dry hole, non-commercial, unknown). Outcomes appear in the Edit Prospect form (Historical Outcome section), the Prospect Detail page, and the ML Lab page. The ML Lab exports a real training dataset from labeled prospects (separate from the synthetic dataset). ML readiness now counts real labeled examples from `prospect.outcome`. See [docs/ml-outcomes.md](docs/ml-outcomes.md).
 - Includes **ML Dataset Import** (`/ml-lab` → Import section): Upload a historical CSV dataset of drilled wells with known outcomes (commercial discoveries, technical discoveries, dry holes). The tool validates schema (28 required columns), flags coordinate errors, out-of-range scores, invalid outcome labels, post-drill leakage columns, and class imbalance warnings. Valid rows are converted to `Prospect` objects with attached `outcome` labels and merged into the portfolio. Provides an import readiness score (0–100) and two downloadable CSV templates (minimum and recommended). See [docs/ml-dataset-import.md](docs/ml-dataset-import.md).
+- Includes **Norway FactPages Adapter** (`/ml-lab` → Import section): Automatically detects and converts CSV exports from Sokkeldirektoratet FactPages (Norwegian Petroleum Directorate public data portal) to PetroTarget's 28-column import schema. Optionally enriches wellbore data with discovery, reserves, descriptions, and field CSVs for improved outcome label accuracy and resource estimates. Outcome labels (dry_hole, technical_discovery, commercial_discovery) are derived from the HC content column and discovery/field association. Note: FactPages does not include pre-drill geological scores — all six component scores default to 0.5 and GCoS defaults to 0.015625. Update per prospect after import. See [docs/norway-factpages-adapter.md](docs/norway-factpages-adapter.md).
 
 ## Backend Foundation
 
@@ -175,6 +176,9 @@ The product explains each scored prospect with:
 
 - [Geoscience Intelligence Engine](docs/geoscience-engine.md) — evidence-derived scoring rules, component parameters, limitations and calibration roadmap
 - [AI Targeting Workbench](docs/ai-targeting-workbench.md) — tier classification, recommended actions, exploration stage logic, limitations
+- [ML Core](docs/ml-core.md) — ML feature extraction, baseline model, readiness assessment, training roadmap
+- [ML Dataset Import](docs/ml-dataset-import.md) — 28-column CSV import schema, validation rules, leakage warnings, readiness score
+- [Norway FactPages Adapter](docs/norway-factpages-adapter.md) — automatic detection and conversion of Sokkeldirektoratet FactPages wellbore exports
 - [Petroleum Expert Agent](docs/PETROLEUM_EXPERT_AGENT.md) — technical guardrails and product positioning
 - [Petroleum Review Checklist](docs/PETROLEUM_REVIEW_CHECKLIST.md) — pre-merge technical review checklist
 - [Petroleum Technical Parameters](docs/PETROLEUM_TECHNICAL_PARAMETERS.md) — current heuristic parameters and gap inventory

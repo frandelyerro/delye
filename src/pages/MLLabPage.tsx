@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useProspectStore } from '../store/useProspectStore';
 import { assessMLReadiness } from '../domain/mlReadiness';
 import { extractMLFeaturesForPortfolio } from '../domain/mlFeatures';
-import { compareExpertAndML, getMLModelStatus, predictWithBaselineModel } from '../domain/mlModel';
+import { compareExpertAndML, getMLModelStatus } from '../domain/mlModel';
 import {
   createSyntheticTrainingDataset,
   createTrainingDatasetFromOutcomes,
@@ -17,6 +17,12 @@ import {
   getRecommendedTemplateContent,
   type DatasetImportPreview,
 } from '../domain/mlDatasetImport';
+import {
+  isNorwayWellboreDataset,
+  convertNorwayWellboreRowsToImportRows,
+  type NorwayFactpagesAdapterOptions,
+  type NorwayAdapterIssue,
+} from '../domain/norwayFactpagesAdapter';
 import { isKnownOutcome, getOutcomeLabelText } from '../domain/outcomes';
 import type { OutcomeLabel } from '../domain/mlTypes';
 import { downloadJson, downloadText } from '../utils/exportReport';
@@ -58,6 +64,15 @@ export function MLLabPage() {
   const [importResult, setImportResult] = useState<{ imported: number; skippedDuplicates: number } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
+  // Norway FactPages adapter state
+  const [isNorwayDataset, setIsNorwayDataset] = useState(false);
+  const [norwayRawRows, setNorwayRawRows] = useState<Record<string, string>[]>([]);
+  const [norwayDiscoveryRows, setNorwayDiscoveryRows] = useState<Record<string, string>[]>([]);
+  const [norwayReserveRows, setNorwayReserveRows] = useState<Record<string, string>[]>([]);
+  const [norwayDescriptionRows, setNorwayDescriptionRows] = useState<Record<string, string>[]>([]);
+  const [norwayFieldRows, setNorwayFieldRows] = useState<Record<string, string>[]>([]);
+  const [norwayAdapterIssues, setNorwayAdapterIssues] = useState<NorwayAdapterIssue[]>([]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -65,19 +80,70 @@ export function MLLabPage() {
     setImportResult(null);
     setImportError(null);
     setImportConfirming(false);
+    setIsNorwayDataset(false);
+    setNorwayRawRows([]);
+    setNorwayAdapterIssues([]);
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
         const text = evt.target?.result as string;
         const { headers, rows, issues: parseIssues } = parseCsvText(text);
-        const preview = validateImportedDataset(headers, rows);
-        preview.issues.unshift(...parseIssues.filter((i) => !preview.issues.some((pi) => pi.message === i.message)));
-        setImportPreview(preview);
+        if (isNorwayWellboreDataset(headers)) {
+          setIsNorwayDataset(true);
+          setNorwayRawRows(rows);
+          setImportPreview(null);
+        } else {
+          const preview = validateImportedDataset(headers, rows);
+          preview.issues.unshift(...parseIssues.filter((i) => !preview.issues.some((pi) => pi.message === i.message)));
+          setImportPreview(preview);
+        }
       } catch (err) {
         setImportError((err as Error).message);
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleNorwayEnrichmentFile = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: React.Dispatch<React.SetStateAction<Record<string, string>[]>>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const { rows } = parseCsvText(evt.target?.result as string);
+        setter(rows);
+      } catch { /* ignore */ }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleNorwayConvert = () => {
+    const options: NorwayFactpagesAdapterOptions = {};
+    if (norwayDiscoveryRows.length) options.discoveryRows = norwayDiscoveryRows;
+    if (norwayReserveRows.length) options.reserveRows = norwayReserveRows;
+    if (norwayDescriptionRows.length) options.descriptionRows = norwayDescriptionRows;
+    if (norwayFieldRows.length) options.fieldRows = norwayFieldRows;
+
+    const result = convertNorwayWellboreRowsToImportRows(norwayRawRows, options);
+    setNorwayAdapterIssues(result.issues);
+
+    if (!result.rows.length) {
+      setImportError('Norway adapter produced no convertible rows. Check that the file is a wellbore_exploration_all export from Sokkeldirektoratet FactPages.');
+      setIsNorwayDataset(false);
+      return;
+    }
+
+    const convertedHeaders = Object.keys(result.rows[0]);
+    const preview = validateImportedDataset(convertedHeaders, result.rows);
+    const adapterMessages = result.issues
+      .filter((i) => !preview.issues.some((pi) => pi.message === i.message))
+      .map((i) => ({ severity: i.severity as 'info' | 'warning' | 'critical', message: i.message }));
+    preview.issues.unshift(...adapterMessages);
+    setImportPreview(preview);
+    setIsNorwayDataset(false);
   };
 
   const handleImportConfirm = () => {
@@ -475,6 +541,75 @@ export function MLLabPage() {
             <span className="ml-3 text-sm text-slate-300">{importFileName}</span>
           )}
         </div>
+
+        {isNorwayDataset && (
+          <div className="mt-4 rounded border border-cyan-700/60 bg-cyan-950/30 p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-cyan-300">Norway FactPages Detected</span>
+              <span className="rounded-full bg-cyan-800/50 px-2 py-0.5 text-[11px] text-cyan-200">Sokkeldirektoratet</span>
+            </div>
+            <p className="mb-2 text-xs text-slate-300">
+              This file matches the Norway wellbore exploration export format (wellbore_exploration_all.csv from sdp.factpages.npd.no).
+              Optionally upload enrichment files below, then click "Convert using Norway adapter" to map the data to PetroTarget's 28-column import schema.
+            </p>
+            <p className="mb-3 text-[11px] text-amber-400">
+              ⚠ FactPages does not include pre-drill geological scores. All six component scores default to 0.5 and GCoS to 0.015625.
+              Outcome labels are derived from the HC content column and discovery/field association. Update scores per prospect after import.
+            </p>
+            <div className="mb-3 grid gap-2 md:grid-cols-2">
+              {([
+                ['Discovery dataset', norwayDiscoveryRows, setNorwayDiscoveryRows],
+                ['Reserves dataset', norwayReserveRows, setNorwayReserveRows],
+                ['Descriptions dataset', norwayDescriptionRows, setNorwayDescriptionRows],
+                ['Field dataset', norwayFieldRows, setNorwayFieldRows],
+              ] as const).map(([label, rows, setter]) => (
+                <label
+                  key={label}
+                  className="flex cursor-pointer items-center gap-2 rounded border border-slate-700 bg-slate-900 px-3 py-2 text-xs hover:bg-slate-800"
+                >
+                  <span className="shrink-0 text-slate-400">{label}</span>
+                  <span className={rows.length ? 'text-emerald-300' : 'text-slate-600'}>
+                    {rows.length ? `✓ ${rows.length} rows` : 'Optional'}
+                  </span>
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="sr-only"
+                    onChange={(e) => handleNorwayEnrichmentFile(e, setter)}
+                  />
+                </label>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600"
+              onClick={handleNorwayConvert}
+            >
+              Convert using Norway adapter ({norwayRawRows.length} rows)
+            </button>
+          </div>
+        )}
+
+        {norwayAdapterIssues.length > 0 && !isNorwayDataset && (
+          <div className="mt-3 rounded border border-slate-700 bg-slate-950 p-3">
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Norway Adapter Messages ({norwayAdapterIssues.length})
+            </div>
+            <div className="max-h-32 space-y-1 overflow-y-auto">
+              {norwayAdapterIssues.slice(0, 10).map((issue, i) => (
+                <div
+                  key={i}
+                  className={`text-xs ${issue.severity === 'critical' ? 'text-red-300' : issue.severity === 'warning' ? 'text-amber-300' : 'text-slate-400'}`}
+                >
+                  {issue.severity === 'critical' ? '✗' : issue.severity === 'warning' ? '⚠' : 'ℹ'} {issue.message}
+                </div>
+              ))}
+              {norwayAdapterIssues.length > 10 && (
+                <div className="text-xs text-slate-600">… and {norwayAdapterIssues.length - 10} more messages</div>
+              )}
+            </div>
+          </div>
+        )}
 
         {importError && (
           <div className="mt-3 rounded border border-red-800 bg-red-950/40 p-3">
