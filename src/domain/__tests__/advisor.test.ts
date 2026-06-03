@@ -187,3 +187,30 @@ describe('advisor ML dataset import queries', () => {
   });
 });
 
+describe('advisor Norway FactPages adapter queries', () => {
+  it('responds to "norway factpages" with adapter info', () => {
+    const response = getAdvisorResponse('How do I use Norway FactPages data?', prospects);
+    expect(response.toLowerCase()).toMatch(/norway|factpages|sokkeldirektoratet|wellbore/i);
+  });
+
+  it('responds to "sokkeldirektoratet" with adapter info', () => {
+    const response = getAdvisorResponse('What is sokkeldirektoratet data?', prospects);
+    expect(response.toLowerCase()).toMatch(/norway|factpages|sokkeldirektoratet|wellbore/i);
+  });
+
+  it('mentions default scores limitation for Norway data', () => {
+    const response = getAdvisorResponse('What are the Norway FactPages limitations?', prospects);
+    expect(response.toLowerCase()).toMatch(/score|default|0\.5|gcos/i);
+  });
+
+  it('responds to "convert norway" with step-by-step guidance', () => {
+    const response = getAdvisorResponse('How do I convert a Norway CSV?', prospects);
+    expect(response.toLowerCase()).toMatch(/norway|convert|wellbore|adapter/i);
+  });
+
+  it('responds to "norway scores" with score default explanation', () => {
+    const response = getAdvisorResponse('What happens to Norway scores after import?', prospects);
+    expect(response.toLowerCase()).toMatch(/default|score|0\.5|gcos|manual/i);
+  });
+});
+
