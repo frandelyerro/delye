@@ -18,7 +18,20 @@ import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk } from './portf
 import { getEconomicAssumptionDefaults, getDecisionSignalLabel } from './economics';
 import { assessMLReadiness } from './mlReadiness';
 import { compareExpertAndML } from './mlModel';
+import { buildTrainingRows } from './mlTrainingFeatures';
+import { getDefaultMLTrainingConfig } from './mlTrainingService';
 import { isKnownOutcome, isGeologicalSuccess, isCommercialSuccess, getOutcomeLabelText } from './outcomes';
+
+// Summarizes the real labeled training set the baseline model would use.
+// Kept pure (no localStorage): advisor answers are based on portfolio
+// readiness and the documented model behavior, not the saved model blob.
+const summarizeTrainingLabels = (prospects: Prospect[]) => {
+  const config = getDefaultMLTrainingConfig();
+  const { rows } = buildTrainingRows(prospects, config);
+  const positives = rows.filter((r) => r.label === 1).length;
+  const negatives = rows.length - positives;
+  return { labeled: rows.length, positives, negatives, minExamples: config.minExamples };
+};
 
 const findMentionedProspect = (question: string, prospects: Prospect[]): Prospect | undefined => {
   const lowerQuestion = question.toLowerCase();
@@ -48,7 +61,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Best prospect is ${best.name} with GCoS ${Math.round((best.geologicalChanceOfSuccess ?? 0) * 100)}%, commercial score ${best.commercialScore}, and main risk ${best.mainRisk}.${explanationSnippet}`;
   }
 
-  if (q.includes('why this score') || q.includes('why is')) {
+  if ((q.includes('why this score') || q.includes('why is')) && !(q.includes('ml') && q.includes('ready'))) {
     const target = findMentionedProspect(q, prospects) ?? ranked[0];
     return `${target.name}: GCoS calculation ${getGCoSFormulaString(target)}. Strongest components: ${formatComponents(target)}. ` +
       `Weakest component: ${componentLabels[getWeakestComponent(target)]}. Main risk: ${target.mainRisk}. ` +
@@ -327,6 +340,75 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Default economic assumptions: oil price $${d.oilPriceUsdPerBbl}/bbl, development cost $${d.developmentCostUsdMM}M, exploration well cost $${d.explorationWellCostUsdMM}M, seismic cost $${d.seismicCostUsdMM}M, lease cost $${d.leaseOrEntryCostUsdMM}M, operating cost $${d.operatingCostUsdPerBbl}/bbl, royalty ${d.royaltyRate * 100}%, NRI ${d.netRevenueInterest}, WI ${d.workingInterest}. These can be customised per prospect in the Edit Prospect form.`;
   }
 
+  // ---- Trained ML baseline queries ----
+
+  if (
+    q.includes('use ml to decide') ||
+    q.includes('ml to decide drilling') ||
+    (q.includes('ml') && q.includes('decide') && q.includes('drill')) ||
+    (q.includes('ml') && q.includes('drilling') && q.includes('decision'))
+  ) {
+    return 'No. The trained ML model is a local prototype and is advisory only — it must not be used to decide drilling. Expert-system GCoS, prospect priority, recommended actions, drill-candidate logic, and economics decision signals remain the source of truth. Use the ML probability only as a secondary cross-check, never as the deciding factor.';
+  }
+
+  if (
+    q.includes('how accurate') ||
+    q.includes('model accuracy') ||
+    (q.includes('ml') && q.includes('accuracy'))
+  ) {
+    const { labeled, positives, negatives } = summarizeTrainingLabels(prospects);
+    const balanceNote = positives < 10 || negatives < 10
+      ? ' The current label set is small or imbalanced, so any reported accuracy will be unstable.'
+      : '';
+    return `The trained baseline is a local logistic-regression prototype. Accuracy is measured on a held-out test split and shown in ML Lab (accuracy, precision, recall, F1, Brier score) after you train. With ${labeled} labeled example(s) (${positives} positive / ${negatives} negative), expect limited reliability.${balanceNote} ML output is advisory only and never overrides expert-system GCoS or targeting gates.`;
+  }
+
+  if (
+    q.includes('features drive') ||
+    q.includes('drive the ml') ||
+    (q.includes('feature') && q.includes('ml') && (q.includes('which') || q.includes('what') || q.includes('drive')))
+  ) {
+    return 'The baseline model uses only safe pre-drill features: latitude, longitude, the six geoscience component scores (source, migration, reservoir, seal, trap, timing), data confidence, the evidence-derived flag, evidence completeness, main-risk one-hot flags, and encoded basin/play type. Expert-calibration mode additionally includes the expert-system GCoS. Post-drill measurements, reserves, economics, prospectivity tier, priority, and the outcome label are never used as inputs — including them would cause data leakage. Per-prospect top factors appear in ML Lab and on each Prospect Detail page. ML is advisory only.';
+  }
+
+  if (
+    q.includes('why is ml not ready') ||
+    q.includes('why not ready') ||
+    (q.includes('ml') && q.includes('not ready'))
+  ) {
+    const readiness = assessMLReadiness(prospects);
+    const { labeled, positives, negatives, minExamples } = summarizeTrainingLabels(prospects);
+    const reasons: string[] = [];
+    if (labeled < minExamples) reasons.push(`only ${labeled} labeled real outcome(s) (need at least ${minExamples} to train)`);
+    if (positives < 10) reasons.push(`only ${positives} positive example(s)`);
+    if (negatives < 10) reasons.push(`only ${negatives} negative example(s)`);
+    if (!reasons.length) reasons.push('the dataset meets the minimum size but still needs more balanced, calibrated examples for reliable metrics');
+    return `ML is not ready because ${reasons.join('; ')}. Portfolio readiness: ${readiness.readinessScore}/100 (${readiness.status}). Record real historical outcomes (discoveries and dry holes) on prospects, then train in ML Lab. The trained model stays advisory only and never overrides expert-system GCoS.`;
+  }
+
+  if (
+    q.includes('how many labels') ||
+    q.includes('labels do we need') ||
+    q.includes('labels needed') ||
+    (q.includes('how many') && q.includes('label') && q.includes('need'))
+  ) {
+    const { labeled, positives, negatives, minExamples } = summarizeTrainingLabels(prospects);
+    return `You currently have ${labeled} real labeled example(s) (${positives} positive / ${negatives} negative). The baseline trains with at least ${minExamples}; for more reliable metrics aim for 100+ labeled outcomes with at least 10 of each class (discoveries and dry holes). Synthetic labels do not count toward real training. Add outcomes via the Historical Outcome section on each prospect, or import a labeled dataset from ML Lab.`;
+  }
+
+  if (
+    q.includes('train the ml model') ||
+    q.includes('train the model') ||
+    q.includes('how do i train') ||
+    q.includes('how to train')
+  ) {
+    const { labeled, minExamples } = summarizeTrainingLabels(prospects);
+    const readyNote = labeled >= minExamples
+      ? `You have ${labeled} labeled example(s) — enough to train.`
+      : `You have ${labeled} labeled example(s); at least ${minExamples} are required.`;
+    return `To train the local baseline: open ML Lab → "Train Baseline ML Model", choose a target (hydrocarbon presence, geological success, or commercial success) and feature mode (safe pre-drill or expert calibration), pick a train/test split, and click Train baseline model. ${readyNote} Training runs entirely in your browser — no backend, no external API. The result is a logistic-regression prototype that is advisory only and never overrides expert-system GCoS or targeting gates.`;
+  }
+
   // ---- ML queries ----
 
   if (
@@ -335,7 +417,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     q.includes('ml model trained') ||
     (q.includes('ml') && q.includes('trained'))
   ) {
-    return 'No trained ML model is connected yet. The current ML Lab contains a deterministic baseline model only. A real trained model requires labeled historical well outcome data (discoveries, dry holes, commercial wells) that has not yet been collected. See the ML Lab page (/ml-lab) for readiness details.';
+    return 'No trained ML model is wired into targeting — expert-system GCoS remains the source of truth. You can now train a local baseline prototype in ML Lab from labeled historical outcomes; once trained and saved it appears as an advisory prediction on each Prospect Detail page, but it never overrides GCoS, priority, or drill-candidate logic. See the ML Lab page (/ml-lab) for readiness and training.';
   }
 
   if (
@@ -505,5 +587,5 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return 'Post-drill leakage refers to columns that contain information only available AFTER a well has been drilled: actual_net_pay_m, actual_porosity_percent, actual_permeability_md, actual_initial_rate_bopd, actual_reserves_mmboe, actual_recoverable_resource_mmboe, actual_development_status. If these are used as predictive ML features, the model will appear to perform well in training but will fail completely on new undrilled prospects — because the "feature" values are not available at prediction time. These columns should be used for outcome labeling and evaluation only, never as model inputs. PetroTarget AI will flag these columns as warnings during import.';
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", or "what is post-drill leakage".';
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", or "how many labels do we need".';
 };

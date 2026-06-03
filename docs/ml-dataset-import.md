@@ -162,3 +162,15 @@ Download the template, fill in your historical data, and upload to ML Lab for va
 - [ML Outcomes](./ml-core.md#outcomes) — Prospect outcome labels and target variables
 - [Decision Economics](./decision-economics.md) — EMV and risked resource calculations
 - [Geoscience Engine](./geoscience-engine.md) — GCoS formula and evidence integration
+
+---
+
+## Using Imported Data for Model Training
+
+Imported rows that carry a real `outcome_label` (≠ `unknown`) and `is_synthetic = false` become labeled training examples for the **ML Training Baseline** (see [ml-training-baseline.md](./ml-training-baseline.md)). After importing:
+
+1. Open **ML Lab → Train Baseline ML Model**.
+2. The pre-training panel shows how many labeled examples, positives, and negatives the import produced.
+3. Train once at least 30 labeled examples are available (100+ recommended, with both discoveries and dry holes).
+
+Only the leakage-safe pre-drill columns are used as model **inputs**; `outcome_label`, the post-drill leakage columns, reserves, and economics are used for **labels/evaluation only**, never as features. This preserves the same leakage protection enforced during import validation.

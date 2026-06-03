@@ -165,3 +165,20 @@ Key features:
 - The `evidenceCompleteness` calculation uses the fraction of non-missing evidence items relative to total items seen. This is a proxy; a better measure would compare against a canonical complete evidence template.
 - No uncertainty quantification — the baseline returns a point estimate, not a distribution.
 - No domain-specific play-type adjustments.
+
+---
+
+## Trained ML Baseline (v1)
+
+ML Core provides the *deterministic* baseline preview (a fixed weighted formula). The **supervised** trained baseline is documented separately in [ml-training-baseline.md](./ml-training-baseline.md).
+
+Key distinction:
+
+| | Expert-system GCoS | Deterministic baseline (ML Core) | Trained baseline (ML Training) |
+|---|---|---|---|
+| How it's produced | Petroleum-system formula | Fixed weighted blend of features | Logistic regression fit to labeled outcomes |
+| Needs labels? | No | No | Yes (real historical outcomes) |
+| Role | Source of truth | Development sanity check | Advisory only |
+| Overrides targeting? | — | Never | Never |
+
+The trained model is opt-in: it must be trained and saved in ML Lab. Until then, the deterministic baseline preview described above remains the default. Neither ML output changes prospect priority, recommended action, drill-candidate logic, economics decision signals, or geoscience scores.

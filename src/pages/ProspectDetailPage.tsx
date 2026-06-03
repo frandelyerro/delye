@@ -22,7 +22,17 @@ import { assessExplorationMaturity } from '../domain/earlyExploration';
 import { getDecisionSignalLabel, getEconomicGradeLabel } from '../domain/economics';
 import type { EconomicAssessment } from '../domain/economicTypes';
 import { predictWithBaselineModel, compareExpertAndML } from '../domain/mlModel';
+import { loadTrainedMLModel } from '../services/mlModelStorage';
+import { compareTrainedModelWithExpertGCoS } from '../domain/mlTrainingService';
+import { predictWithModel } from '../domain/mlLogisticRegression';
+import type { MLTrainingTarget } from '../domain/mlTrainingTypes';
 import { getOutcomeLabelText, getOutcomeSummary, isKnownOutcome } from '../domain/outcomes';
+
+const mlTargetLabel: Record<MLTrainingTarget, string> = {
+  hydrocarbon_presence: 'Hydrocarbon Presence',
+  geological_success: 'Geological Success',
+  commercial_success: 'Commercial Success',
+};
 
 const priorityBadgeClass = {
   high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
@@ -571,13 +581,80 @@ export function ProspectDetailPage() {
     )}
 
     {(() => {
-      const mlPrediction = predictWithBaselineModel(prospect);
-      const mlCompare = compareExpertAndML(prospect);
       const agreementBadge = {
         high: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
         medium: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
         low: 'border-red-500/40 bg-red-500/15 text-red-300',
       };
+
+      const trainedModel = loadTrainedMLModel();
+      if (trainedModel) {
+        const pred = predictWithModel(trainedModel, prospect);
+        const cmp = compareTrainedModelWithExpertGCoS(trainedModel, prospect);
+        return (
+          <section className="rounded-lg border border-cyan-900/50 bg-slate-900/50 p-5">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-lg font-semibold text-cyan-200">Trained ML Model (Advisory)</h2>
+                <p className="mt-1 text-xs text-slate-400">
+                  Local logistic-regression prototype · target: {mlTargetLabel[trainedModel.target]} · trained {new Date(trainedModel.trainedAt).toLocaleDateString()}.
+                </p>
+              </div>
+              <span className="inline-flex rounded-full border border-cyan-700 bg-cyan-950/30 px-3 py-1 text-xs font-semibold text-cyan-300">
+                Trained Model (prototype)
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded border border-slate-800 bg-slate-950 p-3">
+                <div className="text-xs uppercase tracking-wide text-slate-500">Expert-system GCoS</div>
+                <div className="mt-2 text-xl font-semibold text-slate-100">{Math.round(cmp.expertGCoS * 100)}%</div>
+                <div className="text-xs text-slate-500 mt-1">source of truth</div>
+              </div>
+              <div className="rounded border border-slate-800 bg-slate-950 p-3">
+                <div className="text-xs uppercase tracking-wide text-slate-500">ML Probability</div>
+                <div className="mt-2 text-xl font-semibold text-cyan-200">{Math.round(cmp.mlProbability * 100)}%</div>
+                <div className="text-xs text-slate-500 mt-1">advisory only</div>
+              </div>
+              <div className="rounded border border-slate-800 bg-slate-950 p-3">
+                <div className="text-xs uppercase tracking-wide text-slate-500">Delta</div>
+                <div className={`mt-2 text-xl font-semibold ${cmp.delta >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {cmp.delta >= 0 ? '+' : ''}{Math.round(cmp.delta * 100)}pp
+                </div>
+              </div>
+              <div className="rounded border border-slate-800 bg-slate-950 p-3">
+                <div className="text-xs uppercase tracking-wide text-slate-500">Agreement</div>
+                <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${agreementBadge[cmp.agreement]}`}>
+                  {cmp.agreement}
+                </span>
+              </div>
+            </div>
+            <div className="mt-3 rounded border border-slate-800 bg-slate-950 p-3">
+              <div className="text-xs uppercase tracking-wide text-slate-500 mb-2">Top Factors</div>
+              <ul className="space-y-1">
+                {pred.topFactors.map((f, i) => (
+                  <li key={i} className="text-xs text-slate-300">
+                    <span className={f.direction === 'positive' ? 'text-emerald-400' : 'text-red-400'}>
+                      {f.direction === 'positive' ? '▲' : '▼'}
+                    </span>{' '}
+                    <span className="font-mono text-slate-400">{f.feature}</span>
+                    {' '}({f.contribution >= 0 ? '+' : ''}{f.contribution.toFixed(2)})
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="mt-3 rounded border border-cyan-900/30 bg-cyan-950/10 p-3">
+              <p className="text-xs text-cyan-700">
+                ⚠ ML output is advisory only. Expert-system GCoS and existing targeting gates remain unchanged.
+                {' '}{cmp.interpretation}{' '}
+                Manage the trained model from <Link to="/ml-lab" className="underline text-cyan-500 hover:text-cyan-400">ML Lab</Link>.
+              </p>
+            </div>
+          </section>
+        );
+      }
+
+      const mlPrediction = predictWithBaselineModel(prospect);
+      const mlCompare = compareExpertAndML(prospect);
       return (
         <section className="rounded-lg border border-slate-700 bg-slate-900/50 p-5">
           <div className="flex items-center justify-between gap-3 flex-wrap">

@@ -187,3 +187,43 @@ describe('advisor ML dataset import queries', () => {
   });
 });
 
+describe('advisor trained ML baseline queries', () => {
+  it('says ML must not decide drilling (advisory only)', () => {
+    const response = getAdvisorResponse('Can we use ML to decide drilling?', prospects);
+    expect(response.toLowerCase()).toMatch(/^no|advisory|must not|source of truth/i);
+    expect(response.toLowerCase()).toMatch(/expert/i);
+  });
+
+  it('says no trained model is wired into targeting when asked if trained', () => {
+    const response = getAdvisorResponse('Is the ML model trained?', prospects);
+    expect(response.toLowerCase()).toMatch(/no trained|advisory|expert/i);
+  });
+
+  it('explains how many labels are needed', () => {
+    const response = getAdvisorResponse('How many labels do we need?', prospects);
+    expect(response.toLowerCase()).toMatch(/label|example/i);
+    expect(response).toMatch(/\d+/);
+  });
+
+  it('explains how to train the model', () => {
+    const response = getAdvisorResponse('How do I train the ML model?', prospects);
+    expect(response.toLowerCase()).toMatch(/ml lab|train|split/i);
+    expect(response.toLowerCase()).toMatch(/advisory|never overrides|expert/i);
+  });
+
+  it('describes which features drive the ML model and warns about leakage', () => {
+    const response = getAdvisorResponse('What features drive the ML model?', prospects);
+    expect(response.toLowerCase()).toMatch(/pre-drill|feature|leakage/i);
+  });
+
+  it('explains why ML is not ready', () => {
+    const response = getAdvisorResponse('Why is ML not ready?', prospects);
+    expect(response.toLowerCase()).toMatch(/ready|labeled|outcome|example/i);
+  });
+
+  it('describes accuracy as a prototype measured in ML Lab', () => {
+    const response = getAdvisorResponse('How accurate is the ML model?', prospects);
+    expect(response.toLowerCase()).toMatch(/prototype|accuracy|advisory/i);
+  });
+});
+

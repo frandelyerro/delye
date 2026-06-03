@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useProspectStore } from '../store/useProspectStore';
 import { assessMLReadiness } from '../domain/mlReadiness';
 import { extractMLFeaturesForPortfolio } from '../domain/mlFeatures';
-import { compareExpertAndML, getMLModelStatus, predictWithBaselineModel } from '../domain/mlModel';
+import { compareExpertAndML, getMLModelStatus } from '../domain/mlModel';
 import {
   createSyntheticTrainingDataset,
   createTrainingDatasetFromOutcomes,
@@ -17,9 +17,42 @@ import {
   getRecommendedTemplateContent,
   type DatasetImportPreview,
 } from '../domain/mlDatasetImport';
+import {
+  buildTrainingRows,
+} from '../domain/mlTrainingFeatures';
+import {
+  getDefaultMLTrainingConfig,
+  trainBaselineMLModel,
+  validateTrainingReadinessForModel,
+  compareTrainedModelWithExpertGCoS,
+} from '../domain/mlTrainingService';
+import type {
+  MLFeatureMode,
+  MLTrainingResult,
+  MLTrainingTarget,
+  TrainedMLModel,
+} from '../domain/mlTrainingTypes';
+import { loadTrainedMLModel, saveTrainedMLModel, clearTrainedMLModel } from '../services/mlModelStorage';
 import { isKnownOutcome, getOutcomeLabelText } from '../domain/outcomes';
 import type { OutcomeLabel } from '../domain/mlTypes';
 import { downloadJson, downloadText } from '../utils/exportReport';
+
+const trainingTargetLabel: Record<MLTrainingTarget, string> = {
+  hydrocarbon_presence: 'Hydrocarbon Presence',
+  geological_success: 'Geological Success',
+  commercial_success: 'Commercial Success',
+};
+
+const featureModeLabel: Record<MLFeatureMode, string> = {
+  safe_pre_drill: 'Safe pre-drill features',
+  expert_calibration: 'Expert calibration (adds expert GCoS)',
+};
+
+const trainAgreementBadge: Record<string, string> = {
+  high: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+  medium: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+  low: 'border-red-500/40 bg-red-500/15 text-red-300',
+};
 
 const statusBadge: Record<string, string> = {
   not_ready: 'border-red-500/40 bg-red-500/15 text-red-300',
@@ -57,6 +90,80 @@ export function MLLabPage() {
   const [importConfirming, setImportConfirming] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skippedDuplicates: number } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+
+  // Training state
+  const [trainTarget, setTrainTarget] = useState<MLTrainingTarget>('geological_success');
+  const [trainFeatureMode, setTrainFeatureMode] = useState<MLFeatureMode>('safe_pre_drill');
+  const [trainRatio, setTrainRatio] = useState(0.8);
+  const [trainExcludeSynthetic, setTrainExcludeSynthetic] = useState(true);
+  const [trainingResult, setTrainingResult] = useState<MLTrainingResult | null>(null);
+  const [trainingError, setTrainingError] = useState<string | null>(null);
+  const [savedModel, setSavedModel] = useState<TrainedMLModel | null>(null);
+
+  useEffect(() => {
+    setSavedModel(loadTrainedMLModel());
+  }, []);
+
+  const trainingConfig = useMemo(
+    () => ({
+      ...getDefaultMLTrainingConfig(),
+      target: trainTarget,
+      featureMode: trainFeatureMode,
+      trainRatio,
+      excludeSynthetic: trainExcludeSynthetic,
+    }),
+    [trainTarget, trainFeatureMode, trainRatio, trainExcludeSynthetic],
+  );
+
+  const trainingPreview = useMemo(() => {
+    const { rows, excluded } = buildTrainingRows(prospects, trainingConfig);
+    const positives = rows.filter((r) => r.label === 1).length;
+    const negatives = rows.length - positives;
+    const syntheticExcluded = excluded.filter((e) => /synthetic/i.test(e.reason)).length;
+    const readinessWarnings = validateTrainingReadinessForModel(rows, trainingConfig);
+    return {
+      labeled: rows.length,
+      positives,
+      negatives,
+      syntheticExcluded,
+      readinessWarnings,
+      canTrain: rows.length >= trainingConfig.minExamples,
+    };
+  }, [prospects, trainingConfig]);
+
+  const handleTrainModel = () => {
+    try {
+      const result = trainBaselineMLModel(prospects, trainingConfig);
+      setTrainingResult(result);
+      setTrainingError(null);
+    } catch (err) {
+      setTrainingResult(null);
+      setTrainingError((err as Error).message);
+    }
+  };
+
+  const handleSaveModel = () => {
+    if (!trainingResult) return;
+    saveTrainedMLModel(trainingResult.model);
+    setSavedModel(trainingResult.model);
+  };
+
+  const handleLoadModel = () => {
+    setSavedModel(loadTrainedMLModel());
+  };
+
+  const handleClearModel = () => {
+    clearTrainedMLModel();
+    setSavedModel(null);
+  };
+
+  const handleExportModelJson = () => {
+    if (trainingResult) downloadJson('ml-trained-model.json', trainingResult.model);
+  };
+
+  const handleExportMetricsJson = () => {
+    if (trainingResult) downloadJson('ml-model-metrics.json', trainingResult.metrics);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -429,6 +536,291 @@ export function MLLabPage() {
             To connect a trained ML model: collect labeled historical well outcome data, export features via the Dataset Export section, train a classifier offline, and integrate the inference endpoint in <code className="text-amber-200">src/domain/mlModel.ts</code>.
             See <code className="text-amber-200">docs/ml-core.md</code> for the training roadmap.
           </p>
+        </div>
+      </section>
+
+      {/* E2. Train Baseline ML Model */}
+      <section className="rounded-lg border border-cyan-900/50 bg-slate-900 p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-cyan-200">Train Baseline ML Model</h2>
+            <p className="mt-1 max-w-3xl text-sm text-slate-400">
+              Train a transparent, local logistic-regression model on your labeled historical outcomes.
+              This proves the ML workflow end-to-end and lets you compare a trained model against the expert-system GCoS.
+            </p>
+          </div>
+          {savedModel && (
+            <span className="mt-2 inline-flex shrink-0 items-center rounded-full border border-emerald-700 bg-emerald-950/30 px-3 py-1 text-xs font-semibold text-emerald-300">
+              Saved model: {trainingTargetLabel[savedModel.target]}
+            </span>
+          )}
+        </div>
+
+        <div className="mt-3 rounded border border-amber-900/40 bg-amber-950/20 p-3">
+          <p className="text-xs text-amber-300">
+            ⚠ This is a local supervised baseline prototype. It is not a calibrated production model and must not be used as a
+            drilling or investment decision by itself. Expert-system GCoS and existing targeting gates remain the source of truth.
+          </p>
+        </div>
+
+        {/* Controls */}
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <label className="block">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Target</span>
+            <select
+              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+              value={trainTarget}
+              onChange={(e) => setTrainTarget(e.target.value as MLTrainingTarget)}
+            >
+              <option value="hydrocarbon_presence">Hydrocarbon presence</option>
+              <option value="geological_success">Geological success</option>
+              <option value="commercial_success">Commercial success</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Feature mode</span>
+            <select
+              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+              value={trainFeatureMode}
+              onChange={(e) => setTrainFeatureMode(e.target.value as MLFeatureMode)}
+            >
+              <option value="safe_pre_drill">Safe pre-drill features</option>
+              <option value="expert_calibration">Expert calibration</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Train / test split</span>
+            <select
+              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+              value={trainRatio}
+              onChange={(e) => setTrainRatio(Number(e.target.value))}
+            >
+              <option value={0.7}>70 / 30</option>
+              <option value={0.8}>80 / 20</option>
+              <option value={0.9}>90 / 10</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 self-end pb-2">
+            <input
+              type="checkbox"
+              checked={trainExcludeSynthetic}
+              onChange={(e) => setTrainExcludeSynthetic(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-600 bg-slate-950"
+            />
+            <span className="text-sm text-slate-300">Exclude synthetic</span>
+          </label>
+        </div>
+
+        {/* Pre-training readiness */}
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            ['Labeled examples', String(trainingPreview.labeled)],
+            ['Positives', String(trainingPreview.positives)],
+            ['Negatives', String(trainingPreview.negatives)],
+            ['Synthetic excluded', String(trainingPreview.syntheticExcluded)],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded border border-slate-800 bg-slate-950 p-3">
+              <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
+              <div className="mt-1 text-xl font-semibold text-slate-100">{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {trainingPreview.readinessWarnings.length > 0 && (
+          <div className="mt-3 rounded border border-slate-700 bg-slate-950 p-3">
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Readiness Warnings</div>
+            <ul className="space-y-1">
+              {trainingPreview.readinessWarnings.map((w, i) => (
+                <li key={i} className="text-xs text-amber-300">⚠ {w}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className={`rounded px-4 py-2 text-sm font-medium ${trainingPreview.canTrain ? 'bg-cyan-700 hover:bg-cyan-600' : 'cursor-not-allowed bg-slate-700 text-slate-500'}`}
+            onClick={handleTrainModel}
+            disabled={!trainingPreview.canTrain}
+            title={trainingPreview.canTrain ? undefined : `Need at least ${trainingConfig.minExamples} labeled examples (have ${trainingPreview.labeled}).`}
+          >
+            Train baseline model
+          </button>
+          {!trainingPreview.canTrain && (
+            <span className="text-xs text-slate-500">
+              Need at least {trainingConfig.minExamples} labeled examples to train (have {trainingPreview.labeled}).
+            </span>
+          )}
+        </div>
+
+        {trainingError && (
+          <div className="mt-3 rounded border border-red-800 bg-red-950/40 p-3">
+            <p className="text-xs text-red-300">⚠ {trainingError}</p>
+          </div>
+        )}
+
+        {trainingResult && (() => {
+          const { model, metrics, warnings, predictions } = trainingResult;
+          const cm = metrics.confusionMatrix;
+          const prospectById = new Map(prospects.map((p) => [p.id, p]));
+          const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+          return (
+            <div className="mt-5 space-y-4">
+              {/* Model metadata */}
+              <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+                {[
+                  ['Model', 'Logistic Regression'],
+                  ['Target', trainingTargetLabel[model.target]],
+                  ['Feature mode', featureModeLabel[model.featureMode]],
+                  ['Train size', String(model.trainingExamples)],
+                  ['Test size', String(model.testExamples)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded border border-slate-800 bg-slate-950 p-3">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-100">{value}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500">Trained at {new Date(model.trainedAt).toLocaleString()}</p>
+
+              {/* Metrics */}
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                {[
+                  ['Accuracy', pct(metrics.accuracy)],
+                  ['Precision', pct(metrics.precision)],
+                  ['Recall', pct(metrics.recall)],
+                  ['F1', metrics.f1.toFixed(3)],
+                  ['Brier score', metrics.brierScore.toFixed(3)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded border border-slate-800 bg-slate-950 p-3">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">{label}</div>
+                    <div className="mt-1 text-xl font-semibold text-cyan-200">{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Confusion matrix */}
+              <div className="rounded border border-slate-800 bg-slate-950 p-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Confusion Matrix (test set, threshold 0.5)
+                </div>
+                <div className="grid max-w-md grid-cols-3 gap-px overflow-hidden rounded border border-slate-800 bg-slate-800 text-center text-xs">
+                  <div className="bg-slate-950 p-2 text-slate-600" />
+                  <div className="bg-slate-950 p-2 font-medium text-slate-400">Pred +</div>
+                  <div className="bg-slate-950 p-2 font-medium text-slate-400">Pred −</div>
+                  <div className="bg-slate-950 p-2 font-medium text-slate-400">Actual +</div>
+                  <div className="bg-emerald-950/40 p-2 font-semibold text-emerald-300">{cm.truePositive}</div>
+                  <div className="bg-red-950/40 p-2 font-semibold text-red-300">{cm.falseNegative}</div>
+                  <div className="bg-slate-950 p-2 font-medium text-slate-400">Actual −</div>
+                  <div className="bg-red-950/40 p-2 font-semibold text-red-300">{cm.falsePositive}</div>
+                  <div className="bg-emerald-950/40 p-2 font-semibold text-emerald-300">{cm.trueNegative}</div>
+                </div>
+              </div>
+
+              {/* Warnings */}
+              {warnings.length > 0 && (
+                <div className="rounded border border-amber-900/40 bg-amber-950/15 p-3">
+                  <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-400">Model Warnings</div>
+                  <ul className="space-y-1">
+                    {warnings.map((w, i) => (
+                      <li key={i} className="text-xs text-amber-300">⚠ {w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Predictions table */}
+              <div className="rounded border border-slate-800 bg-slate-900">
+                <div className="border-b border-slate-800 px-4 py-2">
+                  <span className="text-xs font-semibold text-slate-300">Model Predictions ({predictions.length} labeled prospects)</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1000px] text-sm">
+                    <thead className="bg-slate-950/70">
+                      <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                        <th className="px-4 py-3">Prospect</th>
+                        <th className="px-4 py-3">Outcome</th>
+                        <th className="px-4 py-3">Expert GCoS</th>
+                        <th className="px-4 py-3">ML Probability</th>
+                        <th className="px-4 py-3">Delta</th>
+                        <th className="px-4 py-3">Agreement</th>
+                        <th className="px-4 py-3">Top + Factor</th>
+                        <th className="px-4 py-3">Top − Factor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {predictions.map((pred) => {
+                        const prospect = prospectById.get(pred.prospectId);
+                        if (!prospect) return null;
+                        const cmp = compareTrainedModelWithExpertGCoS(model, prospect);
+                        const topPos = pred.topFactors.find((f) => f.direction === 'positive');
+                        const topNeg = pred.topFactors.find((f) => f.direction === 'negative');
+                        return (
+                          <tr key={pred.prospectId} className="border-t border-slate-800 align-middle hover:bg-slate-800/35">
+                            <td className="px-4 py-3 font-medium text-slate-200">{prospect.name}</td>
+                            <td className="px-4 py-3 text-slate-400">{prospect.outcome ? getOutcomeLabelText(prospect.outcome.label) : '—'}</td>
+                            <td className="px-4 py-3 text-slate-100">{Math.round(cmp.expertGCoS * 100)}%</td>
+                            <td className="px-4 py-3 font-semibold text-cyan-200">{Math.round(cmp.mlProbability * 100)}%</td>
+                            <td className="px-4 py-3">
+                              <span className={cmp.delta >= 0 ? 'text-emerald-300' : 'text-red-300'}>
+                                {cmp.delta >= 0 ? '+' : ''}{Math.round(cmp.delta * 100)}pp
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${trainAgreementBadge[cmp.agreement]}`}>
+                                {cmp.agreement}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-emerald-400">{topPos ? topPos.feature : '—'}</td>
+                            <td className="px-4 py-3 text-xs text-red-400">{topNeg ? topNeg.feature : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Model actions */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="button" className="rounded bg-emerald-700 px-4 py-2 text-sm font-medium hover:bg-emerald-600" onClick={handleSaveModel}>
+                  Save model locally
+                </button>
+                <button type="button" className="rounded border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800" onClick={handleExportModelJson}>
+                  Export model JSON
+                </button>
+                <button type="button" className="rounded border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800" onClick={handleExportMetricsJson}>
+                  Export metrics JSON
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Saved model controls */}
+        <div className="mt-5 rounded border border-slate-800 bg-slate-950 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs text-slate-400">
+              {savedModel ? (
+                <>
+                  Saved model in browser storage: <span className="text-slate-200">{trainingTargetLabel[savedModel.target]}</span>{' '}
+                  · {featureModeLabel[savedModel.featureMode]} · trained {new Date(savedModel.trainedAt).toLocaleDateString()}.
+                  It is used for the advisory prediction on each Prospect Detail page.
+                </>
+              ) : (
+                'No trained model is saved in browser storage. Train and save a model to enable the advisory prediction on Prospect Detail pages.'
+              )}
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button type="button" className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800" onClick={handleLoadModel}>
+                Load saved model
+              </button>
+              <button type="button" className="rounded border border-red-800 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-950/40" onClick={handleClearModel} disabled={!savedModel}>
+                Clear saved model
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
