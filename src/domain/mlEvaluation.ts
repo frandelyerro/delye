@@ -1,19 +1,22 @@
-// Train/test split and evaluation metrics for the ML training baseline.
+// Train/test split, evaluation metrics, ROC-AUC, and k-fold cross-validation
+// for the ML training baseline.
 //
 // The split is deterministic for a given seed (mulberry32 PRNG) so training
 // runs are reproducible. Metrics handle division-by-zero safely and degrade
 // gracefully when a test set contains only one class.
 
 import type {
+  MLCrossValidationResult,
   MLMetrics,
   MLPredictionResult,
+  MLTrainingConfig,
   MLTrainingRow,
   TrainedMLModel,
 } from './mlTrainingTypes';
-import { buildPredictionResult } from './mlLogisticRegression';
+import { buildPredictionResult, trainLogisticRegression } from './mlLogisticRegression';
 
 // Deterministic PRNG. Same seed → same sequence.
-const mulberry32 = (seed: number) => {
+export const mulberry32 = (seed: number) => {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6d2b79f5) >>> 0;
@@ -81,6 +84,80 @@ export const calculateBrierScore = (
   return count === 0 ? 0 : sum / count;
 };
 
+/**
+ * ROC-AUC via the Mann-Whitney U statistic: counts the fraction of
+ * (positive, negative) pairs where the positive example scores higher.
+ * Returns 0.5 (random) if only one class is present or input is empty.
+ * Perfect discrimination returns 1.0.
+ */
+export const calculateROCAUC = (
+  rows: MLTrainingRow[],
+  predictions: MLPredictionResult[],
+): number => {
+  const predById = new Map(predictions.map((p) => [p.prospectId, p]));
+  const positives: number[] = [];
+  const negatives: number[] = [];
+
+  for (const row of rows) {
+    const pred = predById.get(row.prospectId);
+    if (!pred) continue;
+    if (row.label === 1) positives.push(pred.probability);
+    else negatives.push(pred.probability);
+  }
+
+  if (positives.length === 0 || negatives.length === 0) return 0.5;
+
+  let concordant = 0;
+  let ties = 0;
+  for (const p of positives) {
+    for (const n of negatives) {
+      if (p > n) concordant++;
+      else if (p === n) ties++;
+    }
+  }
+
+  return (concordant + 0.5 * ties) / (positives.length * negatives.length);
+};
+
+/**
+ * Sweeps thresholds [0.05, 0.50] in 0.05 steps and returns the one that
+ * maximises F1 on the provided rows/predictions. Falls back to 0.5 when
+ * F1 is 0 at every threshold (degenerate dataset).
+ */
+export const findOptimalThreshold = (
+  rows: MLTrainingRow[],
+  predictions: MLPredictionResult[],
+): number => {
+  if (rows.length === 0 || predictions.length === 0) return 0.5;
+  const predById = new Map(predictions.map((p) => [p.prospectId, p]));
+  let bestThreshold = 0.5;
+  let bestF1 = -1;
+
+  for (let t = 5; t <= 95; t += 5) {
+    const threshold = t / 100;
+    let tp = 0;
+    let fp = 0;
+    let fn = 0;
+    for (const row of rows) {
+      const pred = predById.get(row.prospectId);
+      if (!pred) continue;
+      const predicted = pred.probability >= threshold ? 1 : 0;
+      if (row.label === 1 && predicted === 1) tp++;
+      else if (row.label === 0 && predicted === 1) fp++;
+      else if (row.label === 1 && predicted === 0) fn++;
+    }
+    const p = tp + fp === 0 ? 0 : tp / (tp + fp);
+    const r = tp + fn === 0 ? 0 : tp / (tp + fn);
+    const f1 = p + r === 0 ? 0 : (2 * p * r) / (p + r);
+    if (f1 > bestF1) {
+      bestF1 = f1;
+      bestThreshold = threshold;
+    }
+  }
+
+  return bestThreshold;
+};
+
 /** Evaluates a trained model on a held-out test set. */
 export const evaluateModel = (
   model: TrainedMLModel,
@@ -102,6 +179,9 @@ export const evaluateModel = (
   const f1 = precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);
 
   const brierScore = calculateBrierScore(testRows, predictions);
+  const rocAUC = calculateROCAUC(testRows, predictions);
+  const optimalThreshold = findOptimalThreshold(testRows, predictions);
+
   const positives = testRows.filter((r) => r.label === 1).length;
   const predictedPositives = predictions.filter((p) => p.predictedLabel === 1).length;
 
@@ -111,6 +191,8 @@ export const evaluateModel = (
     recall,
     f1,
     brierScore,
+    rocAUC,
+    optimalThreshold,
     confusionMatrix: cm,
     positiveRate: total === 0 ? 0 : positives / total,
     predictedPositiveRate: total === 0 ? 0 : predictedPositives / total,
@@ -119,4 +201,66 @@ export const evaluateModel = (
   };
 
   return { metrics, predictions };
+};
+
+/**
+ * K-fold cross-validation. Shuffles rows deterministically, splits into k
+ * folds, trains on k-1 folds and evaluates on the held-out fold, repeating k
+ * times. Returns mean ± std across folds for core metrics.
+ *
+ * Does NOT use the same seed as the main train/test split to avoid
+ * information leakage between CV and the final evaluation.
+ */
+export const kFoldCrossValidate = (
+  rows: MLTrainingRow[],
+  config: MLTrainingConfig,
+  k: number,
+): MLCrossValidationResult => {
+  const clampedK = Math.min(Math.max(2, k), Math.min(10, rows.length));
+  const rng = mulberry32(999); // fixed CV seed, distinct from training seed
+  const shuffled = [...rows];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  const foldSize = Math.floor(shuffled.length / clampedK);
+  const foldMetrics: MLMetrics[] = [];
+
+  for (let f = 0; f < clampedK; f++) {
+    const valStart = f * foldSize;
+    const valEnd = f === clampedK - 1 ? shuffled.length : valStart + foldSize;
+    const valRows = shuffled.slice(valStart, valEnd);
+    const trainRows = [
+      ...shuffled.slice(0, valStart),
+      ...shuffled.slice(valEnd),
+    ];
+
+    if (trainRows.length < 4 || valRows.length < 2) continue;
+
+    const model = trainLogisticRegression(trainRows, config);
+    const { metrics } = evaluateModel(model, valRows);
+    foldMetrics.push(metrics);
+  }
+
+  if (foldMetrics.length === 0) {
+    const zero = { accuracy: 0, precision: 0, recall: 0, f1: 0, rocAUC: 0.5, brierScore: 0.25 };
+    return { folds: 0, meanMetrics: zero, stdMetrics: zero };
+  }
+
+  const keys = ['accuracy', 'precision', 'recall', 'f1', 'rocAUC', 'brierScore'] as const;
+  const meanMetrics = {} as MLCrossValidationResult['meanMetrics'];
+  const stdMetrics = {} as MLCrossValidationResult['stdMetrics'];
+
+  for (const key of keys) {
+    const vals = foldMetrics.map((m) => m[key]);
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const std = Math.sqrt(
+      vals.reduce((acc, v) => acc + (v - mean) ** 2, 0) / vals.length,
+    );
+    meanMetrics[key] = parseFloat(mean.toFixed(4));
+    stdMetrics[key] = parseFloat(std.toFixed(4));
+  }
+
+  return { folds: foldMetrics.length, meanMetrics, stdMetrics };
 };

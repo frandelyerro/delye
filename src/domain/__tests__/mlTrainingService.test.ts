@@ -119,5 +119,47 @@ describe('getDefaultMLTrainingConfig', () => {
     expect(c.trainRatio).toBe(0.8);
     expect(c.minExamples).toBe(30);
     expect(c.excludeSynthetic).toBe(true);
+    expect(c.classWeight).toBe('none');
+    expect(c.patience).toBeGreaterThan(0);
+    expect(c.convergenceTol).toBeGreaterThan(0);
+  });
+});
+
+describe('trainBaselineMLModel — new ML improvements', () => {
+  it('metrics include rocAUC in [0, 1]', () => {
+    const result = trainBaselineMLModel(makePortfolio(20, 20));
+    expect(result.metrics.rocAUC).toBeGreaterThanOrEqual(0);
+    expect(result.metrics.rocAUC).toBeLessThanOrEqual(1);
+  });
+
+  it('metrics include optimalThreshold in (0, 1)', () => {
+    const result = trainBaselineMLModel(makePortfolio(20, 20));
+    expect(result.metrics.optimalThreshold).toBeGreaterThan(0);
+    expect(result.metrics.optimalThreshold).toBeLessThan(1);
+  });
+
+  it('model records lossHistory', () => {
+    const result = trainBaselineMLModel(makePortfolio(20, 20));
+    expect(result.model.lossHistory.length).toBeGreaterThan(0);
+    expect(result.model.lossHistory.every((l) => Number.isFinite(l))).toBe(true);
+  });
+
+  it('balanced class weighting trains without error', () => {
+    const result = trainBaselineMLModel(makePortfolio(25, 15), { classWeight: 'balanced' });
+    expect(result.model.classWeight).toBe('balanced');
+    expect(result.model.weights.every((w) => Number.isFinite(w))).toBe(true);
+  });
+
+  it('runCV=true returns cvResult with fold metrics', () => {
+    const result = trainBaselineMLModel(makePortfolio(20, 20), {}, true, 3);
+    expect(result.cvResult).toBeDefined();
+    expect(result.cvResult!.folds).toBe(3);
+    expect(result.cvResult!.meanMetrics.accuracy).toBeGreaterThanOrEqual(0);
+    expect(result.cvResult!.stdMetrics.f1).toBeGreaterThanOrEqual(0);
+  });
+
+  it('runCV=false leaves cvResult undefined', () => {
+    const result = trainBaselineMLModel(makePortfolio(20, 20), {}, false);
+    expect(result.cvResult).toBeUndefined();
   });
 });

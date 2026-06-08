@@ -93,6 +93,22 @@ export const extractTrainingFeatures = (
     play_type_hash: stableHash(p.playType),
   };
 
+  // Composite component-score features — safe pre-drill (derived from the 6 scores).
+  // These let the model learn patterns like "all scores uniformly weak" vs
+  // "one bottleneck, rest strong" which the individual scores alone cannot express.
+  const componentScores = [
+    p.sourceScore, p.migrationScore, p.reservoirScore,
+    p.sealScore, p.trapScore, p.timingScore,
+  ];
+  const compMin = Math.min(...componentScores);
+  const compMax = Math.max(...componentScores);
+  const compMean = componentScores.reduce((a, b) => a + b, 0) / 6;
+  const compVariance = componentScores.reduce((acc, v) => acc + (v - compMean) ** 2, 0) / 6;
+  features.componentMin = compMin;
+  features.componentMax = compMax;
+  features.componentRange = compMax - compMin;   // spread of scores
+  features.componentVariance = compVariance;      // heterogeneity of the play
+
   if (mode === 'expert_calibration') {
     features.gcosExpert = p.geologicalChanceOfSuccess ?? 0;
   }

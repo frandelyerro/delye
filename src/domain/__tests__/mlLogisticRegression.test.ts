@@ -106,4 +106,36 @@ describe('trainLogisticRegression', () => {
     const model = trainLogisticRegression(makeRows(), { ...config, l2Penalty: 10 });
     expect(model.weights.every((w) => Number.isFinite(w))).toBe(true);
   });
+
+  it('records loss history sampled every 50 iterations', () => {
+    const model = trainLogisticRegression(makeRows(), { ...config, iterations: 200 });
+    // 200 iterations / 50 = 4 samples (plus possibly 1 at last iter if not on boundary)
+    expect(model.lossHistory.length).toBeGreaterThan(0);
+    expect(model.lossHistory.every((l) => Number.isFinite(l) && l >= 0)).toBe(true);
+  });
+
+  it('balanced class weighting produces a model with finite weights', () => {
+    const model = trainLogisticRegression(makeRows(), { ...config, classWeight: 'balanced' });
+    expect(model.classWeight).toBe('balanced');
+    expect(model.weights.every((w) => Number.isFinite(w))).toBe(true);
+  });
+
+  it('early stopping triggers on a convergent dataset', () => {
+    // Very easy dataset — the model should converge well before 5000 iterations
+    const model = trainLogisticRegression(makeRows(), {
+      ...config,
+      iterations: 5000,
+      patience: 3,
+      convergenceTol: 0.001,
+    });
+    expect(model.stoppedEarly).toBe(true);
+    expect(model.finalIteration).toBeLessThan(5000);
+  });
+
+  it('stoppedEarly is false when iterations complete normally', () => {
+    // Single iteration — no chance to converge
+    const model = trainLogisticRegression(makeRows(), { ...config, iterations: 1 });
+    expect(model.stoppedEarly).toBe(false);
+    expect(model.finalIteration).toBe(1);
+  });
 });

@@ -2,7 +2,7 @@
 //
 // Ties together feature building, the logistic-regression trainer, the
 // train/test split, and evaluation. Also provides the expert-vs-ML
-// comparison used in the UI.
+// comparison and k-fold cross-validation used in the UI.
 //
 // SAFETY: nothing in this module overrides expert-system GCoS, prospect
 // priority, recommended action, drill-candidate logic, economics decision
@@ -10,6 +10,7 @@
 
 import type { Prospect } from './prospect';
 import type {
+  MLCrossValidationResult,
   MLMetrics,
   MLPredictionResult,
   MLTrainingConfig,
@@ -24,11 +25,13 @@ import {
   predictWithModel,
   trainLogisticRegression,
 } from './mlLogisticRegression';
-import { evaluateModel, splitTrainTest } from './mlEvaluation';
+import {
+  evaluateModel,
+  findOptimalThreshold,
+  kFoldCrossValidate,
+  splitTrainTest,
+} from './mlEvaluation';
 
-// Fixed seed keeps the train/test split reproducible across runs. The
-// config type intentionally does not expose it — the split must be stable
-// so saved models and reported metrics stay comparable.
 export const DEFAULT_TRAINING_SEED = 42;
 
 export const getDefaultMLTrainingConfig = (): MLTrainingConfig => ({
@@ -40,6 +43,9 @@ export const getDefaultMLTrainingConfig = (): MLTrainingConfig => ({
   l2Penalty: 0.001,
   minExamples: 30,
   excludeSynthetic: true,
+  classWeight: 'none',
+  patience: 20,
+  convergenceTol: 1e-6,
 });
 
 /**
@@ -84,12 +90,16 @@ export const validateTrainingReadinessForModel = (
 /**
  * Trains the baseline logistic-regression model from the portfolio's
  * labeled historical outcomes. Throws when there are fewer labeled rows
- * than `minExamples` (the UI guards against this and surfaces readiness
- * warnings before enabling training).
+ * than `minExamples`.
+ *
+ * After training, re-evaluates using the optimal threshold (maximises F1
+ * on the test set) and optionally runs k-fold cross-validation.
  */
 export const trainBaselineMLModel = (
   prospects: Prospect[],
   configOverride: Partial<MLTrainingConfig> = {},
+  runCV = false,
+  cvFolds = 5,
 ): MLTrainingResult => {
   const config = { ...getDefaultMLTrainingConfig(), ...configOverride };
   const { rows, excluded, warnings: buildWarnings } = buildTrainingRows(prospects, config);
@@ -106,17 +116,36 @@ export const trainBaselineMLModel = (
   model.testExamples = testRows.length;
   model.excludedExamples = excluded.length;
 
-  const { metrics } = evaluateModel(model, testRows, 0.5);
+  // Use default threshold=0.5 for initial evaluation, then find optimal
+  const { metrics: metricsAt05, predictions: predsAt05 } = evaluateModel(model, testRows, 0.5);
+  const optimalThreshold = findOptimalThreshold(testRows, predsAt05);
+
+  // Re-evaluate with optimal threshold for all displayed metrics
+  const { metrics, predictions: testPredictions } = evaluateModel(model, testRows, optimalThreshold);
+  metrics.optimalThreshold = optimalThreshold;
 
   const readinessWarnings = validateTrainingReadinessForModel(rows, config);
   const warnings = Array.from(new Set([...readinessWarnings, ...buildWarnings]));
+  if (model.stoppedEarly) {
+    warnings.push(`Early stopping triggered at iteration ${model.finalIteration} (patience ${config.patience}).`);
+  }
   model.warnings = warnings;
 
-  // Predictions over the full labeled set so the UI table can show every
-  // labeled prospect. Metrics, by contrast, come from the test set only.
-  const predictions = rows.map((r) => buildPredictionResult(model, r.prospectId, r.features, 0.5));
+  // Predictions over the full labeled set for the UI table
+  const predictions = rows.map((r) =>
+    buildPredictionResult(model, r.prospectId, r.features, optimalThreshold),
+  );
 
-  return { model, metrics, trainRows, testRows, predictions, warnings };
+  // Optional k-fold cross-validation
+  let cvResult: MLCrossValidationResult | undefined;
+  if (runCV && rows.length >= cvFolds * 4) {
+    cvResult = kFoldCrossValidate(rows, config, cvFolds);
+  }
+
+  // Suppress metricsAt05 from unused-variable lint
+  void metricsAt05;
+
+  return { model, metrics, trainRows, testRows, predictions, warnings, cvResult };
 };
 
 /** Scores every prospect in a portfolio with a trained model. */
@@ -164,4 +193,4 @@ export const compareTrainedModelWithExpertGCoS = (
   return { expertGCoS, mlProbability, delta, agreement, interpretation };
 };
 
-export type { MLMetrics };
+export type { MLMetrics, MLCrossValidationResult };

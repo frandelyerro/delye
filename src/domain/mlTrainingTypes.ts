@@ -15,6 +15,8 @@ export type MLFeatureMode =
   | 'safe_pre_drill'
   | 'expert_calibration';
 
+export type MLClassWeight = 'none' | 'balanced';
+
 export type MLTrainTestSplit = {
   trainRatio: number;
   seed: number;
@@ -29,6 +31,9 @@ export type MLTrainingConfig = {
   l2Penalty: number;
   minExamples: number;
   excludeSynthetic: boolean;
+  classWeight: MLClassWeight;
+  patience: number;       // early stopping: consecutive non-improving iterations
+  convergenceTol: number; // early stopping: minimum loss improvement
 };
 
 export type MLTrainingRow = {
@@ -47,18 +52,16 @@ export type TrainedMLModel = {
   featureNames: string[];
   weights: number[];
   intercept: number;
-  normalization: Record<
-    string,
-    {
-      mean: number;
-      std: number;
-    }
-  >;
+  normalization: Record<string, { mean: number; std: number }>;
   trainedAt: string;
   trainingExamples: number;
   testExamples: number;
   excludedExamples: number;
   warnings: string[];
+  classWeight: MLClassWeight;
+  stoppedEarly: boolean;
+  finalIteration: number;
+  lossHistory: number[]; // loss sampled every 50 iterations
 };
 
 export type MLPredictionResult = {
@@ -81,6 +84,8 @@ export type MLMetrics = {
   recall: number;
   f1: number;
   brierScore: number;
+  rocAUC: number;
+  optimalThreshold: number;
   confusionMatrix: {
     truePositive: number;
     falsePositive: number;
@@ -93,6 +98,26 @@ export type MLMetrics = {
   testSize: number;
 };
 
+export type MLCrossValidationResult = {
+  folds: number;
+  meanMetrics: {
+    accuracy: number;
+    precision: number;
+    recall: number;
+    f1: number;
+    rocAUC: number;
+    brierScore: number;
+  };
+  stdMetrics: {
+    accuracy: number;
+    precision: number;
+    recall: number;
+    f1: number;
+    rocAUC: number;
+    brierScore: number;
+  };
+};
+
 export type MLTrainingResult = {
   model: TrainedMLModel;
   metrics: MLMetrics;
@@ -100,4 +125,5 @@ export type MLTrainingResult = {
   testRows: MLTrainingRow[];
   predictions: MLPredictionResult[];
   warnings: string[];
+  cvResult?: MLCrossValidationResult;
 };

@@ -189,3 +189,43 @@ describe('defaulted feature detection', () => {
     expect(warnings.some((w) => /defaulted/i.test(w))).toBe(true);
   });
 });
+
+describe('composite component-score features', () => {
+  it('includes componentMin, componentMax, componentRange, componentVariance', () => {
+    const f = extractTrainingFeatures(makeProspect(), 'safe_pre_drill');
+    expect(f).toHaveProperty('componentMin');
+    expect(f).toHaveProperty('componentMax');
+    expect(f).toHaveProperty('componentRange');
+    expect(f).toHaveProperty('componentVariance');
+  });
+
+  it('componentMin <= componentMax', () => {
+    const f = extractTrainingFeatures(makeProspect(), 'safe_pre_drill');
+    expect(f.componentMin).toBeLessThanOrEqual(f.componentMax);
+  });
+
+  it('componentRange = componentMax - componentMin', () => {
+    const f = extractTrainingFeatures(makeProspect(), 'safe_pre_drill');
+    expect(f.componentRange).toBeCloseTo(f.componentMax - f.componentMin, 10);
+  });
+
+  it('componentVariance is 0 when all scores equal', () => {
+    const p = makeProspect({
+      sourceScore: 0.6, migrationScore: 0.6, reservoirScore: 0.6,
+      sealScore: 0.6, trapScore: 0.6, timingScore: 0.6,
+    });
+    const f = extractTrainingFeatures(p, 'safe_pre_drill');
+    expect(f.componentVariance).toBeCloseTo(0, 10);
+    expect(f.componentRange).toBeCloseTo(0, 10);
+  });
+
+  it('componentVariance > 0 when scores differ', () => {
+    const p = makeProspect({
+      sourceScore: 0.9, migrationScore: 0.9, reservoirScore: 0.1,
+      sealScore: 0.1, trapScore: 0.9, timingScore: 0.1,
+    });
+    const f = extractTrainingFeatures(p, 'safe_pre_drill');
+    expect(f.componentVariance).toBeGreaterThan(0);
+    expect(f.componentRange).toBeGreaterThan(0.5);
+  });
+});

@@ -33,6 +33,7 @@ import {
   compareTrainedModelWithExpertGCoS,
 } from '../domain/mlTrainingService';
 import type {
+  MLClassWeight,
   MLFeatureMode,
   MLTrainingResult,
   MLTrainingTarget,
@@ -114,6 +115,9 @@ export function MLLabPage() {
   const [trainingResult, setTrainingResult] = useState<MLTrainingResult | null>(null);
   const [trainingError, setTrainingError] = useState<string | null>(null);
   const [savedModel, setSavedModel] = useState<TrainedMLModel | null>(null);
+  const [trainClassWeight, setTrainClassWeight] = useState<MLClassWeight>('none');
+  const [runCV, setRunCV] = useState(false);
+  const [cvFolds, setCvFolds] = useState(5);
 
   useEffect(() => {
     setSavedModel(loadTrainedMLModel());
@@ -126,8 +130,9 @@ export function MLLabPage() {
       featureMode: trainFeatureMode,
       trainRatio,
       excludeSynthetic: trainExcludeSynthetic,
+      classWeight: trainClassWeight,
     }),
-    [trainTarget, trainFeatureMode, trainRatio, trainExcludeSynthetic],
+    [trainTarget, trainFeatureMode, trainRatio, trainExcludeSynthetic, trainClassWeight],
   );
 
   const trainingPreview = useMemo(() => {
@@ -148,7 +153,7 @@ export function MLLabPage() {
 
   const handleTrainModel = () => {
     try {
-      const result = trainBaselineMLModel(prospects, trainingConfig);
+      const result = trainBaselineMLModel(prospects, trainingConfig, runCV, cvFolds);
       setTrainingResult(result);
       setTrainingError(null);
     } catch (err) {
@@ -666,7 +671,20 @@ export function MLLabPage() {
               <option value={0.9}>90 / 10</option>
             </select>
           </label>
-          <label className="flex items-center gap-2 self-end pb-2">
+          <label className="block">
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">Class weighting</span>
+            <select
+              className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+              value={trainClassWeight}
+              onChange={(e) => setTrainClassWeight(e.target.value as MLClassWeight)}
+            >
+              <option value="none">None (uniform)</option>
+              <option value="balanced">Balanced (handles imbalance)</option>
+            </select>
+          </label>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={trainExcludeSynthetic}
@@ -675,6 +693,30 @@ export function MLLabPage() {
             />
             <span className="text-sm text-slate-300">Exclude synthetic</span>
           </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={runCV}
+              onChange={(e) => setRunCV(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-600 bg-slate-950"
+            />
+            <span className="text-sm text-slate-300">Run k-fold cross-validation</span>
+          </label>
+          {runCV && (
+            <label className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">Folds:</span>
+              <select
+                className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200"
+                value={cvFolds}
+                onChange={(e) => setCvFolds(Number(e.target.value))}
+              >
+                <option value={3}>3</option>
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+              </select>
+              <span className="text-xs text-slate-500">(slower)</span>
+            </label>
+          )}
         </div>
 
         {/* Pre-training readiness */}
@@ -727,7 +769,7 @@ export function MLLabPage() {
         )}
 
         {trainingResult && (() => {
-          const { model, metrics, warnings, predictions } = trainingResult;
+          const { model, metrics, warnings, predictions, cvResult } = trainingResult;
           const cm = metrics.confusionMatrix;
           const prospectById = new Map(prospects.map((p) => [p.id, p]));
           const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
@@ -751,7 +793,7 @@ export function MLLabPage() {
               <p className="text-xs text-slate-500">Trained at {new Date(model.trainedAt).toLocaleString()}</p>
 
               {/* Metrics */}
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
                 {[
                   ['Accuracy', pct(metrics.accuracy)],
                   ['Precision', pct(metrics.precision)],
@@ -765,11 +807,30 @@ export function MLLabPage() {
                   </div>
                 ))}
               </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded border border-slate-800 bg-slate-950 p-3">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">ROC-AUC</div>
+                  <div className="mt-1 text-xl font-semibold text-cyan-200">{metrics.rocAUC.toFixed(3)}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">1.0 = perfect · 0.5 = random</div>
+                </div>
+                <div className="rounded border border-slate-800 bg-slate-950 p-3">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">Optimal Threshold</div>
+                  <div className="mt-1 text-xl font-semibold text-cyan-200">{pct(metrics.optimalThreshold)}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">F1-maximising classification cutoff</div>
+                </div>
+                <div className="rounded border border-slate-800 bg-slate-950 p-3">
+                  <div className="text-xs uppercase tracking-wide text-slate-500">Convergence</div>
+                  <div className={`mt-1 text-sm font-semibold ${model.stoppedEarly ? 'text-emerald-300' : 'text-slate-400'}`}>
+                    {model.stoppedEarly ? `Early stop @ iter ${model.finalIteration}` : `Completed ${model.finalIteration} iters`}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">{model.lossHistory.length} loss samples</div>
+                </div>
+              </div>
 
               {/* Confusion matrix */}
               <div className="rounded border border-slate-800 bg-slate-950 p-3">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Confusion Matrix (test set, threshold 0.5)
+                  Confusion Matrix (test set, threshold {pct(metrics.optimalThreshold)})
                 </div>
                 <div className="grid max-w-md grid-cols-3 gap-px overflow-hidden rounded border border-slate-800 bg-slate-800 text-center text-xs">
                   <div className="bg-slate-950 p-2 text-slate-600" />
@@ -793,6 +854,26 @@ export function MLLabPage() {
                       <li key={i} className="text-xs text-amber-300">⚠ {w}</li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {/* CV results */}
+              {cvResult && (
+                <div className="rounded border border-violet-900/40 bg-violet-950/15 p-3">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-violet-400">
+                    {cvResult.folds}-Fold Cross-Validation (mean ± std)
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+                    {(['accuracy', 'precision', 'recall', 'f1', 'rocAUC', 'brierScore'] as const).map((key) => (
+                      <div key={key} className="rounded border border-slate-800 bg-slate-950 p-2">
+                        <div className="text-[10px] uppercase tracking-wide text-slate-500">{key}</div>
+                        <div className="mt-0.5 text-sm font-semibold text-violet-200">
+                          {cvResult.meanMetrics[key].toFixed(3)}
+                        </div>
+                        <div className="text-[10px] text-slate-500">±{cvResult.stdMetrics[key].toFixed(3)}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

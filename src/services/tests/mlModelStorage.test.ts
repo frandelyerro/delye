@@ -32,6 +32,10 @@ const sampleModel: TrainedMLModel = {
   testExamples: 10,
   excludedExamples: 5,
   warnings: ['This is a local prototype model only.'],
+  classWeight: 'none',
+  stoppedEarly: false,
+  finalIteration: 1000,
+  lossHistory: [0.693, 0.55, 0.42],
 };
 
 describe('mlModelStorage', () => {

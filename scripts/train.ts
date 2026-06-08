@@ -164,20 +164,25 @@ console.log('  Iterations:       1000');
 console.log('  L2 penalty:       0.001\n');
 
 const t0 = Date.now();
-const result = trainBaselineMLModel(rawProspects, {
-  target: 'geological_success',
-  featureMode: 'safe_pre_drill',
-  trainRatio: 0.8,
-  learningRate: 0.05,
-  iterations: 1000,
-  l2Penalty: 0.001,
-  minExamples: 30,
-  excludeSynthetic: false, // we generated these as 'historical'
-});
+const result = trainBaselineMLModel(
+  rawProspects,
+  {
+    target: 'geological_success',
+    featureMode: 'safe_pre_drill',
+    trainRatio: 0.8,
+    learningRate: 0.05,
+    iterations: 1000,
+    l2Penalty: 0.001,
+    minExamples: 30,
+    excludeSynthetic: false, // we generated these as 'historical'
+  },
+  true,  // runCV
+  5,     // cvFolds
+);
 const elapsed = Date.now() - t0;
 
 // ── Results ──────────────────────────────────────────────────────────────────
-const { model, metrics } = result;
+const { model, metrics, cvResult } = result;
 const { confusionMatrix: cm } = metrics;
 const TP = cm.truePositive;
 const FP = cm.falsePositive;
@@ -192,10 +197,13 @@ console.log(`║  Precision:  ${(metrics.precision * 100).toFixed(1).padStart(6)
 console.log(`║  Recall:     ${(metrics.recall * 100).toFixed(1).padStart(6)}%   (of real positives, how many found)    ║`);
 console.log(`║  F1 score:   ${metrics.f1.toFixed(4).padStart(6)}                                         ║`);
 console.log(`║  Brier:      ${metrics.brierScore.toFixed(4).padStart(6)}   (lower is better, 0.25 = random)        ║`);
+console.log(`║  ROC-AUC:    ${metrics.rocAUC.toFixed(4).padStart(6)}   (1.0 = perfect, 0.5 = random)              ║`);
+console.log(`║  Threshold:  ${(metrics.optimalThreshold * 100).toFixed(1).padStart(5)}%   (optimal F1 cutoff)                      ║`);
 console.log(`║  Train rows: ${String(metrics.trainSize).padStart(6)}   Test rows: ${String(metrics.testSize).padStart(3)}                     ║`);
-console.log(`║  Training:   ${String(elapsed).padStart(5)}ms                                          ║`);
+console.log(`║  Training:   ${String(elapsed).padStart(5)}ms   ${model.stoppedEarly ? `Early stop @ iter ${model.finalIteration}` : `Completed ${model.finalIteration} iters`}       ║`);
 console.log('╠══════════════════════════════════════════════════════════════╣');
 console.log('║                    CONFUSION MATRIX                         ║');
+console.log(`║  (threshold: ${(metrics.optimalThreshold * 100).toFixed(0)}%)                                             ║`);
 console.log('╠═══════════════════════════╦═════════════╦═════════════╣');
 console.log('║                           ║ Pred Pos     ║ Pred Neg    ║');
 console.log('╠═══════════════════════════╬═════════════╬═════════════╣');
@@ -218,6 +226,17 @@ for (const { name, weight } of weightPairs.slice(0, 10)) {
   console.log(`  ${name.padEnd(32)} ${sign}${weight.toFixed(4)}  ${bar}`);
 }
 console.log(`\n  Intercept: ${model.intercept >= 0 ? '+' : ''}${model.intercept.toFixed(4)}`);
+
+// ── Cross-validation results ─────────────────────────────────────────────────
+if (cvResult) {
+  console.log(`\n── ${cvResult.folds}-Fold Cross-Validation (mean ± std) ───────────────────`);
+  const keys = ['accuracy', 'precision', 'recall', 'f1', 'rocAUC', 'brierScore'] as const;
+  for (const key of keys) {
+    const mean = cvResult.meanMetrics[key].toFixed(4);
+    const std = cvResult.stdMetrics[key].toFixed(4);
+    console.log(`  ${key.padEnd(16)} ${mean}  ± ${std}`);
+  }
+}
 
 // ── Model warnings ───────────────────────────────────────────────────────────
 console.log('\n── Model warnings ────────────────────────────────────────────');

@@ -1,10 +1,10 @@
 // Pure-TypeScript logistic regression for the ML training baseline.
 //
 // No external ML dependency. Batch gradient descent with optional L2
-// penalty. Deterministic: the same rows + config always produce the same
-// weights. Feature values are z-score normalised; the normalisation
-// parameters are stored on the model so predictions normalise new inputs
-// identically.
+// penalty, balanced class weighting, and patience-based early stopping.
+// Deterministic: the same rows + config always produce the same weights.
+// Feature values are z-score normalised; the normalisation parameters are
+// stored on the model so predictions normalise new inputs identically.
 
 import type { Prospect } from './prospect';
 import type {
@@ -16,6 +16,7 @@ import type {
 import { extractTrainingFeatures } from './mlTrainingFeatures';
 
 const PROB_EPSILON = 1e-6;
+const LOSS_SAMPLE_INTERVAL = 50; // record cross-entropy loss every N iterations
 
 /** Numerically stable logistic sigmoid. */
 export const sigmoid = (x: number): number => {
@@ -68,6 +69,30 @@ export const normalizeFeatureMatrix = (
   return { normalizedRows, normalization, featureNames };
 };
 
+/** Binary cross-entropy loss (averaged over examples). */
+const crossEntropyLoss = (
+  normalizedRows: MLTrainingRow[],
+  weights: number[],
+  intercept: number,
+  featureNames: string[],
+  l2Penalty: number,
+): number => {
+  const m = normalizedRows.length;
+  if (m === 0) return 0;
+  let loss = 0;
+  for (const row of normalizedRows) {
+    let z = intercept;
+    for (let j = 0; j < featureNames.length; j++) {
+      z += weights[j] * (row.features[featureNames[j]] ?? 0);
+    }
+    const p = Math.max(PROB_EPSILON, Math.min(1 - PROB_EPSILON, sigmoid(z)));
+    loss += row.label === 1 ? -Math.log(p) : -Math.log(1 - p);
+  }
+  // L2 regularisation term (weights only)
+  const l2 = weights.reduce((acc, w) => acc + w * w, 0) * (l2Penalty / 2);
+  return loss / m + l2;
+};
+
 /** Trains a logistic-regression model via batch gradient descent. */
 export const trainLogisticRegression = (
   rows: MLTrainingRow[],
@@ -79,6 +104,25 @@ export const trainLogisticRegression = (
 
   const weights = new Array<number>(n).fill(0);
   let intercept = 0;
+  const lossHistory: number[] = [];
+  let stoppedEarly = false;
+  let finalIteration = config.iterations;
+
+  // Class weights for imbalanced datasets
+  const positives = normalizedRows.filter((r) => r.label === 1).length;
+  const negatives = m - positives;
+  const wPos = config.classWeight === 'balanced' && positives > 0
+    ? m / (2 * positives)
+    : 1;
+  const wNeg = config.classWeight === 'balanced' && negatives > 0
+    ? m / (2 * negatives)
+    : 1;
+
+  // Early stopping state
+  let patienceCount = 0;
+  let bestLoss = Infinity;
+  const patience = config.patience ?? 20;
+  const tol = config.convergenceTol ?? 1e-6;
 
   if (m > 0 && n > 0) {
     for (let iter = 0; iter < config.iterations; iter++) {
@@ -91,16 +135,35 @@ export const trainLogisticRegression = (
         for (let j = 0; j < n; j++) z += weights[j] * (x[featureNames[j]] ?? 0);
         const p = sigmoid(z);
         const err = p - normalizedRows[i].label;
-        for (let j = 0; j < n; j++) gradW[j] += err * (x[featureNames[j]] ?? 0);
-        gradB += err;
+        // Scale gradient by class weight
+        const cw = normalizedRows[i].label === 1 ? wPos : wNeg;
+        for (let j = 0; j < n; j++) gradW[j] += cw * err * (x[featureNames[j]] ?? 0);
+        gradB += cw * err;
       }
 
       for (let j = 0; j < n; j++) {
-        // L2 penalty applies to weights only, not the intercept.
         const grad = gradW[j] / m + config.l2Penalty * weights[j];
         weights[j] -= config.learningRate * grad;
       }
       intercept -= config.learningRate * (gradB / m);
+
+      // Sample loss and check early stopping
+      if ((iter + 1) % LOSS_SAMPLE_INTERVAL === 0 || iter === config.iterations - 1) {
+        const loss = crossEntropyLoss(normalizedRows, weights, intercept, featureNames, config.l2Penalty);
+        lossHistory.push(parseFloat(loss.toFixed(6)));
+
+        if (loss < bestLoss - tol) {
+          bestLoss = loss;
+          patienceCount = 0;
+        } else {
+          patienceCount++;
+          if (patienceCount >= patience) {
+            stoppedEarly = true;
+            finalIteration = iter + 1;
+            break;
+          }
+        }
+      }
     }
   }
 
@@ -117,6 +180,10 @@ export const trainLogisticRegression = (
     testExamples: 0,
     excludedExamples: 0,
     warnings: [],
+    classWeight: config.classWeight,
+    stoppedEarly,
+    finalIteration,
+    lossHistory,
   };
 };
 
@@ -139,8 +206,7 @@ export const predictProbability = (
 
 /**
  * Builds a full prediction result (probability, predicted label, ranked
- * top factors) from a raw feature record. Shared by per-prospect prediction
- * and by the evaluation harness.
+ * top factors) from a raw feature record.
  */
 export const buildPredictionResult = (
   model: TrainedMLModel,
