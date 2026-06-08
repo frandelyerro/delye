@@ -539,6 +539,37 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return lines.join(' ') + ' These are positive examples in the real training dataset. No trained ML model is connected yet.';
   }
 
+  // ---- Norway FactPages Adapter queries ----
+
+  if (
+    q.includes('norway factpages') ||
+    q.includes('factpages') ||
+    q.includes('sokkeldirektoratet') ||
+    q.includes('norwegian wells') ||
+    q.includes('npd data') ||
+    (q.includes('norway') && (q.includes('wellbore') || q.includes('adapter') || q.includes('import') || q.includes('data') || q.includes('offshore')))
+  ) {
+    return 'PetroTarget AI includes a Norway Sokkeldirektoratet FactPages adapter. Download the wellbore_exploration_all CSV export from factpages.sodir.no, then upload it in the ML Lab Import section. The tool automatically detects the Norway wellbore format and shows a "Convert using Norway adapter" button. Optionally enrich with discovery, reserves, description, and field CSVs from the same site. Outcome labels (dry_hole, technical_discovery, commercial_discovery) are derived from the HC content column and discovery/field association. Note: FactPages does not include pre-drill geological scores — all six component scores default to 0.5 and GCoS defaults to 0.015625. These defaults cannot substitute for real expert-system scoring.';
+  }
+
+  if (
+    q.includes('convert norway') ||
+    q.includes('norway convert') ||
+    q.includes('norway csv') ||
+    (q.includes('norway') && q.includes('convert'))
+  ) {
+    return 'To convert a Norway FactPages wellbore CSV: (1) Upload wellbore_exploration_all.csv in ML Lab → Import Historical Dataset. (2) The adapter detects the Norway format and shows enrichment file slots. (3) Optionally upload discovery.csv, discovery_reserves.csv, discovery_description.csv, and field.csv from Sokkeldirektoratet FactPages for better outcome coverage. (4) Click "Convert using Norway adapter" to map the Norway columns to PetroTarget\'s 28-column import schema. (5) Review the validation results and import valid rows. Geological component scores default to 0.5 — update them manually per prospect after import.';
+  }
+
+  if (
+    q.includes('norway limitations') ||
+    q.includes('norway scores') ||
+    q.includes('norway gcos') ||
+    (q.includes('norway') && (q.includes('limitation') || q.includes('score') || q.includes('default')))
+  ) {
+    return 'Norway FactPages limitations: (1) No pre-drill geological scores are published — all six component scores (source, migration, reservoir, seal, trap, timing) default to 0.5, and GCoS defaults to 0.015625 (the product of six 0.5 scores). (2) Outcome labels are inferred from the HC content column and discovery/field status — accuracy depends on the completeness of the FactPages data. (3) Resource estimates come from the reserves dataset (Rec. oil eq. [mill OE]) and may not reflect current reserve estimates. (4) Scoring mode is always set to manual — no geoscience evidence is captured from FactPages. Review and update each imported prospect with real geological data to produce meaningful GCoS estimates.';
+  }
+
   // ---- Dataset import queries ----
 
   if (
@@ -587,5 +618,5 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return 'Post-drill leakage refers to columns that contain information only available AFTER a well has been drilled: actual_net_pay_m, actual_porosity_percent, actual_permeability_md, actual_initial_rate_bopd, actual_reserves_mmboe, actual_recoverable_resource_mmboe, actual_development_status. If these are used as predictive ML features, the model will appear to perform well in training but will fail completely on new undrilled prospects — because the "feature" values are not available at prediction time. These columns should be used for outcome labeling and evaluation only, never as model inputs. PetroTarget AI will flag these columns as warnings during import.';
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", or "how many labels do we need".';
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", or "norway limitations".';
 };
