@@ -15,12 +15,7 @@ import {
   getRecommendedTemplateContent,
   type DatasetImportPreview,
 } from '../domain/mlDatasetImport';
-import {
-  isNorwayWellboreDataset,
-  convertNorwayWellboreRowsToImportRows,
-  type NorwayFactpagesAdapterOptions,
-  type NorwayAdapterIssue,
-} from '../domain/norwayFactpagesAdapter';
+import { useNorwayAdapter, isNorwayWellboreDataset } from '../hooks/useNorwayAdapter';
 import {
   buildTrainingRows,
 } from '../domain/mlTrainingFeatures';
@@ -79,14 +74,25 @@ export function MLLabPage() {
   const [importResult, setImportResult] = useState<{ imported: number; skippedDuplicates: number } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
-  // Norway FactPages adapter state
-  const [isNorwayDataset, setIsNorwayDataset] = useState(false);
-  const [norwayRawRows, setNorwayRawRows] = useState<Record<string, string>[]>([]);
-  const [norwayDiscoveryRows, setNorwayDiscoveryRows] = useState<Record<string, string>[]>([]);
-  const [norwayReserveRows, setNorwayReserveRows] = useState<Record<string, string>[]>([]);
-  const [norwayDescriptionRows, setNorwayDescriptionRows] = useState<Record<string, string>[]>([]);
-  const [norwayFieldRows, setNorwayFieldRows] = useState<Record<string, string>[]>([]);
-  const [norwayAdapterIssues, setNorwayAdapterIssues] = useState<NorwayAdapterIssue[]>([]);
+  // Norway FactPages adapter (extracted to hook)
+  const {
+    isNorwayDataset,
+    setIsNorwayDataset,
+    norwayRawRows,
+    setNorwayRawRows,
+    norwayDiscoveryRows,
+    setNorwayDiscoveryRows,
+    norwayReserveRows,
+    setNorwayReserveRows,
+    norwayDescriptionRows,
+    setNorwayDescriptionRows,
+    norwayFieldRows,
+    setNorwayFieldRows,
+    norwayAdapterIssues,
+    resetNorwayState,
+    handleNorwayEnrichmentFile,
+    handleNorwayConvert,
+  } = useNorwayAdapter({ setImportPreview, setImportError });
 
   // Training state
   const [trainTarget, setTrainTarget] = useState<MLTrainingTarget>('geological_success');
@@ -173,9 +179,7 @@ export function MLLabPage() {
     setImportResult(null);
     setImportError(null);
     setImportConfirming(false);
-    setIsNorwayDataset(false);
-    setNorwayRawRows([]);
-    setNorwayAdapterIssues([]);
+    resetNorwayState();
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
@@ -195,48 +199,6 @@ export function MLLabPage() {
       }
     };
     reader.readAsText(file);
-  };
-
-  const handleNorwayEnrichmentFile = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    setter: React.Dispatch<React.SetStateAction<Record<string, string>[]>>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const { rows } = parseCsvText(evt.target?.result as string);
-        setter(rows);
-      } catch { /* ignore */ }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleNorwayConvert = () => {
-    const options: NorwayFactpagesAdapterOptions = {};
-    if (norwayDiscoveryRows.length) options.discoveryRows = norwayDiscoveryRows;
-    if (norwayReserveRows.length) options.reserveRows = norwayReserveRows;
-    if (norwayDescriptionRows.length) options.descriptionRows = norwayDescriptionRows;
-    if (norwayFieldRows.length) options.fieldRows = norwayFieldRows;
-
-    const result = convertNorwayWellboreRowsToImportRows(norwayRawRows, options);
-    setNorwayAdapterIssues(result.issues);
-
-    if (!result.rows.length) {
-      setImportError('Norway adapter produced no convertible rows. Check that the file is a wellbore_exploration_all export from Sokkeldirektoratet FactPages.');
-      setIsNorwayDataset(false);
-      return;
-    }
-
-    const convertedHeaders = Object.keys(result.rows[0]);
-    const preview = validateImportedDataset(convertedHeaders, result.rows);
-    const adapterMessages = result.issues
-      .filter((i) => !preview.issues.some((pi) => pi.message === i.message))
-      .map((i) => ({ severity: i.severity as 'info' | 'warning' | 'critical', message: i.message }));
-    preview.issues.unshift(...adapterMessages);
-    setImportPreview(preview);
-    setIsNorwayDataset(false);
   };
 
   const handleImportConfirm = () => {

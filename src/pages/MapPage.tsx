@@ -77,11 +77,15 @@ function buildSpatialInsights(prospects: Prospect[]): string[] {
   const sorted = [...basinMap.entries()]
     .map(([basin, ps]) => {
       const best = ps.reduce((a, b) => ((b.geologicalChanceOfSuccess ?? 0) > (a.geologicalChanceOfSuccess ?? 0) ? b : a));
+      const playCounts: Record<string, number> = {};
+      for (const p of ps) if (p.playType) playCounts[p.playType] = (playCounts[p.playType] ?? 0) + 1;
+      const dominantPlay = Object.entries(playCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
       return {
         basin,
         count: ps.length,
         avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
         bestProspect: best.name,
+        dominantPlay,
       };
     })
     .sort((a, b) => b.avgGcos - a.avgGcos);
@@ -91,7 +95,7 @@ function buildSpatialInsights(prospects: Prospect[]): string[] {
   const low = prospects.filter((p) => p.priority === 'low').length;
   return [
     `${prospects.length} prospect${prospects.length !== 1 ? 's' : ''} across ${sorted.length} basin${sorted.length !== 1 ? 's' : ''}.`,
-    sorted[0] ? `Best basin: ${sorted[0].basin} (avg GCoS ${Math.round(sorted[0].avgGcos * 100)}%, ${sorted[0].count} well${sorted[0].count !== 1 ? 's' : ''}, top prospect: ${sorted[0].bestProspect}).` : '',
+    sorted[0] ? `Best basin: ${sorted[0].basin} (avg GCoS ${Math.round(sorted[0].avgGcos * 100)}%, ${sorted[0].count} prospect${sorted[0].count !== 1 ? 's' : ''}, dominant play: ${sorted[0].dominantPlay}, top prospect: ${sorted[0].bestProspect}).` : '',
     `Portfolio avg GCoS: ${Math.round(avgGcos * 100)}%.`,
     `${high} high · ${medium} medium · ${low} low priority.`,
   ].filter(Boolean);
@@ -209,8 +213,20 @@ export function MapPage() {
         paint: {
           'circle-color': ['match', ['get', 'priority'], 'high', '#22c55e', 'medium', '#f59e0b', '#ef4444'],
           'circle-radius': ['interpolate', ['linear'], ['get', 'gcosRaw'], 0, 5, 0.3, 7, 0.6, 10, 1, 15],
-          'circle-stroke-color': ['match', ['get', 'priority'], 'high', '#16a34a', 'medium', '#d97706', '#dc2626'],
-          'circle-stroke-width': 2,
+          'circle-stroke-color': ['match', ['get', 'playType'],
+            'Conventional Clastic',   '#3b82f6',
+            'Carbonate',              '#a855f7',
+            'Deepwater Clastic',      '#06b6d4',
+            'Deepwater Carbonate',    '#8b5cf6',
+            'Unconventional Tight',   '#f97316',
+            'Unconventional Shale',   '#84cc16',
+            'Salt Diapir / Sub-Salt', '#ec4899',
+            'Fractured Basement',     '#78716c',
+            'Stratigraphic Trap',     '#14b8a6',
+            'Combination Trap',       '#eab308',
+            '#94a3b8',
+          ],
+          'circle-stroke-width': 3,
           'circle-opacity': 0.9,
         },
       });

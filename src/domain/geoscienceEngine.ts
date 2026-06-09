@@ -163,10 +163,17 @@ export const assessReservoir = (evidence: ReservoirEvidence): ComponentAssessmen
   }
 
   if (evidence.porosityPercent !== undefined) {
-    if (evidence.porosityPercent >= 18) { score += 0.12; pos.push(`Excellent porosity ${evidence.porosityPercent}%`); }
-    else if (evidence.porosityPercent >= 12) { score += 0.08; pos.push(`Good porosity ${evidence.porosityPercent}%`); }
-    else if (evidence.porosityPercent >= 8) { score += 0.03; pos.push(`Marginal porosity ${evidence.porosityPercent}%`); }
-    else { score -= 0.12; neg.push(`Poor porosity ${evidence.porosityPercent}% — below conventional threshold`); }
+    if (evidence.isUnconventional) {
+      if (evidence.porosityPercent >= 10) { score += 0.12; pos.push(`Excellent unconventional porosity ${evidence.porosityPercent}%`); }
+      else if (evidence.porosityPercent >= 5) { score += 0.08; pos.push(`Good unconventional porosity ${evidence.porosityPercent}%`); }
+      else if (evidence.porosityPercent >= 2) { score += 0.03; pos.push(`Marginal unconventional porosity ${evidence.porosityPercent}%`); }
+      else { score -= 0.12; neg.push(`Poor porosity ${evidence.porosityPercent}% — below unconventional threshold`); }
+    } else {
+      if (evidence.porosityPercent >= 18) { score += 0.12; pos.push(`Excellent porosity ${evidence.porosityPercent}%`); }
+      else if (evidence.porosityPercent >= 12) { score += 0.08; pos.push(`Good porosity ${evidence.porosityPercent}%`); }
+      else if (evidence.porosityPercent >= 8) { score += 0.03; pos.push(`Marginal porosity ${evidence.porosityPercent}%`); }
+      else { score -= 0.12; neg.push(`Poor porosity ${evidence.porosityPercent}% — below conventional threshold`); }
+    }
   } else {
     missing.push('Porosity data not available');
   }

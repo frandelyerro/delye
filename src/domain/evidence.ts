@@ -49,6 +49,7 @@ export type ReservoirEvidence = {
   netPayM?: number;
   vshaleFraction?: number;
   continuity?: ReservoirContinuity;
+  isUnconventional?: boolean;
   sources?: EvidenceSourceType[];
 };
 
