@@ -13,7 +13,7 @@ import { getExplorationStage, getExplorationStageLabel } from '../domain/earlyEx
 import { getEconomicGradeLabel } from '../domain/economics';
 import type { EconomicAssessment } from '../domain/economicTypes';
 import { exportPortfolioAsCsv, exportPortfolioAsJson } from '../utils/exportReport';
-import { getRiskConcentration, getGCoSHistogram, getBasinStats } from '../domain/portfolioIntelligence';
+import { getRiskConcentration, getGCoSHistogram, getBasinStats, getBasinDiversityIndex, getDrillSequenceOrder } from '../domain/portfolioIntelligence';
 
 const colors = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
 
@@ -98,6 +98,8 @@ export function DashboardPage() {
   const gcosHistogram = getGCoSHistogram(filtered);
   const basinStats = getBasinStats(filtered);
   const riskConcentration = getRiskConcentration(filtered);
+  const basinDiversity = getBasinDiversityIndex(filtered);
+  const drillSequence = getDrillSequenceOrder(filtered, 5);
 
   return <div className="space-y-6">
     <section className="border border-slate-800 bg-slate-900 rounded-lg p-6">
@@ -256,23 +258,67 @@ export function DashboardPage() {
       </div>
     </section>
 
-    {/* Risk Concentration Warning Banner */}
-    {riskConcentration.concentrated && (
-      <section className="rounded-lg border border-amber-800/60 bg-amber-950/20 p-4">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 text-amber-400 text-base leading-none">&#9888;</span>
-          <div>
-            <p className="text-sm font-semibold text-amber-300">Risk Concentration Alert</p>
-            <p className="mt-1 text-xs text-amber-200/80">
-              {riskConcentration.dominantPct}% of your filtered portfolio ({riskConcentration.dominantCount} of {riskConcentration.total} prospects)
-              share <span className="font-semibold capitalize">{riskConcentration.dominantRisk}</span> as their main risk.
-              A single play-level failure could impact the majority of your portfolio.
-              Consider diversifying into prospects with different primary risk types.
-            </p>
+    {/* Portfolio Intelligence — Risk Concentration · Basin Diversity · Drill Sequence */}
+    <section className="grid gap-4 lg:grid-cols-3">
+      <div className={`rounded-lg border p-4 ${riskConcentration.concentrated ? 'border-amber-800/60 bg-amber-950/20' : 'border-slate-800 bg-slate-900'}`}>
+        <h2 className="mb-2 text-sm font-semibold text-slate-200">Risk Concentration</h2>
+        {riskConcentration.concentrated ? (
+          <div className="flex items-start gap-2">
+            <span className="mt-0.5 text-amber-400">&#9888;</span>
+            <div>
+              <p className="text-xs font-semibold capitalize text-amber-300">{riskConcentration.dominantRisk} risk dominant</p>
+              <p className="mt-1 text-xs text-amber-200/80">
+                {riskConcentration.dominantPct}% of prospects ({riskConcentration.dominantCount}/{riskConcentration.total}) share the same primary risk. A single play failure could impact the majority of the portfolio.
+              </p>
+            </div>
           </div>
+        ) : (
+          <p className="text-xs text-slate-400">
+            {riskConcentration.total > 0
+              ? `Risk well-distributed — ${riskConcentration.dominantRisk} leads at ${riskConcentration.dominantPct}%, below 50% threshold.`
+              : 'No prospects in current filter.'}
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+        <h2 className="mb-2 text-sm font-semibold text-slate-200">Basin Diversity</h2>
+        <div className="flex items-end gap-3">
+          <span className={`text-4xl font-bold ${basinDiversity.diversityScore >= 60 ? 'text-emerald-300' : basinDiversity.diversityScore >= 35 ? 'text-amber-300' : 'text-red-300'}`}>
+            {basinDiversity.diversityScore}
+          </span>
+          <span className="mb-1 text-xs text-slate-400">/ 100</span>
         </div>
-      </section>
-    )}
+        <div className="mt-2 h-1.5 w-full rounded-full bg-slate-800">
+          <div
+            className={`h-1.5 rounded-full ${basinDiversity.diversityScore >= 60 ? 'bg-emerald-500' : basinDiversity.diversityScore >= 35 ? 'bg-amber-500' : 'bg-red-500'}`}
+            style={{ width: `${basinDiversity.diversityScore}%` }}
+          />
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          {basinDiversity.basinCount} basin{basinDiversity.basinCount !== 1 ? 's' : ''} · HHI {basinDiversity.hhi.toFixed(2)}
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+        <h2 className="mb-2 text-sm font-semibold text-slate-200">Drill Sequence (Top 5)</h2>
+        {drillSequence.length === 0 ? (
+          <p className="text-xs text-slate-500">No prospects in current filter.</p>
+        ) : (
+          <ol className="space-y-1.5">
+            {drillSequence.map((e) => (
+              <li key={e.prospectId} className="flex items-center gap-2">
+                <span className="w-4 text-xs font-bold text-slate-500">#{e.rank}</span>
+                <span className="flex-1 truncate text-xs font-medium text-slate-200">{e.prospectName}</span>
+                <span className="text-xs text-slate-400">{e.gcos}%</span>
+                <span className="rounded bg-slate-800 px-1.5 py-0.5 text-xs font-semibold text-cyan-300">{e.compositeScore}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+        <p className="mt-2 text-xs text-slate-500">Score = 50% GCoS + 30% commercial + 20% confidence</p>
+      </div>
+    </section>
 
     <section className="rounded-lg border border-slate-800 bg-slate-900">
       <div className="border-b border-slate-800 px-4 py-3">

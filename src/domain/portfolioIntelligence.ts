@@ -226,3 +226,66 @@ export const getPortfolioSummary = (prospects: Prospect[]): PortfolioSummary => 
 
   return { ...partial, keyRecommendations: buildKeyRecommendations(prospects, recs, partial) };
 };
+
+export type BasinDiversityResult = {
+  /** Herfindahl-Hirschman Index (0–1). Lower = more diversified. */
+  hhi: number;
+  /** Normalised diversity score 0–100. Higher = more diversified. */
+  diversityScore: number;
+  /** Number of distinct basins */
+  basinCount: number;
+};
+
+/**
+ * Computes portfolio basin diversity using the Herfindahl-Hirschman Index.
+ * HHI = sum of squared share fractions. diversityScore = (1 - HHI) * 100.
+ */
+export const getBasinDiversityIndex = (prospects: Prospect[]): BasinDiversityResult => {
+  if (!prospects.length) return { hhi: 0, diversityScore: 0, basinCount: 0 };
+  const counts = prospects.reduce<Record<string, number>>((acc, p) => {
+    const b = p.basin || 'Unknown';
+    acc[b] = (acc[b] ?? 0) + 1;
+    return acc;
+  }, {});
+  const n = prospects.length;
+  const hhi = Object.values(counts).reduce((sum, c) => sum + (c / n) ** 2, 0);
+  return {
+    hhi: Math.round(hhi * 100) / 100,
+    diversityScore: Math.round((1 - hhi) * 100),
+    basinCount: Object.keys(counts).length,
+  };
+};
+
+export type DrillSequenceEntry = {
+  rank: number;
+  prospectId: string;
+  prospectName: string;
+  gcos: number;
+  commercialScore: number;
+  dataConfidence: number;
+  /** Composite score: 50% GCoS + 30% commercial score + 20% data confidence (0–100 scale) */
+  compositeScore: number;
+};
+
+/**
+ * Orders prospects for drilling by a composite capital-efficiency score:
+ * 50% GCoS + 30% commercial score (normalised /100) + 20% data confidence.
+ */
+export const getDrillSequenceOrder = (prospects: Prospect[], topN = 5): DrillSequenceEntry[] =>
+  prospects
+    .map((p) => ({
+      rank: 0,
+      prospectId: p.id,
+      prospectName: p.name,
+      gcos: Math.round((p.geologicalChanceOfSuccess ?? 0) * 100),
+      commercialScore: p.commercialScore ?? 0,
+      dataConfidence: p.dataConfidence ?? 0,
+      compositeScore: Math.round(
+        (p.geologicalChanceOfSuccess ?? 0) * 50 +
+        ((p.commercialScore ?? 0) / 100) * 30 +
+        ((p.dataConfidence ?? 0) / 100) * 20,
+      ),
+    }))
+    .sort((a, b) => b.compositeScore - a.compositeScore)
+    .slice(0, topN)
+    .map((e, i) => ({ ...e, rank: i + 1 }));

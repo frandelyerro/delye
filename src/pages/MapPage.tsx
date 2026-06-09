@@ -75,11 +75,15 @@ function buildSpatialInsights(prospects: Prospect[]): string[] {
     basinMap.set(p.basin, list);
   }
   const sorted = [...basinMap.entries()]
-    .map(([basin, ps]) => ({
-      basin,
-      count: ps.length,
-      avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
-    }))
+    .map(([basin, ps]) => {
+      const best = ps.reduce((a, b) => ((b.geologicalChanceOfSuccess ?? 0) > (a.geologicalChanceOfSuccess ?? 0) ? b : a));
+      return {
+        basin,
+        count: ps.length,
+        avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
+        bestProspect: best.name,
+      };
+    })
     .sort((a, b) => b.avgGcos - a.avgGcos);
   const avgGcos = prospects.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / prospects.length;
   const high = prospects.filter((p) => p.priority === 'high').length;
@@ -87,7 +91,7 @@ function buildSpatialInsights(prospects: Prospect[]): string[] {
   const low = prospects.filter((p) => p.priority === 'low').length;
   return [
     `${prospects.length} prospect${prospects.length !== 1 ? 's' : ''} across ${sorted.length} basin${sorted.length !== 1 ? 's' : ''}.`,
-    sorted[0] ? `Best basin: ${sorted[0].basin} (avg GCoS ${Math.round(sorted[0].avgGcos * 100)}%, ${sorted[0].count} wells).` : '',
+    sorted[0] ? `Best basin: ${sorted[0].basin} (avg GCoS ${Math.round(sorted[0].avgGcos * 100)}%, ${sorted[0].count} well${sorted[0].count !== 1 ? 's' : ''}, top prospect: ${sorted[0].bestProspect}).` : '',
     `Portfolio avg GCoS: ${Math.round(avgGcos * 100)}%.`,
     `${high} high · ${medium} medium · ${low} low priority.`,
   ].filter(Boolean);
@@ -167,8 +171,8 @@ export function MapPage() {
         type: 'geojson',
         data: prospectsToGeoJSON(filteredRef.current),
         cluster: true,
-        clusterMaxZoom: 8,
-        clusterRadius: 60,
+        clusterMaxZoom: 10,
+        clusterRadius: 40,
       });
 
       // Cluster circles

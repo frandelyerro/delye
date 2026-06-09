@@ -51,6 +51,8 @@ export const assessSource = (evidence: SourceEvidence, targetPhase?: TargetPhase
       score += 0.10; pos.push(`Favorable gas maturity window Ro ${evidence.roPercent}%`);
     } else if (evidence.roPercent < 0.5) {
       score -= 0.10; neg.push(`Immature source Ro ${evidence.roPercent}% — below oil window`);
+    } else if (!forGas && evidence.roPercent > 1.35) {
+      score -= 0.05; neg.push(`Overmature for oil Ro ${evidence.roPercent}% — consider gas target`);
     } else {
       pos.push(`Ro ${evidence.roPercent}%`);
     }

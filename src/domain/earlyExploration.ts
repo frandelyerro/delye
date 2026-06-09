@@ -32,8 +32,8 @@ export const getExplorationStage = (prospect: Prospect): ExplorationStage => {
   // Industry practice: all six components must individually exceed 0.25 — a high composite GCoS
   // can otherwise mask a fatal single-component risk (e.g., absent seal).
   const minComponent = Math.min(
-    prospect.sourceScore, prospect.migrationScore, prospect.reservoirScore,
-    prospect.sealScore, prospect.trapScore, prospect.timingScore,
+    prospect.sourceScore ?? 0, prospect.migrationScore ?? 0, prospect.reservoirScore ?? 0,
+    prospect.sealScore ?? 0, prospect.trapScore ?? 0, prospect.timingScore ?? 0,
   );
   if (gcos >= 0.35 && dc >= 70 && tier === 'tier_1' && minComponent >= 0.25) {
     return 'drill_ready_candidate';
