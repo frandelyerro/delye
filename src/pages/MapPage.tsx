@@ -5,6 +5,7 @@ import type { FeatureCollection, Point } from 'geojson';
 import { useProspectStore } from '../store/useProspectStore';
 import { getAdvisorResponse } from '../domain/advisor';
 import type { Prospect } from '../domain/prospect';
+import { isValidCoordinate } from '../domain/geoUtils';
 
 type Priority = 'high' | 'medium' | 'low';
 type FilterState = { basin: string | null; priority: Priority | null };
@@ -68,6 +69,7 @@ function buildSpatialInsights(prospects: Prospect[]): string[] {
   if (!prospects.length) return ['No prospects to analyze.'];
   const basinMap = new Map<string, Prospect[]>();
   for (const p of prospects) {
+    if (!isValidCoordinate(p.latitude, p.longitude)) continue;
     const list = basinMap.get(p.basin) ?? [];
     list.push(p);
     basinMap.set(p.basin, list);

@@ -23,14 +23,19 @@ export type SensitivityResult = {
  * Sorted descending by absolute maximum impact.
  */
 export function computeSensitivityDeltas(prospect: Prospect): SensitivityResult {
-  const baseline = componentNames.reduce((acc, key) => acc * Number(prospect[componentMap[key]]), 1);
+  const safeScore = (val: unknown) => {
+    const n = Number(val);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.5;
+  };
+
+  const baseline = componentNames.reduce((acc, key) => acc * safeScore(prospect[componentMap[key]]), 1);
 
   const factors: SensitivityFactor[] = componentNames.map((key) => {
     const field = componentMap[key];
-    const current = Number(prospect[field]);
+    const current = safeScore(prospect[field]);
     const others = componentNames
       .filter((k) => k !== key)
-      .reduce((acc, k) => acc * Number(prospect[componentMap[k]]), 1);
+      .reduce((acc, k) => acc * safeScore(prospect[componentMap[k]]), 1);
 
     const upsideGCoS = Math.min(current + DELTA, 1) * others;
     const downsideGCoS = Math.max(current - DELTA, 0) * others;

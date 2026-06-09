@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { PieChart, Pie, Tooltip, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer } from 'recharts';
 import { useProspectStore } from '../store/useProspectStore';
 import {
   getProspectivityTier,
@@ -77,6 +77,15 @@ export function DashboardPage() {
   const totals = filtered.reduce((a, p) => a + p.resourceEstimate, 0);
   const top = ranked[0];
   const priorityDist = ['high', 'medium', 'low'].map((k) => ({ name: k, value: filtered.filter((p) => p.priority === k).length }));
+  const playTypeDist = [...new Map(
+    filtered.map((p) => [p.playType || 'Unknown', 0])
+  ).keys()].map((play) => ({
+    name: play.length > 18 ? play.slice(0, 16) + '…' : play,
+    count: filtered.filter((p) => (p.playType || 'Unknown') === play).length,
+    avgGcos: Math.round(filtered.filter((p) => (p.playType || 'Unknown') === play)
+      .reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) /
+      Math.max(filtered.filter((p) => (p.playType || 'Unknown') === play).length, 1) * 100),
+  })).sort((a, b) => b.count - a.count).slice(0, 8);
   const kpis = [
     ['Portfolio', filtered.length, 'filtered prospects'],
     ['Average GCoS', `${Math.round(avg * 100)}%`, 'geological chance of success'],
@@ -127,7 +136,7 @@ export function DashboardPage() {
       </div>
     </section>
 
-    <section className="grid gap-4 xl:grid-cols-[320px_1fr]">
+    <section className="grid gap-4 xl:grid-cols-[300px_1fr_1fr]">
       <div className="h-64 rounded-lg border border-slate-800 bg-slate-900 p-4">
         <h2 className="mb-2 text-sm font-semibold text-slate-200">Priority mix</h2>
         <ResponsiveContainer>
@@ -137,6 +146,20 @@ export function DashboardPage() {
             </Pie>
             <Tooltip/>
           </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="h-64 rounded-lg border border-slate-800 bg-slate-900 p-4">
+        <h2 className="mb-3 text-sm font-semibold text-slate-200">Play-type breakdown</h2>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={playTypeDist} layout="vertical" margin={{ left: 4, right: 24, top: 0, bottom: 8 }}>
+            <XAxis type="number" tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="name" width={96} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip
+              formatter={(v: number, name: string) => [v, name === 'count' ? 'prospects' : 'avg GCoS %']}
+              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
+            />
+            <Bar dataKey="count" name="count" fill="#38bdf8" fillOpacity={0.8} radius={[0, 3, 3, 0]} />
+          </BarChart>
         </ResponsiveContainer>
       </div>
 

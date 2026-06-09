@@ -21,6 +21,7 @@ import { compareExpertAndML } from './mlModel';
 import { buildTrainingRows } from './mlTrainingFeatures';
 import { getDefaultMLTrainingConfig } from './mlTrainingService';
 import { isKnownOutcome, isGeologicalSuccess, isCommercialSuccess, getOutcomeLabelText } from './outcomes';
+import { haversineKm, isValidCoordinate, findNearest } from './geoUtils';
 
 // Summarizes the real labeled training set the baseline model would use.
 // Kept pure (no localStorage): advisor answers are based on portfolio
@@ -627,6 +628,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
   ) {
     const basinMap = new Map<string, Prospect[]>();
     for (const p of prospects) {
+      if (!isValidCoordinate(p.latitude, p.longitude)) continue;
       const list = basinMap.get(p.basin) ?? [];
       list.push(p);
       basinMap.set(p.basin, list);
@@ -651,6 +653,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
   ) {
     const basinMap = new Map<string, Prospect[]>();
     for (const p of prospects) {
+      if (!isValidCoordinate(p.latitude, p.longitude)) continue;
       const list = basinMap.get(p.basin) ?? [];
       list.push(p);
       basinMap.set(p.basin, list);
@@ -788,5 +791,52 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Target depth and formation: PetroTarget AI currently stores play type and basin but does not yet capture target formation name or total depth (TVD). These are critical well-planning inputs — TD determines drilling cost, casing program, and BHA design. Standard depth risk buckets: shallow (<1500 m, lowest cost/risk), moderate (1500–3500 m), deep (3500–5000 m), ultra-deep (>5000 m, highest cost/risk). To add depth/formation information: edit each prospect and add it to the notes field for now. A future version will add dedicated depth and formation fields to the Prospect schema. If you have well prognosis data (formation tops, predicted depths), export your portfolio as GeoJSON from the Map page and annotate in GeoLibre or a GIS tool.`;
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", "norway limitations", "basin distribution", "best basin", "map overview", "spatial overview", "cluster analysis", "frontier basin", "analog field", "source rock maturity", "seal integrity", "reservoir quality", or "target depth".';
+  // ── Nearest prospect spatial query ──────────────────────────────────────────
+
+  if (
+    (q.includes('nearest') || q.includes('closest') || q.includes('near') || q.includes('proximity')) &&
+    (q.includes('prospect') || q.includes('well') || q.includes('location'))
+  ) {
+    const withCoords = prospects.filter((p) => isValidCoordinate(p.latitude, p.longitude));
+    if (withCoords.length < 2) {
+      return 'Proximity search requires at least 2 prospects with valid coordinates (non-zero lat/lon). Add coordinates to your prospects to enable spatial proximity analysis.';
+    }
+    const pairs: { a: string; b: string; dist: number }[] = [];
+    for (let i = 0; i < Math.min(withCoords.length, 30); i++) {
+      const result = findNearest(withCoords.filter((_, j) => j !== i), withCoords[i].latitude, withCoords[i].longitude);
+      if (result) pairs.push({ a: withCoords[i].name, b: result.item.name, dist: result.distanceKm });
+    }
+    const closestPair = pairs.sort((x, y) => x.dist - y.dist)[0];
+    const farthestPair = pairs.sort((x, y) => y.dist - x.dist)[0];
+    const avgDist = pairs.reduce((s, p) => s + p.dist, 0) / pairs.length;
+    return `Spatial proximity analysis across ${withCoords.length} prospects with valid coordinates: Closest pair — ${closestPair?.a} and ${closestPair?.b} (${closestPair?.dist.toFixed(0)} km apart). Farthest pair — ${farthestPair?.a} and ${farthestPair?.b} (${farthestPair?.dist.toFixed(0)} km apart). Average nearest-neighbor distance: ${avgDist.toFixed(0)} km. Tightly clustered prospects share infrastructure and seismic acquisition costs — consider joint development scenarios. Isolated prospects (far from cluster) carry higher standalone development costs. Use the Map page to visualize spatial distribution.`;
+  }
+
+  // ── Play-type distribution ───────────────────────────────────────────────────
+
+  if (
+    q.includes('play type') ||
+    q.includes('play distribution') ||
+    q.includes('play mix') ||
+    (q.includes('play') && (q.includes('breakdown') || q.includes('split') || q.includes('summary') || q.includes('portfolio')))
+  ) {
+    const playMap = new Map<string, Prospect[]>();
+    for (const p of prospects) {
+      const list = playMap.get(p.playType || 'Unknown') ?? [];
+      list.push(p);
+      playMap.set(p.playType || 'Unknown', list);
+    }
+    const sorted = [...playMap.entries()]
+      .map(([play, ps]) => ({
+        play,
+        count: ps.length,
+        avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
+      }))
+      .sort((a, b) => b.count - a.count);
+    const lines = sorted.map((pt) => `${pt.play}: ${pt.count} prospect${pt.count !== 1 ? 's' : ''} (avg GCoS ${Math.round(pt.avgGcos * 100)}%)`).join('; ');
+    const dominant = sorted[0];
+    return `Play-type distribution across ${prospects.length} prospect${prospects.length !== 1 ? 's' : ''}: ${lines}. Dominant play type: ${dominant?.play ?? '—'} with ${dominant?.count} prospect${dominant?.count !== 1 ? 's' : ''}. Diversifying across play types reduces correlated geological risk — if all prospects share the same source kitchen or seal type, a single regional failure could eliminate the entire portfolio value. The Map page play-type filter lets you visualize spatial play concentration.`;
+  }
+
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", "norway limitations", "basin distribution", "best basin", "map overview", "spatial overview", "cluster analysis", "frontier basin", "analog field", "source rock maturity", "seal integrity", "reservoir quality", "target depth", "nearest prospect", or "play type distribution".';
 };
