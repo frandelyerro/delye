@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer, Legend, ScatterChart, Scatter, ZAxis } from 'recharts';
 import { useProspectStore } from '../store/useProspectStore';
 import {
   getProspectivityTier,
@@ -16,6 +16,8 @@ import { exportPortfolioAsCsv, exportPortfolioAsJson } from '../utils/exportRepo
 import { getRiskConcentration, getGCoSHistogram, getBasinStats, getBasinDiversityIndex, getDrillSequenceOrder } from '../domain/portfolioIntelligence';
 
 const colors = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
+
+const BASIN_PALETTE = ['#38bdf8','#a78bfa','#34d399','#f472b6','#fb923c','#facc15','#60a5fa','#f87171','#4ade80','#e879f9','#94a3b8'];
 
 const priorityBadgeClass = {
   high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
@@ -100,6 +102,21 @@ export function DashboardPage() {
   const riskConcentration = getRiskConcentration(filtered);
   const basinDiversity = getBasinDiversityIndex(filtered);
   const drillSequence = getDrillSequenceOrder(filtered, 5);
+
+  const basinNames = React.useMemo(() => [...new Set(filtered.map((p) => p.basin))].sort(), [filtered]);
+  const scatterByBasin = React.useMemo(() =>
+    basinNames.map((basin) => ({
+      basin,
+      data: filtered
+        .filter((p) => p.basin === basin)
+        .map((p) => ({
+          x: Math.round((p.geologicalChanceOfSuccess ?? 0) * 100),
+          y: p.resourceEstimate,
+          z: p.commercialScore ?? 50,
+          name: p.name,
+        })),
+    })),
+  [filtered, basinNames]);
 
   return <div className="space-y-6">
     <section className="border border-slate-800 bg-slate-900 rounded-lg p-6">
@@ -318,6 +335,29 @@ export function DashboardPage() {
         )}
         <p className="mt-2 text-xs text-slate-500">Score = 50% GCoS + 30% commercial + 20% confidence</p>
       </div>
+    </section>
+
+    {/* Risk-Reward Frontier */}
+    <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+      <h2 className="mb-1 text-sm font-semibold text-slate-200">Risk-Reward Frontier</h2>
+      <p className="mb-3 text-xs text-slate-500">GCoS (%) vs unrisked resource (MMboe). Bubble size = commercial score. Color = basin.</p>
+      <ResponsiveContainer width="100%" height={260}>
+        <ScatterChart margin={{ top: 8, right: 16, bottom: 20, left: 8 }}>
+          <XAxis type="number" dataKey="x" name="GCoS" unit="%" tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={false} domain={[0, 100]} label={{ value: 'GCoS (%)', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10 }} />
+          <YAxis type="number" dataKey="y" name="Resource" unit=" MMboe" tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={false} label={{ value: 'Resource (MMboe)', angle: -90, position: 'insideLeft', offset: 12, fill: '#64748b', fontSize: 10 }} />
+          <ZAxis type="number" dataKey="z" range={[40, 300]} name="Commercial" />
+          <Tooltip
+            cursor={{ strokeDasharray: '3 3', stroke: '#334155' }}
+            contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
+            formatter={(value, name) => [value, name]}
+            labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? ''}
+          />
+          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+          {scatterByBasin.map((g, i) => (
+            <Scatter key={g.basin} name={g.basin} data={g.data} fill={BASIN_PALETTE[i % BASIN_PALETTE.length]} fillOpacity={0.75} />
+          ))}
+        </ScatterChart>
+      </ResponsiveContainer>
     </section>
 
     <section className="rounded-lg border border-slate-800 bg-slate-900">

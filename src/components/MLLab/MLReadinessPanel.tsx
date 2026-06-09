@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Prospect } from '../../domain/prospect';
 import type { MLReadinessResult } from '../../domain/mlReadiness';
 
@@ -20,7 +21,7 @@ interface Props {
   prospects: Prospect[];
 }
 
-export function MLReadinessPanel({ readiness }: Props) {
+export const MLReadinessPanel = memo(function MLReadinessPanel({ readiness }: Props) {
   return (
     <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
       <h2 className="text-lg font-semibold">ML Readiness</h2>
@@ -82,4 +83,4 @@ export function MLReadinessPanel({ readiness }: Props) {
       </div>
     </section>
   );
-}
+});

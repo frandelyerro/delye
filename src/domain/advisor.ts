@@ -204,6 +204,14 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       : 'No prospects currently flagged with critical timing uncertainty.';
   }
 
+  if (q.includes('migration risk') || q.includes('charge risk') ||
+      (q.includes('migration') && (q.includes('assess') || q.includes('pathway') || q.includes('carrier')))) {
+    const lowMig = prospects.filter((p) => p.migrationScore < 0.30);
+    const mainMigRisk = prospects.filter((p) => p.mainRisk === 'migration');
+    const avgMig = prospects.length ? prospects.reduce((s, p) => s + p.migrationScore, 0) / prospects.length : 0;
+    return `Migration risk: avg migration score ${(avgMig * 100).toFixed(0)}%. ${lowMig.length} prospect(s) score <30%${lowMig.length ? `: ${lowMig.map((p) => p.name).join(', ')}` : ''}. ${mainMigRisk.length} prospect(s) list migration as main risk${mainMigRisk.length ? `: ${mainMigRisk.map((p) => p.name).join(', ')}` : ': none'}. De-risk via carrier bed mapping, fault connectivity analysis, and hydrocarbon shows correlation.`;
+  }
+
   if (q.includes('critical geoscience risk') || q.includes('critical risk')) {
     const riskCount = prospects.reduce<Record<string, number>>((acc, p) => {
       const risk = p.mainRisk ?? 'unknown';

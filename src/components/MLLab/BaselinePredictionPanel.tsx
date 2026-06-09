@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { compareExpertAndML } from '../../domain/mlModel';
 import type { Prospect } from '../../domain/prospect';
 
@@ -11,7 +12,7 @@ interface Props {
   prospects: Prospect[];
 }
 
-export function BaselinePredictionPanel({ prospects }: Props) {
+export const BaselinePredictionPanel = memo(function BaselinePredictionPanel({ prospects }: Props) {
   return (
     <section className="rounded-lg border border-amber-900/50 bg-slate-900">
       <div className="border-b border-amber-900/40 px-4 py-3">
@@ -64,4 +65,4 @@ export function BaselinePredictionPanel({ prospects }: Props) {
       </div>
     </section>
   );
-}
+});

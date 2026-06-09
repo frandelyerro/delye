@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Prospect } from '../../domain/prospect';
 import type { MLFeatureVector } from '../../domain/mlTypes';
 
@@ -6,7 +7,7 @@ interface Props {
   prospects: Prospect[];
 }
 
-export function FeatureExtractionPanel({ features, prospects }: Props) {
+export const FeatureExtractionPanel = memo(function FeatureExtractionPanel({ features, prospects }: Props) {
   return (
     <section className="rounded-lg border border-slate-800 bg-slate-900">
       <div className="border-b border-slate-800 px-4 py-3 flex items-center justify-between">
@@ -67,4 +68,4 @@ export function FeatureExtractionPanel({ features, prospects }: Props) {
       )}
     </section>
   );
-}
+});

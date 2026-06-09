@@ -281,9 +281,13 @@ export const getDrillSequenceOrder = (prospects: Prospect[], topN = 5): DrillSeq
       commercialScore: p.commercialScore ?? 0,
       dataConfidence: p.dataConfidence ?? 0,
       compositeScore: Math.round(
-        (p.geologicalChanceOfSuccess ?? 0) * 50 +
-        ((p.commercialScore ?? 0) / 100) * 30 +
-        ((p.dataConfidence ?? 0) / 100) * 20,
+        (p.economicAssessment?.simpleEMVUsdMM ?? 0) > 0
+          ? (p.economicAssessment!.simpleEMVUsdMM * 0.6) +
+            (p.geologicalChanceOfSuccess ?? 0) * 30 +
+            ((p.dataConfidence ?? 0) / 100) * 10
+          : (p.geologicalChanceOfSuccess ?? 0) * 50 +
+            ((p.commercialScore ?? 0) / 100) * 30 +
+            ((p.dataConfidence ?? 0) / 100) * 20,
       ),
     }))
     .sort((a, b) => b.compositeScore - a.compositeScore)
