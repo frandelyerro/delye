@@ -806,10 +806,14 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       const result = findNearest(withCoords.filter((_, j) => j !== i), withCoords[i].latitude, withCoords[i].longitude);
       if (result) pairs.push({ a: withCoords[i].name, b: result.item.name, dist: result.distanceKm });
     }
-    const closestPair = pairs.sort((x, y) => x.dist - y.dist)[0];
-    const farthestPair = pairs.sort((x, y) => y.dist - x.dist)[0];
+    if (pairs.length === 0) {
+      return `All prospects with valid coordinates are at the same location — no pairwise distance can be computed. Ensure each prospect has unique lat/lon coordinates.`;
+    }
+    const sortedPairs = [...pairs].sort((x, y) => x.dist - y.dist);
+    const closestPair = sortedPairs[0];
+    const farthestPair = sortedPairs[sortedPairs.length - 1];
     const avgDist = pairs.reduce((s, p) => s + p.dist, 0) / pairs.length;
-    return `Spatial proximity analysis across ${withCoords.length} prospects with valid coordinates: Closest pair — ${closestPair?.a} and ${closestPair?.b} (${closestPair?.dist.toFixed(0)} km apart). Farthest pair — ${farthestPair?.a} and ${farthestPair?.b} (${farthestPair?.dist.toFixed(0)} km apart). Average nearest-neighbor distance: ${avgDist.toFixed(0)} km. Tightly clustered prospects share infrastructure and seismic acquisition costs — consider joint development scenarios. Isolated prospects (far from cluster) carry higher standalone development costs. Use the Map page to visualize spatial distribution.`;
+    return `Spatial proximity analysis across ${withCoords.length} prospects with valid coordinates: Closest pair — ${closestPair.a} and ${closestPair.b} (${closestPair.dist.toFixed(0)} km apart). Farthest pair — ${farthestPair.a} and ${farthestPair.b} (${farthestPair.dist.toFixed(0)} km apart). Average nearest-neighbor distance: ${avgDist.toFixed(0)} km. Tightly clustered prospects share infrastructure and seismic acquisition costs — consider joint development scenarios. Isolated prospects (far from cluster) carry higher standalone development costs. Use the Map page to visualize spatial distribution.`;
   }
 
   // ── Play-type distribution ───────────────────────────────────────────────────

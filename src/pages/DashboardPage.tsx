@@ -12,6 +12,7 @@ import {
 import { getExplorationStage, getExplorationStageLabel } from '../domain/earlyExploration';
 import { getEconomicGradeLabel } from '../domain/economics';
 import type { EconomicAssessment } from '../domain/economicTypes';
+import { exportPortfolioAsCsv, exportPortfolioAsJson } from '../utils/exportReport';
 
 const colors = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
 
@@ -106,6 +107,8 @@ export function DashboardPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             <Link to="/prospects/new" className="inline-flex rounded bg-cyan-700 px-4 py-2 text-sm font-medium hover:bg-cyan-600">New Prospect</Link>
+            <button className="rounded border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800" onClick={() => exportPortfolioAsCsv(filtered)} type="button">Export CSV</button>
+            <button className="rounded border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800" onClick={() => exportPortfolioAsJson(filtered)} type="button">Export JSON</button>
             <button className="rounded border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800" onClick={() => resetProspects()} type="button">Reset to sample data</button>
           </div>
         </div>
