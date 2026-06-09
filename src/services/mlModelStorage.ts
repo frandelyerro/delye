@@ -42,8 +42,15 @@ export const loadTrainedMLModel = (): TrainedMLModel | null => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (!stored) return null;
     const parsed = JSON.parse(stored);
-    return isValidModelShape(parsed) ? parsed : null;
-  } catch {
+    if (!isValidModelShape(parsed)) {
+      console.warn('[mlModelStorage] Stored model has invalid shape — clearing corrupted entry.');
+      clearTrainedMLModel();
+      return null;
+    }
+    return parsed;
+  } catch (err) {
+    console.error('[mlModelStorage] Failed to parse stored model — clearing corrupted entry.', err);
+    clearTrainedMLModel();
     return null;
   }
 };
