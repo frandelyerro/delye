@@ -19,12 +19,15 @@ export type TrapTimingRelation = 'yes' | 'likely' | 'uncertain' | 'unlikely' | '
 export type ChargeTiming = 'favorable' | 'possible' | 'unfavorable' | 'unknown';
 export type BurialHistoryConfidence = 'high' | 'medium' | 'low' | 'unknown';
 
+export type SourceRockType = 'marine' | 'lacustrine' | 'coaly' | 'unknown';
+
 export type SourceEvidence = {
   presence: SourcePresence;
   tocPercent?: number;
   roPercent?: number;
   tmaxC?: number;
   keroGenType?: string;
+  sourceRockType?: SourceRockType;
   sourceThicknessM?: number;
   distanceToKitchenKm?: number;
   sources?: EvidenceSourceType[];

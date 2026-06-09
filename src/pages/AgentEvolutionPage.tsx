@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 11;
+const CURRENT_CYCLE = 12;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata';
 
@@ -34,10 +34,10 @@ const AGENTS: AgentDef[] = [
     precision: 82,
     recall: 71,
     depth: 78,
-    totalFindings: 23,
+    totalFindings: 24,
     implemented: 19,
-    latestFinding: 'Extracted Norway adapter state (7 slices) into useNorwayAdapter hook — MLLabPage −40 lines.',
-    knownGaps: ['Missing useMemo on O(n²) renders', 'Route-level code splitting not yet audited'],
+    latestFinding: 'Proposed useMLTraining hook extraction from MLLabPage.tsx (~13 state vars + 6 handlers, ~80 lines) mirroring useNorwayAdapter — pending implementation.',
+    knownGaps: ['Missing useMemo on O(n²) renders', 'useMLTraining hook extraction not yet implemented', 'ProspectFormPage (915), ProspectDetailPage (728), MapPage (601) still >300 lines'],
   },
   {
     id: 'petro',
@@ -49,9 +49,9 @@ const AGENTS: AgentDef[] = [
     precision: 90,
     recall: 68,
     depth: 85,
-    totalFindings: 31,
-    implemented: 28,
-    latestFinding: 'Added isUnconventional branch in assessReservoir — tight/shale use 10/5/2% porosity tiers vs 18/12/8%.',
+    totalFindings: 33,
+    implemented: 30,
+    latestFinding: 'assessSource TOC scoring now branches on sourceRockType — coaly/terrestrial source rocks credited at lower TOC thresholds (gas-prone at 0.5-2%); assessSeal credits thin (≥10m) evaporite/anhydrite/salt seals as adequate, vs the generic 30m shale benchmark.',
     knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'GCoS formula vs SPE 26592 spot-check pending'],
   },
   {
@@ -94,10 +94,10 @@ const AGENTS: AgentDef[] = [
     precision: 75,
     recall: 82,
     depth: 70,
-    totalFindings: 16,
-    implemented: 12,
-    latestFinding: 'play-type circle-stroke-color match expression (11 types, distinct colors); stroke width → 3.',
-    knownGaps: ['WCAG AA contrast checks', 'Mobile breakpoint validation'],
+    totalFindings: 17,
+    implemented: 13,
+    latestFinding: 'Added "Similar Prospects" analog finder to ProspectDetailPage — ranks portfolio prospects by Euclidean distance over the 6 geological scores + commercial score, links to top-3 analogs.',
+    knownGaps: ['Play-type legend WCAG AA contrast not yet verified', 'Mobile breakpoint validation'],
   },
   {
     id: 'geodata',
@@ -109,10 +109,10 @@ const AGENTS: AgentDef[] = [
     precision: 80,
     recall: 74,
     depth: 76,
-    totalFindings: 12,
-    implemented: 10,
-    latestFinding: 'Added dominant play type per basin in buildSpatialInsights; proposed clusterProperties for play aggregation.',
-    knownGaps: ['Antimeridian wrapping', 'Coordinate precision validation (< 4 decimals)'],
+    totalFindings: 13,
+    implemented: 11,
+    latestFinding: 'MapPage play-type legend now filters to playTypesPresent in filteredProspects (was showing all 11 types unconditionally) — fixes cycle 11 review finding.',
+    knownGaps: ['Antimeridian wrapping', 'Coordinate precision validation (< 4 decimals)', 'clusterProperties avg-GCoS aggregation not yet implemented'],
   },
 ];
 
@@ -139,6 +139,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 9, architect: 4, petro: 3, review: 3, security: 1, dev: 3, geodata: 2, highlight: 'Migration lateral/mixed, double-penalty fix' },
   { cycle: 10, architect: 4, petro: 3, review: 1, security: 0, dev: 1, geodata: 2, highlight: 'Play-type map, Norway hook, unconventional porosity' },
   { cycle: 11, architect: 3, petro: 2, review: 1, security: 0, dev: 1, geodata: 2, highlight: 'Play-type legend, unconventional perm, fault-conduit migration, advisor false-positives' },
+  { cycle: 12, architect: 0, petro: 2, review: 0, security: 0, dev: 1, geodata: 1, highlight: 'Analog prospect finder, play-type legend filtering, source-rock-type TOC scoring, evaporite seal thickness' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {

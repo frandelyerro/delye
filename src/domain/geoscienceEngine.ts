@@ -35,10 +35,16 @@ export const assessSource = (evidence: SourceEvidence, targetPhase?: TargetPhase
   }
 
   if (evidence.tocPercent !== undefined) {
-    if (evidence.tocPercent >= 4) { score += 0.12; pos.push(`Excellent TOC ${evidence.tocPercent}%`); }
-    else if (evidence.tocPercent >= 2) { score += 0.08; pos.push(`Good TOC ${evidence.tocPercent}%`); }
-    else if (evidence.tocPercent >= 1) { score += 0.04; pos.push(`Moderate TOC ${evidence.tocPercent}%`); }
-    else if (evidence.tocPercent < 0.5) { score -= 0.15; neg.push(`Very low TOC ${evidence.tocPercent}% — poor source quality`); }
+    if (evidence.sourceRockType === 'coaly') {
+      if (evidence.tocPercent >= 2) { score += 0.12; pos.push(`Excellent TOC ${evidence.tocPercent}% for coaly/terrestrial source — gas-prone`); }
+      else if (evidence.tocPercent >= 0.5) { score += 0.06; pos.push(`Adequate TOC ${evidence.tocPercent}% for coaly/terrestrial source`); }
+      else { pos.push(`TOC ${evidence.tocPercent}% — coaly/terrestrial source rocks can remain gas-prone at low TOC`); }
+    } else {
+      if (evidence.tocPercent >= 4) { score += 0.12; pos.push(`Excellent TOC ${evidence.tocPercent}%`); }
+      else if (evidence.tocPercent >= 2) { score += 0.08; pos.push(`Good TOC ${evidence.tocPercent}%`); }
+      else if (evidence.tocPercent >= 1) { score += 0.04; pos.push(`Moderate TOC ${evidence.tocPercent}%`); }
+      else if (evidence.tocPercent < 0.5) { score -= 0.15; neg.push(`Very low TOC ${evidence.tocPercent}% — poor source quality`); }
+    }
   } else {
     missing.push('TOC data not available');
   }
@@ -261,8 +267,14 @@ export const assessSeal = (evidence: SealEvidence): ComponentAssessment => {
   }
 
   if (evidence.thicknessM !== undefined) {
-    if (evidence.thicknessM >= 30) { score += 0.06; pos.push(`Adequate seal thickness ${evidence.thicknessM}m`); }
-    else { pos.push(`Seal thickness ${evidence.thicknessM}m — below 30m benchmark`); }
+    const isEvaporiteSeal = evidence.lithology === 'salt' || evidence.lithology === 'evaporite' || evidence.lithology === 'anhydrite';
+    if (isEvaporiteSeal && evidence.thicknessM >= 10) {
+      score += 0.06; pos.push(`Adequate seal thickness ${evidence.thicknessM}m for ${evidence.lithology} — high sealing capacity per metre`);
+    } else if (evidence.thicknessM >= 30) {
+      score += 0.06; pos.push(`Adequate seal thickness ${evidence.thicknessM}m`);
+    } else {
+      pos.push(`Seal thickness ${evidence.thicknessM}m — below 30m benchmark`);
+    }
   } else {
     missing.push('Seal thickness not measured');
   }

@@ -167,6 +167,11 @@ export function MapPage() {
 
   const insights = useMemo(() => buildSpatialInsights(filteredProspects), [filteredProspects]);
 
+  const playTypesPresent = useMemo(
+    () => new Set(filteredProspects.map((p) => p.playType).filter((pt): pt is string => Boolean(pt))),
+    [filteredProspects],
+  );
+
   // Scroll chat to bottom when messages change
   useEffect(() => {
     aiScrollRef.current?.scrollTo({ top: aiScrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -553,12 +558,17 @@ export function MapPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Play type (ring)</span>
-          {Object.entries(PLAY_TYPE_COLOR).map(([play, color]) => (
-            <div key={play} className="flex items-center gap-1">
-              <span className="h-3 w-3 rounded-full border-2 bg-transparent" style={{ borderColor: color }} />
-              <span className="text-xs text-slate-400">{play}</span>
-            </div>
-          ))}
+          {Object.entries(PLAY_TYPE_COLOR)
+            .filter(([play]) => playTypesPresent.has(play))
+            .map(([play, color]) => (
+              <div key={play} className="flex items-center gap-1">
+                <span className="h-3 w-3 rounded-full border-2 bg-transparent" style={{ borderColor: color }} />
+                <span className="text-xs text-slate-400">{play}</span>
+              </div>
+            ))}
+          {playTypesPresent.size === 0 && (
+            <span className="text-xs text-slate-600">No play type data in current filter</span>
+          )}
         </div>
       </div>
 

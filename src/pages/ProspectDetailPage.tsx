@@ -29,6 +29,7 @@ import { compareTrainedModelWithExpertGCoS } from '../domain/mlTrainingService';
 import { predictWithModel } from '../domain/mlLogisticRegression';
 import type { MLTrainingTarget } from '../domain/mlTrainingTypes';
 import { getOutcomeLabelText, getOutcomeSummary, isKnownOutcome } from '../domain/outcomes';
+import { findAnalogs } from '../domain/analogFinder';
 
 const mlTargetLabel: Record<MLTrainingTarget, string> = {
   hydrocarbon_presence: 'Hydrocarbon Presence',
@@ -103,6 +104,7 @@ export function ProspectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const prospect = useProspectStore((s) => s.prospects.find((p) => p.id === id));
+  const allProspects = useProspectStore((s) => s.prospects);
   const deleteProspect = useProspectStore((s) => s.deleteProspect);
   if (!prospect) return <div className="rounded-lg border border-slate-800 bg-slate-900 p-6">Prospect not found.</div>;
   const strongestComponents = getStrongestComponents(prospect).map((component) => componentLabels[component]).join(' and ');
@@ -721,6 +723,35 @@ export function ProspectDetailPage() {
               Visit <Link to="/ml-lab" className="underline text-amber-500 hover:text-amber-400">ML Lab</Link> to view baseline predictions for the full portfolio.
             </p>
           </div>
+        </section>
+      );
+    })()}
+
+    {(() => {
+      const analogs = findAnalogs(prospect, allProspects, 3);
+      if (analogs.length === 0) return null;
+      return (
+        <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+          <h2 className="text-lg font-semibold">Similar Prospects</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Prospects with the closest geological and commercial scoring profile — useful as analogs for de-risking.
+          </p>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-3">
+            {analogs.map((analog) => (
+              <li key={analog.id}>
+                <Link
+                  to={`/prospects/${analog.id}`}
+                  className="block rounded border border-slate-800 bg-slate-950 p-3 hover:border-indigo-700"
+                >
+                  <div className="font-medium text-slate-100">{analog.name}</div>
+                  <div className="mt-1 text-xs text-slate-500">{analog.basin} · {analog.playType}</div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    GCoS {Math.round((analog.geologicalChanceOfSuccess ?? 0) * 100)}%
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       );
     })()}
