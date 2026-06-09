@@ -1,5 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { TornadoChart } from '../components/ui/TornadoChart';
+import { computeSensitivityDeltas } from '../domain/sensitivityAnalysis';
 import {
   componentLabels,
   getGCoSFormulaString,
@@ -247,6 +249,10 @@ export function ProspectDetailPage() {
           <div className="rounded border border-slate-800 bg-slate-950 p-4 md:col-span-2">
             <div className="text-xs uppercase tracking-wide text-slate-500">Recommended next step</div>
             <p className="mt-2 leading-6 text-slate-300">{getRecommendedNextStep(prospect)}</p>
+          </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-4 md:col-span-2">
+            <div className="text-xs uppercase tracking-wide text-slate-500 mb-3">GCoS sensitivity (tornado)</div>
+            <TornadoChart result={computeSensitivityDeltas(prospect)} />
           </div>
         </div>
       </div>

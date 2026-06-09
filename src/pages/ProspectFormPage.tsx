@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Prospect, validateProspect } from '../domain/prospect';
+import { PLAY_TYPES, Prospect, validateProspect } from '../domain/prospect';
 import { useProspectStore } from '../store/useProspectStore';
 import type {
   BurialHistoryConfidence,
@@ -95,7 +95,7 @@ const formToBase = (form: ProspectFormState) => ({
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const textFields: Array<keyof ProspectFormState> = ['id', 'name', 'basin', 'block', 'playType'];
+const textFields: Array<keyof ProspectFormState> = ['id', 'name', 'basin', 'block'];
 const coordinateFields: Array<keyof ProspectFormState> = ['latitude', 'longitude'];
 const scoreFields: Array<keyof ProspectFormState> = ['sourceScore', 'migrationScore', 'reservoirScore', 'sealScore', 'trapScore', 'timingScore'];
 const businessFields: Array<keyof ProspectFormState> = ['commercialScore', 'resourceEstimate'];
@@ -393,6 +393,22 @@ export function ProspectFormPage() {
         <h2 className="text-lg font-semibold">Overview</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {textFields.map((field) => renderField(field, { disabled: isEdit && field === 'id' }))}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-400">Play Type</label>
+            <select
+              className="rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 focus:border-sky-500 focus:outline-none"
+              value={form.playType}
+              onChange={(e) => setForm((f) => ({ ...f, playType: e.target.value }))}
+            >
+              <option value="">— select —</option>
+              {PLAY_TYPES.map((pt) => (
+                <option key={pt} value={pt}>{pt}</option>
+              ))}
+              {form.playType && !PLAY_TYPES.includes(form.playType as (typeof PLAY_TYPES)[number]) && (
+                <option value={form.playType}>{form.playType} (custom)</option>
+              )}
+            </select>
+          </div>
         </div>
       </section>
 

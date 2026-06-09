@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+import { haversineKm, isValidCoordinate, findNearest } from '../geoUtils';
+
+describe('haversineKm', () => {
+  it('returns 0 for identical coordinates', () => {
+    expect(haversineKm(40, -74, 40, -74)).toBeCloseTo(0, 5);
+  });
+
+  it('returns ~111 km for 1 degree latitude difference at equator', () => {
+    expect(haversineKm(0, 0, 1, 0)).toBeCloseTo(111.19, 0);
+  });
+
+  it('returns known distance between NYC and London (~5570 km)', () => {
+    const dist = haversineKm(40.71, -74.01, 51.51, -0.13);
+    expect(dist).toBeGreaterThan(5500);
+    expect(dist).toBeLessThan(5650);
+  });
+});
+
+describe('isValidCoordinate', () => {
+  it('accepts normal valid coordinates', () => {
+    expect(isValidCoordinate(25.5, -90.2)).toBe(true);
+  });
+
+  it('rejects (0, 0) null-island', () => {
+    expect(isValidCoordinate(0, 0)).toBe(false);
+  });
+
+  it('rejects NaN', () => {
+    expect(isValidCoordinate(NaN, 0)).toBe(false);
+  });
+
+  it('rejects out-of-range latitude', () => {
+    expect(isValidCoordinate(95, 0)).toBe(false);
+  });
+});
+
+describe('findNearest', () => {
+  const items = [
+    { id: 'a', latitude: 0.1, longitude: 0.1 },
+    { id: 'b', latitude: 10, longitude: 10 },
+    { id: 'c', latitude: 50, longitude: 50 },
+  ];
+
+  it('returns the closest item', () => {
+    const result = findNearest(items, 0.2, 0.2);
+    expect(result?.item.id).toBe('a');
+  });
+
+  it('returns null for empty array', () => {
+    expect(findNearest([], 0, 0)).toBeNull();
+  });
+
+  it('skips null-island coordinates', () => {
+    const withNullIsland = [{ id: 'null', latitude: 0, longitude: 0 }, ...items];
+    const result = findNearest(withNullIsland, 0.2, 0.2);
+    expect(result?.item.id).toBe('a');
+  });
+});

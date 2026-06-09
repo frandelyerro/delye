@@ -5,6 +5,22 @@ import type { ProspectOutcome } from './outcomes';
 export type Priority = 'high' | 'medium' | 'low';
 export type MainRisk = 'source' | 'migration' | 'reservoir' | 'seal' | 'trap' | 'timing';
 
+export const PLAY_TYPES = [
+  'Conventional Clastic',
+  'Carbonate',
+  'Deepwater Clastic',
+  'Deepwater Carbonate',
+  'Unconventional Tight',
+  'Unconventional Shale',
+  'Salt Diapir / Sub-Salt',
+  'Fractured Basement',
+  'Stratigraphic Trap',
+  'Combination Trap',
+  'Other',
+] as const;
+
+export type PlayType = (typeof PLAY_TYPES)[number];
+
 export type Prospect = {
   id: string;
   name: string;
