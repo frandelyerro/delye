@@ -14,7 +14,7 @@ import {
   getProspectivityTier,
   getTierLabel,
 } from './recommendationEngine';
-import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk } from './portfolioIntelligence';
+import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk, getDrillSequenceOrder } from './portfolioIntelligence';
 import { getEconomicAssumptionDefaults, getDecisionSignalLabel } from './economics';
 import { assessMLReadiness } from './mlReadiness';
 import { compareExpertAndML } from './mlModel';
@@ -222,6 +222,14 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     if (!riskEntries.length) return 'No prospects in portfolio to assess critical geoscience risk.';
     const [risk, count] = riskEntries[0];
     return `Critical geoscience risk: ${risk} is the main risk in ${count} prospect(s) across the portfolio.`;
+  }
+
+  if (q.includes('risk reward') || q.includes('risk-reward') || q.includes('best value') ||
+      (q.includes('best') && q.includes('value')) || q.includes('capital efficiency') ||
+      (q.includes('which') && q.includes('drill') && q.includes('first'))) {
+    const seq = getDrillSequenceOrder(prospects, 5);
+    if (!seq.length) return 'No prospects in portfolio to rank for risk-reward.';
+    return `Risk-reward ranking (50% GCoS + 30% commercial score + 20% data confidence): ${seq.map((e) => `#${e.rank} ${e.prospectName} (score ${e.compositeScore}, GCoS ${e.gcos}%)`).join('; ')}. Highest composite score indicates best capital-efficiency candidate.`;
   }
 
   // ---- Targeting Workbench queries ----

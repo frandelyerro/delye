@@ -1,14 +1,14 @@
-import { Prospect } from '../domain/prospect';
+import type { Prospect, PlayType } from '../domain/prospect';
 
-const manualProspects: Prospect[] = [
-  { id: 'p1', name: 'Vaca Norte Lead', basin: 'Neuquén Basin', block: 'NQ-101', playType: 'Shale', latitude: -38.63, longitude: -68.45, sourceScore: 0.83, migrationScore: 0.79, reservoirScore: 0.74, sealScore: 0.67, trapScore: 0.72, timingScore: 0.8, commercialScore: 78, resourceEstimate: 95 },
-  { id: 'p2', name: 'Agrio South', basin: 'Neuquén Basin', block: 'NQ-204', playType: 'Clastic', latitude: -39.14, longitude: -69.04, sourceScore: 0.7, migrationScore: 0.66, reservoirScore: 0.61, sealScore: 0.55, trapScore: 0.58, timingScore: 0.63, commercialScore: 62, resourceEstimate: 28 },
-  { id: 'p3', name: 'D-129 Central', basin: 'Golfo San Jorge Basin', block: 'GSJ-07', playType: 'Faulted Anticline', latitude: -45.83, longitude: -67.72, sourceScore: 0.76, migrationScore: 0.73, reservoirScore: 0.67, sealScore: 0.59, trapScore: 0.66, timingScore: 0.72, commercialScore: 68, resourceEstimate: 45 },
-  { id: 'p4', name: 'Austral Shelf Fan', basin: 'Austral Basin', block: 'AU-15', playType: 'Fan', latitude: -52.88, longitude: -69.23, sourceScore: 0.68, migrationScore: 0.6, reservoirScore: 0.56, sealScore: 0.49, trapScore: 0.57, timingScore: 0.55, commercialScore: 57, resourceEstimate: 120 },
-  { id: 'p5', name: 'Wolfcamp East', basin: 'Permian Basin', block: 'PM-311', playType: 'Unconventional', latitude: 31.79, longitude: -102.09, sourceScore: 0.9, migrationScore: 0.87, reservoirScore: 0.82, sealScore: 0.77, trapScore: 0.8, timingScore: 0.9, commercialScore: 89, resourceEstimate: 240 },
-  { id: 'p6', name: 'Delaware North', basin: 'Permian Basin', block: 'PM-118', playType: 'Stacked Pay', latitude: 32.12, longitude: -103.31, sourceScore: 0.84, migrationScore: 0.8, reservoirScore: 0.73, sealScore: 0.65, trapScore: 0.7, timingScore: 0.81, commercialScore: 76, resourceEstimate: 155 },
-  { id: 'p7', name: 'Forties Satellite', basin: 'North Sea', block: 'NS-21A', playType: 'Structural-Stratigraphic', latitude: 57.58, longitude: 1.83, sourceScore: 0.8, migrationScore: 0.77, reservoirScore: 0.69, sealScore: 0.62, trapScore: 0.67, timingScore: 0.75, commercialScore: 72, resourceEstimate: 64 },
-  { id: 'p8', name: 'Miocene Shelf Edge', basin: 'Gulf of Mexico', block: 'GOM-442', playType: 'Subsalt Trap', latitude: 27.16, longitude: -91.81, sourceScore: 0.82, migrationScore: 0.76, reservoirScore: 0.71, sealScore: 0.56, trapScore: 0.64, timingScore: 0.69, commercialScore: 74, resourceEstimate: 148 },
+const manualProspects: (Omit<Prospect, 'playType'> & { playType: PlayType })[] = [
+  { id: 'p1', name: 'Vaca Norte Lead', basin: 'Neuquén Basin', block: 'NQ-101', playType: 'Unconventional Shale', latitude: -38.63, longitude: -68.45, sourceScore: 0.83, migrationScore: 0.79, reservoirScore: 0.74, sealScore: 0.67, trapScore: 0.72, timingScore: 0.8, commercialScore: 78, resourceEstimate: 95 },
+  { id: 'p2', name: 'Agrio South', basin: 'Neuquén Basin', block: 'NQ-204', playType: 'Conventional Clastic', latitude: -39.14, longitude: -69.04, sourceScore: 0.7, migrationScore: 0.66, reservoirScore: 0.61, sealScore: 0.55, trapScore: 0.58, timingScore: 0.63, commercialScore: 62, resourceEstimate: 28 },
+  { id: 'p3', name: 'D-129 Central', basin: 'Golfo San Jorge Basin', block: 'GSJ-07', playType: 'Combination Trap', latitude: -45.83, longitude: -67.72, sourceScore: 0.76, migrationScore: 0.73, reservoirScore: 0.67, sealScore: 0.59, trapScore: 0.66, timingScore: 0.72, commercialScore: 68, resourceEstimate: 45 },
+  { id: 'p4', name: 'Austral Shelf Fan', basin: 'Austral Basin', block: 'AU-15', playType: 'Deepwater Clastic', latitude: -52.88, longitude: -69.23, sourceScore: 0.68, migrationScore: 0.6, reservoirScore: 0.56, sealScore: 0.49, trapScore: 0.57, timingScore: 0.55, commercialScore: 57, resourceEstimate: 120 },
+  { id: 'p5', name: 'Wolfcamp East', basin: 'Permian Basin', block: 'PM-311', playType: 'Unconventional Tight', latitude: 31.79, longitude: -102.09, sourceScore: 0.9, migrationScore: 0.87, reservoirScore: 0.82, sealScore: 0.77, trapScore: 0.8, timingScore: 0.9, commercialScore: 89, resourceEstimate: 240 },
+  { id: 'p6', name: 'Delaware North', basin: 'Permian Basin', block: 'PM-118', playType: 'Combination Trap', latitude: 32.12, longitude: -103.31, sourceScore: 0.84, migrationScore: 0.8, reservoirScore: 0.73, sealScore: 0.65, trapScore: 0.7, timingScore: 0.81, commercialScore: 76, resourceEstimate: 155 },
+  { id: 'p7', name: 'Forties Satellite', basin: 'North Sea', block: 'NS-21A', playType: 'Stratigraphic Trap', latitude: 57.58, longitude: 1.83, sourceScore: 0.8, migrationScore: 0.77, reservoirScore: 0.69, sealScore: 0.62, trapScore: 0.67, timingScore: 0.75, commercialScore: 72, resourceEstimate: 64 },
+  { id: 'p8', name: 'Miocene Shelf Edge', basin: 'Gulf of Mexico', block: 'GOM-442', playType: 'Salt Diapir / Sub-Salt', latitude: 27.16, longitude: -91.81, sourceScore: 0.82, migrationScore: 0.76, reservoirScore: 0.71, sealScore: 0.56, trapScore: 0.64, timingScore: 0.69, commercialScore: 74, resourceEstimate: 148 },
 ];
 
 // Evidence-derived prospects — scores are placeholders, overridden by geoscienceEngine at runtime
@@ -18,7 +18,7 @@ const evidenceProspects: Prospect[] = [
     name: 'Kimmeridge Deepwater',
     basin: 'North Sea',
     block: 'NS-30A',
-    playType: 'Structural',
+    playType: 'Combination Trap',
     latitude: 58.22,
     longitude: 2.45,
     sourceScore: 0.5, migrationScore: 0.5, reservoirScore: 0.5, sealScore: 0.5, trapScore: 0.5, timingScore: 0.5,
@@ -78,7 +78,7 @@ const evidenceProspects: Prospect[] = [
     name: 'Caspian Seal Risk',
     basin: 'Caspian Basin',
     block: 'CS-14B',
-    playType: 'Faulted Anticline',
+    playType: 'Combination Trap',
     latitude: 41.55,
     longitude: 50.83,
     sourceScore: 0.5, migrationScore: 0.5, reservoirScore: 0.5, sealScore: 0.5, trapScore: 0.5, timingScore: 0.5,
@@ -137,7 +137,7 @@ const evidenceProspects: Prospect[] = [
     name: 'Zagros Timing Uncertain',
     basin: 'Zagros Basin',
     block: 'ZG-07',
-    playType: 'Fold Belt Anticline',
+    playType: 'Combination Trap',
     latitude: 33.41,
     longitude: 47.22,
     sourceScore: 0.5, migrationScore: 0.5, reservoirScore: 0.5, sealScore: 0.5, trapScore: 0.5, timingScore: 0.5,
@@ -194,7 +194,7 @@ const evidenceProspects: Prospect[] = [
     name: 'East Siberia Lead',
     basin: 'East Siberian Basin',
     block: 'ESB-03',
-    playType: 'Structural',
+    playType: 'Combination Trap',
     latitude: 62.10,
     longitude: 112.50,
     sourceScore: 0.5, migrationScore: 0.5, reservoirScore: 0.5, sealScore: 0.5, trapScore: 0.5, timingScore: 0.5,

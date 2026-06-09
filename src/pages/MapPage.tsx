@@ -255,7 +255,7 @@ export function MapPage() {
         const props = e.features[0].properties as {
           name: string; basin: string; block: string; gcos: number;
           priority: string; resource: number; mainRisk: string;
-          dataConfidence: number; outcome: string;
+          dataConfidence: number; outcome: string; playType: string;
         };
         const coords = (e.features[0].geometry as Point).coordinates as [number, number];
         const outcomeHtml = props.outcome
@@ -273,6 +273,7 @@ export function MapPage() {
                 <div><span style="color:#888">Resource</span><br/><b>${props.resource} MMboe</b></div>
                 <div><span style="color:#888">Main risk</span><br/><b style="text-transform:capitalize">${esc(props.mainRisk || '—')}</b></div>
                 <div><span style="color:#888">Data conf.</span><br/><b>${props.dataConfidence}/100</b></div>
+                <div><span style="color:#888">Play type</span><br/><b style="font-size:11px">${esc(props.playType || '—')}</b></div>
                 ${outcomeHtml}
               </div>
             </div>`)

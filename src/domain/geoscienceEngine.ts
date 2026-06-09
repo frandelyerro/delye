@@ -109,16 +109,17 @@ export const assessMigration = (evidence: MigrationEvidence): ComponentAssessmen
     missing.push('Fault connectivity not assessed');
   }
 
+  const isLateralOrMixed = evidence.migrationStyle === 'lateral' || evidence.migrationStyle === 'mixed';
   if (evidence.carrierBedPresence !== undefined) {
     if (evidence.carrierBedPresence === 'proven') { score += 0.08; pos.push('Carrier bed proven'); }
-    else if (evidence.carrierBedPresence === 'absent') { score -= 0.12; neg.push('Carrier bed absent'); }
+    else if (evidence.carrierBedPresence === 'absent' && !isLateralOrMixed) { score -= 0.12; neg.push('Carrier bed absent'); }
     else if (evidence.carrierBedPresence === 'probable') { pos.push('Carrier bed probable'); }
-    else { missing.push('Carrier bed presence uncertain'); }
-  } else {
+    else if (!isLateralOrMixed) { missing.push('Carrier bed presence uncertain'); }
+  } else if (!isLateralOrMixed) {
     missing.push('Carrier bed not evaluated');
   }
 
-  if (evidence.migrationStyle === 'lateral' || evidence.migrationStyle === 'mixed') {
+  if (isLateralOrMixed) {
     if (evidence.carrierBedPresence === 'absent' || evidence.carrierBedPresence === 'unknown') {
       score -= 0.15; neg.push('Lateral migration inferred but carrier bed absent/unknown — critical charge risk');
     }
