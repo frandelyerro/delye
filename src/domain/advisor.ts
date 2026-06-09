@@ -69,7 +69,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       `Data Confidence: ${target.dataConfidence ?? 0}/100. ${getGCoSInterpretation(target)} Recommended next step: ${getRecommendedNextStep(target)}`;
   }
 
-  if (q.includes('main risk') && !q.includes('portfolio risk')) {
+  if (q.includes('main risk') && !q.includes('portfolio risk') && !q.includes('migration')) {
     const riskCount = prospects.reduce<Record<string, number>>((acc, p) => {
       const risk = p.mainRisk ?? 'unknown';
       acc[risk] = (acc[risk] ?? 0) + 1;
@@ -224,8 +224,8 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Critical geoscience risk: ${risk} is the main risk in ${count} prospect(s) across the portfolio.`;
   }
 
-  if (q.includes('risk reward') || q.includes('risk-reward') || q.includes('best value') ||
-      (q.includes('best') && q.includes('value')) || q.includes('capital efficiency')) {
+  if (q.includes('risk reward') || q.includes('risk-reward') || q.includes('capital efficiency') ||
+      (q.includes('best value') && (q.includes('risk') || q.includes('capital') || q.includes('portfolio')))) {
     const seq = getDrillSequenceOrder(prospects, 5);
     if (!seq.length) return 'No prospects in portfolio to rank for risk-reward.';
     return `Risk-reward ranking (50% GCoS + 30% commercial score + 20% data confidence): ${seq.map((e) => `#${e.rank} ${e.prospectName} (score ${e.compositeScore}, GCoS ${e.gcos}%)`).join('; ')}. Highest composite score indicates best capital-efficiency candidate. Where EMV data is available, prefer prospects with both high composite score and positive EMV — negative-EMV top-ranked prospects may not clear the commercial hurdle.`;

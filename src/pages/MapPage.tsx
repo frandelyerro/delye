@@ -16,6 +16,20 @@ const PRIORITY_COLOR: Record<Priority, string> = {
   low: '#ef4444',
 };
 
+const PLAY_TYPE_COLOR: Record<string, string> = {
+  'Conventional Clastic':   '#3b82f6',
+  'Carbonate':              '#a855f7',
+  'Deepwater Clastic':      '#06b6d4',
+  'Deepwater Carbonate':    '#8b5cf6',
+  'Unconventional Tight':   '#f97316',
+  'Unconventional Shale':   '#84cc16',
+  'Salt Diapir / Sub-Salt': '#ec4899',
+  'Fractured Basement':     '#78716c',
+  'Stratigraphic Trap':     '#14b8a6',
+  'Combination Trap':       '#eab308',
+  'Other':                  '#94a3b8',
+};
+
 // Free OSM raster tiles — no API key needed
 const OSM_STYLE = {
   version: 8 as const,
@@ -522,19 +536,30 @@ export function MapPage() {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-800 bg-slate-900 px-4 py-3">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Legend</span>
-        {(['high', 'medium', 'low'] as Priority[]).map((p) => (
-          <div key={p} className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-full border-2 border-white/30" style={{ backgroundColor: PRIORITY_COLOR[p] }} />
-            <span className="text-xs capitalize text-slate-300">{p} priority</span>
+      <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 space-y-2">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Priority (fill)</span>
+          {(['high', 'medium', 'low'] as Priority[]).map((p) => (
+            <div key={p} className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-full border-2 border-white/30" style={{ backgroundColor: PRIORITY_COLOR[p] }} />
+              <span className="text-xs capitalize text-slate-300">{p}</span>
+            </div>
+          ))}
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-cyan-500 opacity-80" />
+            <span className="text-xs text-slate-300">Cluster</span>
           </div>
-        ))}
-        <div className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-cyan-500 opacity-80" />
-          <span className="text-xs text-slate-300">Cluster (click to expand)</span>
+          <div className="ml-auto text-xs text-slate-500">Marker size ∝ GCoS</div>
         </div>
-        <div className="ml-auto text-xs text-slate-500">Marker size ∝ GCoS</div>
+        <div className="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Play type (ring)</span>
+          {Object.entries(PLAY_TYPE_COLOR).map(([play, color]) => (
+            <div key={play} className="flex items-center gap-1">
+              <span className="h-3 w-3 rounded-full border-2 bg-transparent" style={{ borderColor: color }} />
+              <span className="text-xs text-slate-400">{play}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* GeoLibre embedded panel */}

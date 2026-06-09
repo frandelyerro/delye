@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 10;
+const CURRENT_CYCLE = 11;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata';
 
@@ -37,7 +37,7 @@ const AGENTS: AgentDef[] = [
     totalFindings: 23,
     implemented: 19,
     latestFinding: 'Extracted Norway adapter state (7 slices) into useNorwayAdapter hook — MLLabPage −40 lines.',
-    knownGaps: ['Repeated JSX blocks > 15 lines', 'Missing useMemo on O(n²) renders'],
+    knownGaps: ['Missing useMemo on O(n²) renders', 'Route-level code splitting not yet audited'],
   },
   {
     id: 'petro',
@@ -52,7 +52,7 @@ const AGENTS: AgentDef[] = [
     totalFindings: 31,
     implemented: 28,
     latestFinding: 'Added isUnconventional branch in assessReservoir — tight/shale use 10/5/2% porosity tiers vs 18/12/8%.',
-    knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation'],
+    knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'GCoS formula vs SPE 26592 spot-check pending'],
   },
   {
     id: 'review',
@@ -138,6 +138,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 8, architect: 3, petro: 3, review: 2, security: 1, dev: 3, geodata: 3, highlight: 'Portfolio intelligence, HHI basin diversity' },
   { cycle: 9, architect: 4, petro: 3, review: 3, security: 1, dev: 3, geodata: 2, highlight: 'Migration lateral/mixed, double-penalty fix' },
   { cycle: 10, architect: 4, petro: 3, review: 1, security: 0, dev: 1, geodata: 2, highlight: 'Play-type map, Norway hook, unconventional porosity' },
+  { cycle: 11, architect: 3, petro: 2, review: 1, security: 0, dev: 1, geodata: 2, highlight: 'Play-type legend, unconventional perm, fault-conduit migration, advisor false-positives' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {

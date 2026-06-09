@@ -110,12 +110,14 @@ export const assessMigration = (evidence: MigrationEvidence): ComponentAssessmen
   }
 
   const isLateralOrMixed = evidence.migrationStyle === 'lateral' || evidence.migrationStyle === 'mixed';
+  const isFaultConduit = evidence.migrationStyle === 'vertical' && evidence.faultConnectivity === 'good';
   if (evidence.carrierBedPresence !== undefined) {
     if (evidence.carrierBedPresence === 'proven') { score += 0.08; pos.push('Carrier bed proven'); }
-    else if (evidence.carrierBedPresence === 'absent' && !isLateralOrMixed) { score -= 0.12; neg.push('Carrier bed absent'); }
+    else if (evidence.carrierBedPresence === 'absent' && !isLateralOrMixed && !isFaultConduit) { score -= 0.12; neg.push('Carrier bed absent'); }
     else if (evidence.carrierBedPresence === 'probable') { pos.push('Carrier bed probable'); }
-    else if (!isLateralOrMixed) { missing.push('Carrier bed presence uncertain'); }
-  } else if (!isLateralOrMixed) {
+    else if (!isLateralOrMixed && !isFaultConduit) { missing.push('Carrier bed presence uncertain'); }
+    else if (isFaultConduit && evidence.carrierBedPresence === 'absent') { pos.push('Fault-conduit vertical migration — carrier bed not required'); }
+  } else if (!isLateralOrMixed && !isFaultConduit) {
     missing.push('Carrier bed not evaluated');
   }
 
@@ -179,10 +181,16 @@ export const assessReservoir = (evidence: ReservoirEvidence): ComponentAssessmen
   }
 
   if (evidence.permeabilityMd !== undefined) {
-    if (evidence.permeabilityMd >= 100) { score += 0.12; pos.push(`Excellent permeability ${evidence.permeabilityMd}mD`); }
-    else if (evidence.permeabilityMd >= 10) { score += 0.08; pos.push(`Good permeability ${evidence.permeabilityMd}mD`); }
-    else if (evidence.permeabilityMd >= 1) { score += 0.03; pos.push(`Low permeability ${evidence.permeabilityMd}mD`); }
-    else { score -= 0.12; neg.push(`Very low permeability ${evidence.permeabilityMd}mD — tight reservoir`); }
+    if (evidence.isUnconventional) {
+      if (evidence.permeabilityMd >= 0.1) { score += 0.08; pos.push(`Good unconventional permeability ${evidence.permeabilityMd}mD`); }
+      else if (evidence.permeabilityMd >= 0.001) { score += 0.03; pos.push(`Typical unconventional permeability ${evidence.permeabilityMd}mD`); }
+      else { score -= 0.08; neg.push(`Very low permeability ${evidence.permeabilityMd}mD — below nano-darcy threshold even for unconventionals`); }
+    } else {
+      if (evidence.permeabilityMd >= 100) { score += 0.12; pos.push(`Excellent permeability ${evidence.permeabilityMd}mD`); }
+      else if (evidence.permeabilityMd >= 10) { score += 0.08; pos.push(`Good permeability ${evidence.permeabilityMd}mD`); }
+      else if (evidence.permeabilityMd >= 1) { score += 0.03; pos.push(`Low permeability ${evidence.permeabilityMd}mD`); }
+      else { score -= 0.12; neg.push(`Very low permeability ${evidence.permeabilityMd}mD — tight reservoir`); }
+    }
   } else {
     missing.push('Permeability data not available');
   }
