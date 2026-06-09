@@ -6,6 +6,99 @@ import {
   type TargetingRecommendation,
 } from './recommendationEngine';
 
+export type RiskConcentrationResult = {
+  /** True when more than 50% of prospects share the same mainRisk */
+  concentrated: boolean;
+  /** The dominant mainRisk value, if concentrated */
+  dominantRisk: string;
+  /** Number of prospects with the dominant risk */
+  dominantCount: number;
+  /** Total prospects analysed */
+  total: number;
+  /** Percentage of prospects carrying the dominant risk (0–100) */
+  dominantPct: number;
+};
+
+/**
+ * Flags portfolio risk concentration: when >50% of prospects share the same
+ * mainRisk the portfolio is vulnerable to a single play-level failure.
+ */
+export const getRiskConcentration = (prospects: Prospect[]): RiskConcentrationResult => {
+  if (!prospects.length) {
+    return { concentrated: false, dominantRisk: 'unknown', dominantCount: 0, total: 0, dominantPct: 0 };
+  }
+  const riskCount = prospects.reduce<Record<string, number>>((acc, p) => {
+    const risk = p.mainRisk ?? 'unknown';
+    acc[risk] = (acc[risk] ?? 0) + 1;
+    return acc;
+  }, {});
+  const [dominantRisk, dominantCount] = Object.entries(riskCount).sort((a, b) => b[1] - a[1])[0];
+  const dominantPct = Math.round((dominantCount / prospects.length) * 100);
+  return {
+    concentrated: dominantPct > 50,
+    dominantRisk,
+    dominantCount,
+    total: prospects.length,
+    dominantPct,
+  };
+};
+
+export type GCoSBucket = {
+  /** Label, e.g. "10–20%" */
+  label: string;
+  /** Number of prospects in this bucket */
+  count: number;
+  /** Bottom of bucket, 0–1 */
+  min: number;
+};
+
+/**
+ * Partitions prospects into 10 equal GCoS buckets (0–10%, 10–20%, … 90–100%).
+ */
+export const getGCoSHistogram = (prospects: Prospect[]): GCoSBucket[] => {
+  const buckets: GCoSBucket[] = Array.from({ length: 10 }, (_, i) => ({
+    label: `${i * 10}–${(i + 1) * 10}%`,
+    count: 0,
+    min: i / 10,
+  }));
+  for (const p of prospects) {
+    const gcos = p.geologicalChanceOfSuccess ?? 0;
+    const idx = Math.min(Math.floor(gcos * 10), 9);
+    buckets[idx].count++;
+  }
+  return buckets;
+};
+
+export type BasinStats = {
+  basin: string;
+  count: number;
+  avgGCoS: number;
+  drillCandidates: number;
+  avgDataConfidence: number;
+};
+
+/**
+ * Builds per-basin summary statistics for the portfolio heatmap table.
+ */
+export const getBasinStats = (prospects: Prospect[]): BasinStats[] => {
+  const basinMap = new Map<string, Prospect[]>();
+  for (const p of prospects) {
+    const basin = p.basin || 'Unknown';
+    const existing = basinMap.get(basin) ?? [];
+    existing.push(p);
+    basinMap.set(basin, existing);
+  }
+  return Array.from(basinMap.entries())
+    .map(([basin, ps]) => ({
+      basin,
+      count: ps.length,
+      avgGCoS: Math.round(ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length * 100),
+      drillCandidates: ps.filter((p) => getRecommendedAction(p) === 'drill_candidate').length,
+      avgDataConfidence: Math.round(ps.reduce((s, p) => s + (p.dataConfidence ?? 0), 0) / ps.length),
+    }))
+    .sort((a, b) => b.avgGCoS - a.avgGCoS);
+};
+
 export type PortfolioSummary = {
   totalProspects: number;
   tier1Count: number;

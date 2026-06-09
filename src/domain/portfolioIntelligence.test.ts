@@ -7,6 +7,9 @@ import {
   getUncertaintyReductionCandidates,
   getFarmInCandidates,
   getHighGCoSLowConfidenceProspects,
+  getRiskConcentration,
+  getGCoSHistogram,
+  getBasinStats,
 } from './portfolioIntelligence';
 
 const mkProspect = (overrides: Partial<Prospect>): Prospect => ({
@@ -188,5 +191,116 @@ describe('getPortfolioSummary', () => {
     const s = getPortfolioSummary(samplePortfolio);
     expect(typeof s.portfolioMainRisk).toBe('string');
     expect(s.portfolioMainRisk.length).toBeGreaterThan(0);
+  });
+});
+
+// ---- getRiskConcentration ----
+
+describe('getRiskConcentration', () => {
+  it('returns concentrated=true when >50% share a single mainRisk', () => {
+    const prospects = [
+      mkProspect({ id: 'a', mainRisk: 'seal' }),
+      mkProspect({ id: 'b', mainRisk: 'seal' }),
+      mkProspect({ id: 'c', mainRisk: 'seal' }),
+      mkProspect({ id: 'd', mainRisk: 'trap' }),
+    ];
+    const result = getRiskConcentration(prospects);
+    expect(result.concentrated).toBe(true);
+    expect(result.dominantRisk).toBe('seal');
+    expect(result.dominantPct).toBe(75);
+  });
+
+  it('returns concentrated=false when no risk exceeds 50%', () => {
+    const prospects = [
+      mkProspect({ id: 'a', mainRisk: 'seal' }),
+      mkProspect({ id: 'b', mainRisk: 'trap' }),
+      mkProspect({ id: 'c', mainRisk: 'reservoir' }),
+      mkProspect({ id: 'd', mainRisk: 'source' }),
+    ];
+    const result = getRiskConcentration(prospects);
+    expect(result.concentrated).toBe(false);
+  });
+
+  it('returns safe defaults for empty portfolio', () => {
+    const result = getRiskConcentration([]);
+    expect(result.concentrated).toBe(false);
+    expect(result.total).toBe(0);
+    expect(result.dominantPct).toBe(0);
+  });
+
+  it('single prospect is 100% concentrated', () => {
+    const result = getRiskConcentration([mkProspect({ mainRisk: 'timing' })]);
+    expect(result.concentrated).toBe(true);
+    expect(result.dominantPct).toBe(100);
+    expect(result.dominantRisk).toBe('timing');
+  });
+});
+
+// ---- getGCoSHistogram ----
+
+describe('getGCoSHistogram', () => {
+  it('always returns 10 buckets', () => {
+    expect(getGCoSHistogram([]).length).toBe(10);
+    expect(getGCoSHistogram([mkProspect({})]).length).toBe(10);
+  });
+
+  it('places prospect in correct bucket', () => {
+    const p25 = mkProspect({ geologicalChanceOfSuccess: 0.25 }); // bucket 20–30%
+    const buckets = getGCoSHistogram([p25]);
+    expect(buckets[2].count).toBe(1); // index 2 = 20–30%
+  });
+
+  it('clamps GCoS=1.0 to bucket 9 (90–100%)', () => {
+    const p100 = mkProspect({ geologicalChanceOfSuccess: 1.0 });
+    const buckets = getGCoSHistogram([p100]);
+    expect(buckets[9].count).toBe(1);
+  });
+
+  it('total count equals number of prospects', () => {
+    const prospects = [
+      mkProspect({ id: 'a', geologicalChanceOfSuccess: 0.05 }),
+      mkProspect({ id: 'b', geologicalChanceOfSuccess: 0.45 }),
+      mkProspect({ id: 'c', geologicalChanceOfSuccess: 0.85 }),
+    ];
+    const total = getGCoSHistogram(prospects).reduce((s, b) => s + b.count, 0);
+    expect(total).toBe(3);
+  });
+});
+
+// ---- getBasinStats ----
+
+describe('getBasinStats', () => {
+  it('returns empty array for empty portfolio', () => {
+    expect(getBasinStats([])).toHaveLength(0);
+  });
+
+  it('groups prospects by basin correctly', () => {
+    const prospects = [
+      mkProspect({ id: 'a', basin: 'North Sea', geologicalChanceOfSuccess: 0.40, dataConfidence: 80 }),
+      mkProspect({ id: 'b', basin: 'North Sea', geologicalChanceOfSuccess: 0.20, dataConfidence: 60 }),
+      mkProspect({ id: 'c', basin: 'Gulf of Mexico', geologicalChanceOfSuccess: 0.10, dataConfidence: 50 }),
+    ];
+    const stats = getBasinStats(prospects);
+    const northSea = stats.find((s) => s.basin === 'North Sea');
+    expect(northSea).toBeDefined();
+    expect(northSea!.count).toBe(2);
+    expect(northSea!.avgGCoS).toBe(30); // (40+20)/2
+    expect(northSea!.avgDataConfidence).toBe(70); // (80+60)/2
+  });
+
+  it('sorts by avgGCoS descending', () => {
+    const prospects = [
+      mkProspect({ id: 'a', basin: 'Low', geologicalChanceOfSuccess: 0.10 }),
+      mkProspect({ id: 'b', basin: 'High', geologicalChanceOfSuccess: 0.50 }),
+    ];
+    const stats = getBasinStats(prospects);
+    expect(stats[0].basin).toBe('High');
+    expect(stats[1].basin).toBe('Low');
+  });
+
+  it('unknown basin assigned "Unknown" label', () => {
+    const p = mkProspect({ id: 'x', basin: '' });
+    const stats = getBasinStats([p]);
+    expect(stats[0].basin).toBe('Unknown');
   });
 });
