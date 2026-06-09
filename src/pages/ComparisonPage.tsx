@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   PolarAngleAxis,
@@ -26,7 +26,7 @@ const priorityClass: Record<string, string> = {
   avoid: 'bg-red-900 text-red-300',
 };
 
-function MetricRow({ label, values }: { label: string; values: (string | number)[] }) {
+function MetricRow({ label, values }: { label: string; values: ReactNode[] }) {
   return (
     <tr className="border-b border-slate-800">
       <td className="py-2 pr-4 text-slate-400 text-sm whitespace-nowrap">{label}</td>
@@ -57,22 +57,25 @@ export function ComparisonPage() {
     );
   };
 
-  const chosen: Prospect[] = selected
-    .map((id) => prospects.find((p) => p.id === id))
-    .filter(Boolean) as Prospect[];
+  const chosen = useMemo<Prospect[]>(
+    () => selected.map((id) => prospects.find((p) => p.id === id)).filter(Boolean) as Prospect[],
+    [selected, prospects],
+  );
 
-  // Build radar data: one entry per component
-  const radarData =
-    chosen.length > 0
-      ? getScoreBreakdown(chosen[0]).components.map(({ label }, idx) => {
-          const entry: Record<string, string | number> = { component: label };
-          chosen.forEach((p, ci) => {
-            const breakdown = getScoreBreakdown(p);
-            entry[p.name] = parseFloat((breakdown.components[idx]?.value ?? 0).toFixed(3));
-          });
-          return entry;
-        })
-      : [];
+  const radarData = useMemo(
+    () =>
+      chosen.length > 0
+        ? getScoreBreakdown(chosen[0]).components.map(({ label }, idx) => {
+            const entry: Record<string, string | number> = { component: label };
+            chosen.forEach((p) => {
+              const breakdown = getScoreBreakdown(p);
+              entry[p.name] = parseFloat((breakdown.components[idx]?.value ?? 0).toFixed(3));
+            });
+            return entry;
+          })
+        : [],
+    [chosen],
+  );
 
   return (
     <div className="space-y-6">
@@ -188,14 +191,17 @@ export function ComparisonPage() {
               </thead>
               <tbody>
                 <MetricRow label="GCoS" values={chosen.map((p) => pct(p.geologicalChanceOfSuccess ?? 0))} />
-                <MetricRow label="Priority" values={chosen.map((p) => (
-                  <span
-                    key={p.id}
-                    className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${priorityClass[p.priority ?? 'low'] ?? ''}`}
-                  >
-                    {p.priority ?? '—'}
-                  </span>
-                ) as unknown as string)} />
+                <MetricRow
+                  label="Priority"
+                  values={chosen.map((p) => (
+                    <span
+                      key={p.id}
+                      className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${priorityClass[p.priority ?? 'low'] ?? ''}`}
+                    >
+                      {p.priority ?? '—'}
+                    </span>
+                  ))}
+                />
                 <MetricRow label="Basin" values={chosen.map((p) => p.basin)} />
                 <MetricRow label="Play Type" values={chosen.map((p) => p.playType)} />
                 <MetricRow label="Source" values={chosen.map((p) => pct(p.sourceScore))} />
