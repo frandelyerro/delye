@@ -13,6 +13,7 @@ import {
 import { useProspectStore } from '../store/useProspectStore';
 import { getScoreBreakdown } from '../domain/explainability';
 import { scoreProspect } from '../domain/scoring';
+import { findAnalogs } from '../domain/analogFinder';
 import type { Prospect } from '../domain/prospect';
 
 const COLORS = ['#38bdf8', '#f472b6', '#34d399', '#fb923c'];
@@ -60,6 +61,11 @@ export function ComparisonPage() {
   const chosen = useMemo<Prospect[]>(
     () => selected.map((id) => prospects.find((p) => p.id === id)).filter(Boolean) as Prospect[],
     [selected, prospects],
+  );
+
+  const suggestedAnalogs = useMemo<Prospect[]>(
+    () => (chosen.length === 1 ? findAnalogs(chosen[0], prospects, 3) : []),
+    [chosen, prospects],
   );
 
   const radarData = useMemo(
@@ -124,6 +130,26 @@ export function ComparisonPage() {
           </div>
         )}
       </div>
+
+      {suggestedAnalogs.length > 0 && (
+        <div className="bg-slate-900 rounded-xl border border-slate-800 p-4">
+          <h2 className="text-sm font-semibold text-slate-300 mb-3">
+            Suggested analogs for {chosen[0].name}
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {suggestedAnalogs.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => toggle(p.id)}
+                className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs text-slate-300 hover:border-sky-500 hover:text-sky-200 transition-colors"
+              >
+                <div className="font-semibold">{p.name}</div>
+                <div className="text-slate-400">{p.basin} · {pct(p.geologicalChanceOfSuccess ?? 0)} GCoS</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {chosen.length === 0 && (
         <div className="text-center py-16 text-slate-500">
