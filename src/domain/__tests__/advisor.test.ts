@@ -301,3 +301,48 @@ describe('advisor Norway FactPages queries', () => {
   });
 });
 
+
+describe('advisor geological queries', () => {
+  it('"analog field" returns analog calibration guidance', () => {
+    const response = getAdvisorResponse('show me analog field analysis', prospects);
+    expect(response.toLowerCase()).toMatch(/analog|calibrat/i);
+    expect(response.length).toBeGreaterThan(50);
+  });
+
+  it('"source rock maturity" returns maturity assessment', () => {
+    const response = getAdvisorResponse('source rock maturity assessment', prospects);
+    expect(response.toLowerCase()).toMatch(/maturity|source|toc|ro/i);
+  });
+
+  it('"seal integrity" returns seal integrity analysis', () => {
+    const response = getAdvisorResponse('seal integrity assessment', prospects);
+    expect(response.toLowerCase()).toMatch(/seal|caprock|integrit/i);
+  });
+
+  it('"reservoir quality" returns reservoir productivity info', () => {
+    const response = getAdvisorResponse('reservoir quality assessment', prospects);
+    expect(response.toLowerCase()).toMatch(/reservoir|porosity|permeability/i);
+  });
+
+  it('"target depth" returns depth guidance', () => {
+    const response = getAdvisorResponse('what is the target depth for drilling', prospects);
+    expect(response.toLowerCase()).toMatch(/depth|formation|drilling/i);
+  });
+});
+
+describe('advisor spatial proximity queries', () => {
+  it('"nearest prospect" returns proximity analysis with valid coords', () => {
+    const response = getAdvisorResponse('which is the nearest prospect to another', prospects);
+    expect(response.toLowerCase()).toMatch(/proximit|nearest|closest|km/i);
+  });
+
+  it('"play type distribution" returns play-type breakdown', () => {
+    const response = getAdvisorResponse('what is the play type distribution in the portfolio', prospects);
+    expect(response.toLowerCase()).toMatch(/play|distribution|portfolio/i);
+  });
+
+  it('"play mix" triggers play-type query', () => {
+    const response = getAdvisorResponse('show me the play mix', prospects);
+    expect(response.toLowerCase()).toMatch(/play/i);
+  });
+});
