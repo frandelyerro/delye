@@ -5,7 +5,7 @@ import type { FeatureCollection, Point } from 'geojson';
 import { useProspectStore } from '../store/useProspectStore';
 import { getAdvisorResponse } from '../domain/advisor';
 import type { Prospect } from '../domain/prospect';
-import { isValidCoordinate } from '../domain/geoUtils';
+import { isValidCoordinate, hasLowPrecisionCoordinates } from '../domain/geoUtils';
 
 type Priority = 'high' | 'medium' | 'low';
 type FilterState = { basin: string | null; priority: Priority | null };
@@ -107,11 +107,17 @@ function buildSpatialInsights(prospects: Prospect[]): string[] {
   const high = prospects.filter((p) => p.priority === 'high').length;
   const medium = prospects.filter((p) => p.priority === 'medium').length;
   const low = prospects.filter((p) => p.priority === 'low').length;
+  const lowPrecisionCount = prospects.filter(
+    (p) => isValidCoordinate(p.latitude, p.longitude) && hasLowPrecisionCoordinates(p.latitude, p.longitude),
+  ).length;
   return [
     `${prospects.length} prospect${prospects.length !== 1 ? 's' : ''} across ${sorted.length} basin${sorted.length !== 1 ? 's' : ''}.`,
     sorted[0] ? `Best basin: ${sorted[0].basin} (avg GCoS ${Math.round(sorted[0].avgGcos * 100)}%, ${sorted[0].count} prospect${sorted[0].count !== 1 ? 's' : ''}, dominant play: ${sorted[0].dominantPlay}, top prospect: ${sorted[0].bestProspect}).` : '',
     `Portfolio avg GCoS: ${Math.round(avgGcos * 100)}%.`,
     `${high} high · ${medium} medium · ${low} low priority.`,
+    lowPrecisionCount > 0
+      ? `${lowPrecisionCount} prospect${lowPrecisionCount !== 1 ? 's' : ''} have coordinates with fewer than 4 decimal places — verify location precision.`
+      : '',
   ].filter(Boolean);
 }
 

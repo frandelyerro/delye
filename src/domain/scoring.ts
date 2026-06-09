@@ -27,6 +27,12 @@ const assertValidProspect = (prospect: Prospect) => {
   }
 };
 
+// GCoS = product of the 6 independent component probabilities (source, migration,
+// reservoir, seal, trap, timing), per Rose's "Risk Analysis and Management of
+// Petroleum Exploration Ventures" / SPE 26592 — the standard play/prospect-level
+// chance-of-success methodology. The independence assumption is a known
+// simplification (e.g., source and migration risk are often correlated) accepted
+// for tractability; this is a hard invariant and must not be changed here.
 export const calculateGCoS = (prospect: Prospect): number => {
   assertValidProspect(prospect);
   return componentNames.reduce((acc, key) => acc * Number(prospect[componentMap[key]]), 1);

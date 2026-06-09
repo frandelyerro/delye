@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { haversineKm, isValidCoordinate, findNearest } from '../geoUtils';
+import { haversineKm, isValidCoordinate, findNearest, hasLowPrecisionCoordinates } from '../geoUtils';
 
 describe('haversineKm', () => {
   it('returns 0 for identical coordinates', () => {
@@ -32,6 +32,24 @@ describe('isValidCoordinate', () => {
 
   it('rejects out-of-range latitude', () => {
     expect(isValidCoordinate(95, 0)).toBe(false);
+  });
+});
+
+describe('hasLowPrecisionCoordinates', () => {
+  it('returns true when latitude has fewer than 4 decimal digits', () => {
+    expect(hasLowPrecisionCoordinates(25.5, -90.1234)).toBe(true);
+  });
+
+  it('returns true when longitude has fewer than 4 decimal digits', () => {
+    expect(hasLowPrecisionCoordinates(25.1234, -90.12)).toBe(true);
+  });
+
+  it('returns false when both have 4+ decimal digits', () => {
+    expect(hasLowPrecisionCoordinates(25.12345, -90.1234)).toBe(false);
+  });
+
+  it('returns true for whole-number coordinates', () => {
+    expect(hasLowPrecisionCoordinates(25, -90)).toBe(true);
   });
 });
 

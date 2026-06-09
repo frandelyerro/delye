@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { assessSource, assessSeal } from '../geoscienceEngine';
-import type { SourceEvidence, SealEvidence } from '../evidence';
+import { assessSource, assessSeal, assessTrap } from '../geoscienceEngine';
+import type { SourceEvidence, SealEvidence, TrapEvidence } from '../evidence';
 
 describe('assessSource — sourceRockType TOC branching', () => {
   it('penalizes low TOC for marine/default source rock', () => {
@@ -43,5 +43,30 @@ describe('assessSeal — thickness vs lithology interaction', () => {
     const evidence: SealEvidence = { presence: 'probable', lithology: 'shale', thicknessM: 35 };
     const result = assessSeal(evidence);
     expect(result.positiveEvidence.some((p) => p.includes('Adequate seal thickness 35m'))).toBe(true);
+  });
+});
+
+describe('assessTrap — subsalt imaging risk', () => {
+  it('gives structural traps the full trap-type bonus', () => {
+    const evidence: TrapEvidence = { closureMapped: true, trapType: 'structural', seismicConfidence: 'high' };
+    const result = assessTrap(evidence);
+    const subsalt: TrapEvidence = { closureMapped: true, trapType: 'subsalt', seismicConfidence: 'high' };
+    expect(assessTrap(subsalt).score).toBeLessThan(result.score);
+  });
+
+  it('penalizes subsalt traps without high seismic confidence', () => {
+    const lowConfidence: TrapEvidence = { closureMapped: true, trapType: 'subsalt', seismicConfidence: 'medium' };
+    const highConfidence: TrapEvidence = { closureMapped: true, trapType: 'subsalt', seismicConfidence: 'high' };
+    const lowResult = assessTrap(lowConfidence);
+    const highResult = assessTrap(highConfidence);
+    expect(lowResult.score).toBeLessThan(highResult.score);
+    expect(lowResult.negativeEvidence.some((n) => n.includes('Subsalt trap'))).toBe(true);
+  });
+
+  it('does not penalize subsalt traps with high seismic confidence', () => {
+    const evidence: TrapEvidence = { closureMapped: true, trapType: 'subsalt', seismicConfidence: 'high' };
+    const result = assessTrap(evidence);
+    expect(result.negativeEvidence.some((n) => n.includes('Subsalt trap'))).toBe(false);
+    expect(result.positiveEvidence.some((p) => p.includes('Subsalt trap'))).toBe(true);
   });
 });

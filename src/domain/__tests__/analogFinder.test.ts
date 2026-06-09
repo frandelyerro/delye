@@ -50,4 +50,12 @@ describe('findAnalogs', () => {
     const result = findAnalogs(target, [target, a, b], 2);
     expect(result.map((p) => p.id)).toEqual(['a', 'b']);
   });
+
+  it('de-duplicates candidates that share the same id', () => {
+    const target = makeProspect({ id: 'target' });
+    const dupe = makeProspect({ id: 'dupe', sourceScore: 0.5 });
+    const dupeAgain = makeProspect({ id: 'dupe', sourceScore: 0.5 });
+    const result = findAnalogs(target, [target, dupe, dupeAgain], 5);
+    expect(result.map((p) => p.id)).toEqual(['dupe']);
+  });
 });

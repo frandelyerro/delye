@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 12;
+const CURRENT_CYCLE = 14;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata';
 
@@ -34,10 +34,10 @@ const AGENTS: AgentDef[] = [
     precision: 82,
     recall: 71,
     depth: 78,
-    totalFindings: 24,
-    implemented: 19,
-    latestFinding: 'Proposed useMLTraining hook extraction from MLLabPage.tsx (~13 state vars + 6 handlers, ~80 lines) mirroring useNorwayAdapter — pending implementation.',
-    knownGaps: ['Missing useMemo on O(n²) renders', 'useMLTraining hook extraction not yet implemented', 'ProspectFormPage (915), ProspectDetailPage (728), MapPage (601) still >300 lines'],
+    totalFindings: 25,
+    implemented: 20,
+    latestFinding: 'Extracted useMLTraining hook from MLLabPage.tsx (940→906 lines) — moved CV config, training results, save/load/clear/export handlers, mirroring useNorwayAdapter. Pure extraction, behavior unchanged.',
+    knownGaps: ['Missing useMemo on O(n²) renders', 'ProspectFormPage (915), ProspectDetailPage (728), MapPage (601) still >300 lines', '<PanelSection> extraction still pending (~10 call sites)'],
   },
   {
     id: 'petro',
@@ -49,10 +49,10 @@ const AGENTS: AgentDef[] = [
     precision: 90,
     recall: 68,
     depth: 85,
-    totalFindings: 33,
-    implemented: 30,
-    latestFinding: 'assessSource TOC scoring now branches on sourceRockType — coaly/terrestrial source rocks credited at lower TOC thresholds (gas-prone at 0.5-2%); assessSeal credits thin (≥10m) evaporite/anhydrite/salt seals as adequate, vs the generic 30m shale benchmark.',
-    knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'GCoS formula vs SPE 26592 spot-check pending'],
+    totalFindings: 36,
+    implemented: 33,
+    latestFinding: 'assessTrap now distinguishes subsalt traps (smaller +0.03 bonus, plus a penalty when seismic confidence is below "high") from structural/combination traps (+0.07) — reflects velocity pull-up/push-down imaging risk under salt. GCoS formula spot-checked against SPE 26592/Rose methodology — confirmed sound, documented as a code comment with the independence-assumption caveat.',
+    knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation'],
   },
   {
     id: 'review',
@@ -64,9 +64,9 @@ const AGENTS: AgentDef[] = [
     precision: 95,
     recall: 80,
     depth: 90,
-    totalFindings: 18,
-    implemented: 17,
-    latestFinding: 'Caught advisor.ts risk-reward handler swallowing "which prospects should we drill first" — removed conflicting clause.',
+    totalFindings: 20,
+    implemented: 19,
+    latestFinding: 'Flagged analogFinder.ts duplicate-ID handling (fixed via Set-based de-dup) and unmemoized findAnalogs() call in ProspectDetailPage (fixed via useMemo).',
     knownGaps: ['useEffect stale closure detection', 'Missing useCallback on memoized-child setters'],
   },
   {
@@ -94,9 +94,9 @@ const AGENTS: AgentDef[] = [
     precision: 75,
     recall: 82,
     depth: 70,
-    totalFindings: 17,
-    implemented: 13,
-    latestFinding: 'Added "Similar Prospects" analog finder to ProspectDetailPage — ranks portfolio prospects by Euclidean distance over the 6 geological scores + commercial score, links to top-3 analogs.',
+    totalFindings: 18,
+    implemented: 14,
+    latestFinding: 'ComparisonPage now suggests analogs via findAnalogs() when a single prospect is selected — one-click add of the 3 nearest analogs to the comparison.',
     knownGaps: ['Play-type legend WCAG AA contrast not yet verified', 'Mobile breakpoint validation'],
   },
   {
@@ -109,10 +109,10 @@ const AGENTS: AgentDef[] = [
     precision: 80,
     recall: 74,
     depth: 76,
-    totalFindings: 13,
-    implemented: 11,
-    latestFinding: 'MapPage play-type legend now filters to playTypesPresent in filteredProspects (was showing all 11 types unconditionally) — fixes cycle 11 review finding.',
-    knownGaps: ['Antimeridian wrapping', 'Coordinate precision validation (< 4 decimals)', 'clusterProperties avg-GCoS aggregation not yet implemented'],
+    totalFindings: 14,
+    implemented: 12,
+    latestFinding: 'Added hasLowPrecisionCoordinates() to geoUtils.ts — buildSpatialInsights now warns when prospects have coordinates with fewer than 4 decimal places.',
+    knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred — requires MapLibre expression-based clusterProperties, untestable by unit tests, risk of cluster regressions'],
   },
 ];
 
@@ -140,6 +140,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 10, architect: 4, petro: 3, review: 1, security: 0, dev: 1, geodata: 2, highlight: 'Play-type map, Norway hook, unconventional porosity' },
   { cycle: 11, architect: 3, petro: 2, review: 1, security: 0, dev: 1, geodata: 2, highlight: 'Play-type legend, unconventional perm, fault-conduit migration, advisor false-positives' },
   { cycle: 12, architect: 0, petro: 2, review: 0, security: 0, dev: 1, geodata: 1, highlight: 'Analog prospect finder, play-type legend filtering, source-rock-type TOC scoring, evaporite seal thickness' },
+  { cycle: 13, architect: 1, petro: 3, review: 2, security: 0, dev: 1, geodata: 1, highlight: 'useMLTraining hook extraction, subsalt trap risk, GCoS methodology advisor query, comparison-page analogs, coordinate precision warning' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useProspectStore } from '../store/useProspectStore';
 import { assessMLReadiness } from '../domain/mlReadiness';
 import { extractMLFeaturesForPortfolio } from '../domain/mlFeatures';
@@ -16,23 +16,16 @@ import {
   type DatasetImportPreview,
 } from '../domain/mlDatasetImport';
 import { useNorwayAdapter, isNorwayWellboreDataset } from '../hooks/useNorwayAdapter';
+import { useMLTraining } from '../hooks/useMLTraining';
 import {
   buildTrainingRows,
 } from '../domain/mlTrainingFeatures';
 import {
   getDefaultMLTrainingConfig,
-  trainBaselineMLModel,
   validateTrainingReadinessForModel,
   compareTrainedModelWithExpertGCoS,
 } from '../domain/mlTrainingService';
-import type {
-  MLClassWeight,
-  MLFeatureMode,
-  MLTrainingResult,
-  MLTrainingTarget,
-  TrainedMLModel,
-} from '../domain/mlTrainingTypes';
-import { loadTrainedMLModel, saveTrainedMLModel, clearTrainedMLModel } from '../services/mlModelStorage';
+import type { MLClassWeight, MLFeatureMode, MLTrainingTarget } from '../domain/mlTrainingTypes';
 import { isKnownOutcome, getOutcomeLabelText } from '../domain/outcomes';
 import type { OutcomeLabel } from '../domain/mlTypes';
 import { downloadJson, downloadText } from '../utils/exportReport';
@@ -94,21 +87,12 @@ export function MLLabPage() {
     handleNorwayConvert,
   } = useNorwayAdapter({ setImportPreview, setImportError });
 
-  // Training state
+  // Training state (extracted to hook)
   const [trainTarget, setTrainTarget] = useState<MLTrainingTarget>('geological_success');
   const [trainFeatureMode, setTrainFeatureMode] = useState<MLFeatureMode>('safe_pre_drill');
   const [trainRatio, setTrainRatio] = useState(0.8);
   const [trainExcludeSynthetic, setTrainExcludeSynthetic] = useState(true);
-  const [trainingResult, setTrainingResult] = useState<MLTrainingResult | null>(null);
-  const [trainingError, setTrainingError] = useState<string | null>(null);
-  const [savedModel, setSavedModel] = useState<TrainedMLModel | null>(null);
   const [trainClassWeight, setTrainClassWeight] = useState<MLClassWeight>('none');
-  const [runCV, setRunCV] = useState(false);
-  const [cvFolds, setCvFolds] = useState(5);
-
-  useEffect(() => {
-    setSavedModel(loadTrainedMLModel());
-  }, []);
 
   const trainingConfig = useMemo(
     () => ({
@@ -121,6 +105,22 @@ export function MLLabPage() {
     }),
     [trainTarget, trainFeatureMode, trainRatio, trainExcludeSynthetic, trainClassWeight],
   );
+
+  const {
+    runCV,
+    setRunCV,
+    cvFolds,
+    setCvFolds,
+    trainingResult,
+    trainingError,
+    savedModel,
+    handleTrainModel,
+    handleSaveModel,
+    handleLoadModel,
+    handleClearModel,
+    handleExportModelJson,
+    handleExportMetricsJson,
+  } = useMLTraining({ prospects, trainingConfig });
 
   const trainingPreview = useMemo(() => {
     const { rows, excluded } = buildTrainingRows(prospects, trainingConfig);
@@ -137,40 +137,6 @@ export function MLLabPage() {
       canTrain: rows.length >= trainingConfig.minExamples,
     };
   }, [prospects, trainingConfig]);
-
-  const handleTrainModel = () => {
-    try {
-      const result = trainBaselineMLModel(prospects, trainingConfig, runCV, cvFolds);
-      setTrainingResult(result);
-      setTrainingError(null);
-    } catch (err) {
-      setTrainingResult(null);
-      setTrainingError((err as Error).message);
-    }
-  };
-
-  const handleSaveModel = () => {
-    if (!trainingResult) return;
-    saveTrainedMLModel(trainingResult.model);
-    setSavedModel(trainingResult.model);
-  };
-
-  const handleLoadModel = () => {
-    setSavedModel(loadTrainedMLModel());
-  };
-
-  const handleClearModel = () => {
-    clearTrainedMLModel();
-    setSavedModel(null);
-  };
-
-  const handleExportModelJson = () => {
-    if (trainingResult) downloadJson('ml-trained-model.json', trainingResult.model);
-  };
-
-  const handleExportMetricsJson = () => {
-    if (trainingResult) downloadJson('ml-model-metrics.json', trainingResult.metrics);
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

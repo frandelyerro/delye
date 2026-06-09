@@ -23,6 +23,18 @@ describe('advisor explainability responses', () => {
     const response = getAdvisorResponse('What is the weakest component in the portfolio?', prospects);
     expect(response).toContain('weakest component');
   });
+
+  it('explains the GCoS methodology when asked generally', () => {
+    const response = getAdvisorResponse('Explain GCoS', prospects);
+    expect(response).toContain('Source × Migration × Reservoir × Seal × Trap × Timing');
+    expect(response).toContain('SPE 26592');
+    expect(response).toContain('independence assumption');
+  });
+
+  it('explains the GCoS methodology for "how is gcos calculated"', () => {
+    const response = getAdvisorResponse('How is GCoS calculated?', prospects);
+    expect(response).toContain('Geological Chance of Success');
+  });
 });
 
 describe('advisor targeting queries', () => {

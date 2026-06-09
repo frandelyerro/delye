@@ -319,8 +319,13 @@ export const assessTrap = (evidence: TrapEvidence): ComponentAssessment => {
   }
 
   if (evidence.trapType !== undefined) {
-    if (evidence.trapType === 'structural' || evidence.trapType === 'combination' || evidence.trapType === 'subsalt') {
+    if (evidence.trapType === 'structural' || evidence.trapType === 'combination') {
       score += 0.07; pos.push(`${evidence.trapType.charAt(0).toUpperCase() + evidence.trapType.slice(1)} trap`);
+    } else if (evidence.trapType === 'subsalt') {
+      score += 0.03; pos.push('Subsalt trap');
+      if (evidence.seismicConfidence !== 'high') {
+        score -= 0.05; neg.push('Subsalt trap with sub-high seismic confidence — velocity pull-up/push-down increases imaging uncertainty under salt');
+      }
     } else if (evidence.trapType === 'unknown') {
       score -= 0.10; missing.push('Trap type not defined');
     } else {

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { TornadoChart } from '../components/ui/TornadoChart';
@@ -106,6 +107,10 @@ export function ProspectDetailPage() {
   const prospect = useProspectStore((s) => s.prospects.find((p) => p.id === id));
   const allProspects = useProspectStore((s) => s.prospects);
   const deleteProspect = useProspectStore((s) => s.deleteProspect);
+  const analogs = useMemo(
+    () => (prospect ? findAnalogs(prospect, allProspects, 3) : []),
+    [prospect, allProspects],
+  );
   if (!prospect) return <div className="rounded-lg border border-slate-800 bg-slate-900 p-6">Prospect not found.</div>;
   const strongestComponents = getStrongestComponents(prospect).map((component) => componentLabels[component]).join(' and ');
   const weakestComponent = componentLabels[getWeakestComponent(prospect)];
@@ -728,7 +733,6 @@ export function ProspectDetailPage() {
     })()}
 
     {(() => {
-      const analogs = findAnalogs(prospect, allProspects, 3);
       if (analogs.length === 0) return null;
       return (
         <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">

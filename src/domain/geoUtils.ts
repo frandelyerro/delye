@@ -24,6 +24,18 @@ export function isValidCoordinate(lat: number, lon: number): boolean {
   );
 }
 
+/** Returns the number of digits after the decimal point in a number's string form. */
+function decimalDigits(n: number): number {
+  const s = String(n);
+  const i = s.indexOf('.');
+  return i === -1 ? 0 : s.length - i - 1;
+}
+
+/** Returns true if either coordinate has fewer than 4 decimal digits (~11m precision). */
+export function hasLowPrecisionCoordinates(lat: number, lon: number): boolean {
+  return decimalDigits(lat) < 4 || decimalDigits(lon) < 4;
+}
+
 /** Returns the nearest prospect (by haversine distance) to the given coordinates. */
 export function findNearest<T extends { latitude: number; longitude: number }>(
   candidates: T[],

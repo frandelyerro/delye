@@ -19,8 +19,13 @@ const euclideanDistance = (a: number[], b: number[]): number =>
  */
 export const findAnalogs = (target: Prospect, candidates: Prospect[], k = 5): Prospect[] => {
   const targetVector = featureVector(target);
+  const seenIds = new Set<string>();
   return candidates
-    .filter((p) => p.id !== target.id)
+    .filter((p) => {
+      if (p.id === target.id || seenIds.has(p.id)) return false;
+      seenIds.add(p.id);
+      return true;
+    })
     .map((p) => ({ prospect: p, distance: euclideanDistance(targetVector, featureVector(p)) }))
     .sort((a, b) => a.distance - b.distance)
     .slice(0, k)
