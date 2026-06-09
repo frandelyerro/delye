@@ -10,6 +10,7 @@ const nav = [
   { to: '/advisor', label: 'Advisor' },
   { to: '/ml-lab', label: 'ML Lab' },
   { to: '/upload', label: 'Upload' },
+  { to: '/agents', label: 'Agent Evolution' },
 ];
 
 export function SidebarLayout({ children }: PropsWithChildren) {

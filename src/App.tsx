@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { SidebarLayout } from './components/Layout/SidebarLayout';
+import { AgentEvolutionPage } from './pages/AgentEvolutionPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProspectDetailPage } from './pages/ProspectDetailPage';
 import { ProspectFormPage } from './pages/ProspectFormPage';
@@ -29,6 +30,7 @@ export function App() {
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/ml-lab" element={<MLLabPage />} />
           <Route path="/comparison" element={<ComparisonPage />} />
+          <Route path="/agents" element={<AgentEvolutionPage />} />
           <Route path="/prospects/new" element={<ProspectFormPage />} />
           <Route path="/prospects/:id/edit" element={<ProspectFormPage />} />
           <Route path="/prospects/:id" element={<ProspectDetailPage />} />
