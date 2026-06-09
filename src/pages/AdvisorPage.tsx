@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getAdvisorResponse } from '../domain/advisor';
 import { useProspectStore } from '../store/useProspectStore';
+
+const CHAT_STORAGE_KEY = 'petrotarget-ai:advisor-chat';
+const MAX_HISTORY = 60;
 
 const examples = [
   'top prospects',
@@ -10,19 +13,41 @@ const examples = [
   'What is the weakest component in the portfolio?',
   'strongest components',
   'main risk',
-  'high resource high risk',
-  'need more data',
-  'portfolio summary'
+  'basin distribution',
+  'play type distribution',
+  'nearest prospect',
+  'seal integrity',
+  'reservoir quality',
+  'analog field',
+  'source rock maturity',
 ];
 
 type Message = { role: 'advisor' | 'user'; text: string };
 
+const WELCOME: Message = { role: 'advisor', text: 'Ask about portfolio ranking, risk concentration, resource scale, or data gaps. Responses are rule-based for this MVP.' };
+
+function loadHistory(): Message[] {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return [WELCOME];
+    const parsed = JSON.parse(raw) as Message[];
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [WELCOME];
+  } catch {
+    return [WELCOME];
+  }
+}
+
 export function AdvisorPage() {
   const prospects = useProspectStore((s) => s.prospects);
   const [question, setQuestion] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'advisor', text: 'Ask about portfolio ranking, risk concentration, resource scale, or data gaps. Responses are rule-based for this MVP.' }
-  ]);
+  const [messages, setMessages] = useState<Message[]>(loadHistory);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const toSave = messages.slice(-MAX_HISTORY);
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(toSave));
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const onAsk = () => {
     const trimmed = question.trim();
@@ -30,6 +55,11 @@ export function AdvisorPage() {
     const response = getAdvisorResponse(trimmed, prospects);
     setMessages((m) => [...m, { role: 'user', text: trimmed }, { role: 'advisor', text: response }]);
     setQuestion('');
+  };
+
+  const onClear = () => {
+    setMessages([WELCOME]);
+    localStorage.removeItem(CHAT_STORAGE_KEY);
   };
 
   return <div className="space-y-5">
@@ -52,6 +82,10 @@ export function AdvisorPage() {
     </section>
 
     <section className="rounded-lg border border-slate-800 bg-slate-900">
+      <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2">
+        <span className="text-xs text-slate-500">{messages.length - 1} messages — history saved locally</span>
+        <button onClick={onClear} className="text-xs text-slate-500 hover:text-red-400">Clear history</button>
+      </div>
       <div className="h-96 space-y-3 overflow-auto p-4 text-sm">
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -61,6 +95,7 @@ export function AdvisorPage() {
             </div>
           </div>
         ))}
+        <div ref={bottomRef} />
       </div>
       <div className="border-t border-slate-800 p-4">
         <div className="flex gap-2">
