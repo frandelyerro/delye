@@ -28,8 +28,14 @@ export const getExplorationStage = (prospect: Prospect): ExplorationStage => {
     return 'appraisal_candidate';
   }
 
-  // Drill-ready: strong GCoS, high confidence, no critical component below threshold
-  if (gcos >= 0.35 && dc >= 70 && tier === 'tier_1') {
+  // Drill-ready: strong GCoS, high confidence, and no single component critically weak.
+  // Industry practice: all six components must individually exceed 0.25 — a high composite GCoS
+  // can otherwise mask a fatal single-component risk (e.g., absent seal).
+  const minComponent = Math.min(
+    prospect.sourceScore, prospect.migrationScore, prospect.reservoirScore,
+    prospect.sealScore, prospect.trapScore, prospect.timingScore,
+  );
+  if (gcos >= 0.35 && dc >= 70 && tier === 'tier_1' && minComponent >= 0.25) {
     return 'drill_ready_candidate';
   }
 

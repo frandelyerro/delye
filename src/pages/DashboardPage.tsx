@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer, Legend } from 'recharts';
 import { useProspectStore } from '../store/useProspectStore';
 import {
   getProspectivityTier,
@@ -13,6 +13,7 @@ import { getExplorationStage, getExplorationStageLabel } from '../domain/earlyEx
 import { getEconomicGradeLabel } from '../domain/economics';
 import type { EconomicAssessment } from '../domain/economicTypes';
 import { exportPortfolioAsCsv, exportPortfolioAsJson } from '../utils/exportReport';
+import { getRiskConcentration, getGCoSHistogram, getBasinStats } from '../domain/portfolioIntelligence';
 
 const colors = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
 
@@ -94,6 +95,10 @@ export function DashboardPage() {
     ['Top prospect', top?.name ?? '-', top ? `${Math.round((top.geologicalChanceOfSuccess ?? 0) * 100)}% GCoS` : 'no active match']
   ];
 
+  const gcosHistogram = getGCoSHistogram(filtered);
+  const basinStats = getBasinStats(filtered);
+  const riskConcentration = getRiskConcentration(filtered);
+
   return <div className="space-y-6">
     <section className="border border-slate-800 bg-slate-900 rounded-lg p-6">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
@@ -166,10 +171,113 @@ export function DashboardPage() {
         </ResponsiveContainer>
       </div>
 
-      <div className="rounded-lg border border-slate-800 bg-slate-900">
-        <div className="border-b border-slate-800 px-4 py-3">
-          <h2 className="text-sm font-semibold text-slate-200">Prospect ranking</h2>
+      <div className="rounded-lg border border-slate-800 bg-slate-900 xl:col-span-3">
+        {/* Portfolio Analytics Row */}
+        <div className="grid gap-4 p-4 lg:grid-cols-[1fr_1.6fr]">
+          {/* GCoS Distribution Histogram */}
+          <div>
+            <h2 className="mb-3 text-sm font-semibold text-slate-200">GCoS distribution</h2>
+            {filtered.length === 0 ? (
+              <p className="text-xs text-slate-500">No prospects to display.</p>
+            ) : (
+              <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={gcosHistogram} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: '#64748b', fontSize: 9 }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={0}
+                      angle={-35}
+                      textAnchor="end"
+                      height={44}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={24}
+                    />
+                    <Tooltip
+                      formatter={(v: number) => [v, 'prospects']}
+                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
+                    />
+                    <Bar dataKey="count" name="count" radius={[3, 3, 0, 0]}>
+                      {gcosHistogram.map((bucket) => {
+                        const fill = bucket.min >= 0.3 ? '#22c55e' : bucket.min >= 0.15 ? '#f59e0b' : '#ef4444';
+                        return <Cell key={bucket.label} fill={fill} fillOpacity={0.85} />;
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          {/* Basin Risk Heatmap Table */}
+          <div>
+            <h2 className="mb-3 text-sm font-semibold text-slate-200">Basin heatmap</h2>
+            {basinStats.length === 0 ? (
+              <p className="text-xs text-slate-500">No basin data available.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-800">
+                      <th className="py-2 pr-3">Basin</th>
+                      <th className="py-2 pr-3 text-right">Prospects</th>
+                      <th className="py-2 pr-3 text-right">Avg GCoS</th>
+                      <th className="py-2 pr-3 text-right">Drill Candidates</th>
+                      <th className="py-2 text-right">Avg Confidence</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {basinStats.map((row) => {
+                      const gcosCls = row.avgGCoS >= 30 ? 'text-emerald-300' : row.avgGCoS >= 15 ? 'text-amber-300' : 'text-red-300';
+                      const dcCls = row.avgDataConfidence >= 70 ? 'text-emerald-300' : row.avgDataConfidence >= 45 ? 'text-amber-300' : 'text-slate-400';
+                      return (
+                        <tr key={row.basin} className="border-t border-slate-800/60 hover:bg-slate-800/30">
+                          <td className="py-2 pr-3 font-medium text-slate-200">{row.basin}</td>
+                          <td className="py-2 pr-3 text-right text-slate-300">{row.count}</td>
+                          <td className={`py-2 pr-3 text-right font-semibold ${gcosCls}`}>{row.avgGCoS}%</td>
+                          <td className="py-2 pr-3 text-right text-slate-300">{row.drillCandidates}</td>
+                          <td className={`py-2 text-right ${dcCls}`}>{row.avgDataConfidence}/100</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
+      </div>
+    </section>
+
+    {/* Risk Concentration Warning Banner */}
+    {riskConcentration.concentrated && (
+      <section className="rounded-lg border border-amber-800/60 bg-amber-950/20 p-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 text-amber-400 text-base leading-none">&#9888;</span>
+          <div>
+            <p className="text-sm font-semibold text-amber-300">Risk Concentration Alert</p>
+            <p className="mt-1 text-xs text-amber-200/80">
+              {riskConcentration.dominantPct}% of your filtered portfolio ({riskConcentration.dominantCount} of {riskConcentration.total} prospects)
+              share <span className="font-semibold capitalize">{riskConcentration.dominantRisk}</span> as their main risk.
+              A single play-level failure could impact the majority of your portfolio.
+              Consider diversifying into prospects with different primary risk types.
+            </p>
+          </div>
+        </div>
+      </section>
+    )}
+
+    <section className="rounded-lg border border-slate-800 bg-slate-900">
+      <div className="border-b border-slate-800 px-4 py-3">
+        <h2 className="text-sm font-semibold text-slate-200">Prospect ranking</h2>
+      </div>
         {ranked.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[2100px] text-sm">
@@ -271,7 +379,6 @@ export function DashboardPage() {
         ) : (
           <div className="p-6 text-sm text-slate-300">No prospects match the current filters.</div>
         )}
-      </div>
     </section>
   </div>;
 }

@@ -38,7 +38,7 @@ function prospectsToGeoJSON(prospects: Prospect[]): FeatureCollection {
   return {
     type: 'FeatureCollection',
     features: prospects
-      .filter((p) => isFinite(p.latitude) && isFinite(p.longitude) && !(p.latitude === 0 && p.longitude === 0))
+      .filter((p) => isValidCoordinate(p.latitude, p.longitude))
       .map((p) => ({
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [p.longitude, p.latitude] },
@@ -296,7 +296,7 @@ export function MapPage() {
 
     // Fit bounds when a filter is active and there are prospects to show
     if ((filter.basin || filter.priority) && filteredProspects.length > 0) {
-      const valid = filteredProspects.filter((p) => isFinite(p.latitude) && isFinite(p.longitude) && !(p.latitude === 0 && p.longitude === 0));
+      const valid = filteredProspects.filter((p) => isValidCoordinate(p.latitude, p.longitude));
       if (valid.length) {
         const bounds = valid.reduce(
           (b, p) => b.extend([p.longitude, p.latitude]),

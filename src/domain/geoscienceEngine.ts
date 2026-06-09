@@ -45,9 +45,9 @@ export const assessSource = (evidence: SourceEvidence, targetPhase?: TargetPhase
 
   if (evidence.roPercent !== undefined) {
     const forGas = targetPhase === 'gas';
-    if (!forGas && evidence.roPercent >= 0.6 && evidence.roPercent <= 1.1) {
+    if (!forGas && evidence.roPercent >= 0.6 && evidence.roPercent <= 1.35) {
       score += 0.10; pos.push(`Favorable oil maturity window Ro ${evidence.roPercent}%`);
-    } else if (forGas && evidence.roPercent >= 1.0 && evidence.roPercent <= 2.0) {
+    } else if (forGas && evidence.roPercent >= 1.0 && evidence.roPercent <= 3.5) {
       score += 0.10; pos.push(`Favorable gas maturity window Ro ${evidence.roPercent}%`);
     } else if (evidence.roPercent < 0.5) {
       score -= 0.10; neg.push(`Immature source Ro ${evidence.roPercent}% — below oil window`);
@@ -224,6 +224,10 @@ export const assessSeal = (evidence: SealEvidence): ComponentAssessment => {
       score += 0.07; pos.push('Good seal lithology: shale');
     } else if (evidence.lithology === 'mudstone') {
       score += 0.04; pos.push('Moderate seal lithology: mudstone');
+    } else if (evidence.lithology === 'anhydrite') {
+      score += 0.08; pos.push('Excellent seal lithology: anhydrite — world-class caprock');
+    } else if (evidence.lithology === 'carbonate') {
+      score += 0.05; pos.push('Good seal lithology: tight carbonate caprock');
     } else if (evidence.lithology === 'other') {
       score -= 0.15; neg.push('Poor seal lithology — effectiveness uncertain');
     }

@@ -32,6 +32,7 @@ export function FeatureExtractionPanel({ features, prospects }: Props) {
             <tbody>
               {prospects.map((p, i) => {
                 const fv = features[i];
+                if (!fv) return null;
                 const mainRiskKey = (Object.entries({
                   source: fv.mainRisk_source,
                   migration: fv.mainRisk_migration,

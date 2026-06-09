@@ -75,7 +75,9 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       acc[risk] = (acc[risk] ?? 0) + 1;
       return acc;
     }, {});
-    const [risk, count] = Object.entries(riskCount).sort((a, b) => b[1] - a[1])[0];
+    const riskEntries = Object.entries(riskCount).sort((a, b) => b[1] - a[1]);
+    if (!riskEntries.length) return 'No prospects in portfolio to assess main risk.';
+    const [risk, count] = riskEntries[0];
     return `${risk} appears as the main risk in ${count} prospects.`;
   }
 
@@ -121,7 +123,9 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       acc[weakest] = (acc[weakest] ?? 0) + 1;
       return acc;
     }, {});
-    const [weakest, count] = Object.entries(riskCount).sort((a, b) => b[1] - a[1])[0];
+    const riskEntries = Object.entries(riskCount).sort((a, b) => b[1] - a[1]);
+    if (!riskEntries.length) return 'No prospects in portfolio to assess weakest component.';
+    const [weakest, count] = riskEntries[0];
     return `${componentLabels[weakest as keyof typeof componentLabels]} is the weakest component most often in the portfolio, appearing in ${count} prospects.`;
   }
 
@@ -206,7 +210,9 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       acc[risk] = (acc[risk] ?? 0) + 1;
       return acc;
     }, {});
-    const [risk, count] = Object.entries(riskCount).sort((a, b) => b[1] - a[1])[0];
+    const riskEntries = Object.entries(riskCount).sort((a, b) => b[1] - a[1]);
+    if (!riskEntries.length) return 'No prospects in portfolio to assess critical geoscience risk.';
+    const [risk, count] = riskEntries[0];
     return `Critical geoscience risk: ${risk} is the main risk in ${count} prospect(s) across the portfolio.`;
   }
 
@@ -665,10 +671,12 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
         avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
       }))
       .sort((a, b) => b.avgGcos - a.avgGcos);
+    if (!sorted.length) return 'No prospects with valid coordinates to compare basins.';
     const best = sorted[0];
-    const worst = sorted[sorted.length - 1];
+    const worst = sorted.length > 1 ? sorted[sorted.length - 1] : undefined;
     const middle = sorted.slice(1, -1).map((b) => `${b.basin} (${Math.round(b.avgGcos * 100)}%)`).join(', ');
-    return `Best basin by avg GCoS: ${best?.basin ?? '—'} (${Math.round((best?.avgGcos ?? 0) * 100)}%, ${best?.count} prospect${best?.count !== 1 ? 's' : ''}). Weakest basin: ${worst?.basin ?? '—'} (${Math.round((worst?.avgGcos ?? 0) * 100)}%, ${worst?.count} prospect${worst?.count !== 1 ? 's' : ''}).${middle ? ` Other basins: ${middle}.` : ''}`;
+    const worstStr = worst ? ` Weakest basin: ${worst.basin} (${Math.round(worst.avgGcos * 100)}%, ${worst.count} prospect${worst.count !== 1 ? 's' : ''}).` : '';
+    return `Best basin by avg GCoS: ${best.basin} (${Math.round(best.avgGcos * 100)}%, ${best.count} prospect${best.count !== 1 ? 's' : ''}).${worstStr}${middle ? ` Other basins: ${middle}.` : ''}`;
   }
 
   if (
