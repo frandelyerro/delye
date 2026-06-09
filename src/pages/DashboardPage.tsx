@@ -13,7 +13,7 @@ import { getExplorationStage, getExplorationStageLabel } from '../domain/earlyEx
 import { getEconomicGradeLabel } from '../domain/economics';
 import type { EconomicAssessment } from '../domain/economicTypes';
 import { exportPortfolioAsCsv, exportPortfolioAsJson } from '../utils/exportReport';
-import { getRiskConcentration, getGCoSHistogram, getBasinStats, getBasinDiversityIndex, getDrillSequenceOrder } from '../domain/portfolioIntelligence';
+import { getRiskConcentration, getGCoSHistogram, getBasinStats, getBasinDiversityIndex, getDrillSequenceOrder, getOutcomeStats } from '../domain/portfolioIntelligence';
 
 const colors = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
 
@@ -102,6 +102,7 @@ export function DashboardPage() {
   const riskConcentration = getRiskConcentration(filtered);
   const basinDiversity = getBasinDiversityIndex(filtered);
   const drillSequence = getDrillSequenceOrder(filtered, 5);
+  const outcomeStats = getOutcomeStats(filtered);
 
   const basinNames = React.useMemo(() => [...new Set(filtered.map((p) => p.basin))].sort(), [filtered]);
   const scatterByBasin = React.useMemo(() =>
@@ -116,7 +117,7 @@ export function DashboardPage() {
           name: p.name,
         })),
     })),
-  [filtered, basinNames]);
+  [filtered]);
 
   return <div className="space-y-6">
     <section className="border border-slate-800 bg-slate-900 rounded-lg p-6">
@@ -336,6 +337,43 @@ export function DashboardPage() {
         <p className="mt-2 text-xs text-slate-500">Score = 50% GCoS + 30% commercial + 20% confidence</p>
       </div>
     </section>
+
+    {/* Well Outcomes */}
+    {outcomeStats.totalDrilled > 0 && (
+      <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+        <h2 className="mb-3 text-sm font-semibold text-slate-200">Well Outcomes</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-7">
+          <div className="rounded border border-slate-700 bg-slate-950 p-3 text-center">
+            <div className="text-2xl font-bold text-slate-100">{outcomeStats.totalDrilled}</div>
+            <div className="mt-0.5 text-xs text-slate-500">Drilled</div>
+          </div>
+          <div className="rounded border border-emerald-800/40 bg-emerald-950/20 p-3 text-center">
+            <div className="text-2xl font-bold text-emerald-300">{outcomeStats.commercialDiscoveries}</div>
+            <div className="mt-0.5 text-xs text-slate-500">Commercial</div>
+          </div>
+          <div className="rounded border border-cyan-800/40 bg-cyan-950/20 p-3 text-center">
+            <div className="text-2xl font-bold text-cyan-300">{outcomeStats.technicalDiscoveries}</div>
+            <div className="mt-0.5 text-xs text-slate-500">Technical</div>
+          </div>
+          <div className="rounded border border-red-800/40 bg-red-950/20 p-3 text-center">
+            <div className="text-2xl font-bold text-red-300">{outcomeStats.dryHoles}</div>
+            <div className="mt-0.5 text-xs text-slate-500">Dry Holes</div>
+          </div>
+          <div className="rounded border border-amber-800/40 bg-amber-950/20 p-3 text-center">
+            <div className="text-2xl font-bold text-amber-300">{outcomeStats.nonCommercial}</div>
+            <div className="mt-0.5 text-xs text-slate-500">Non-commercial</div>
+          </div>
+          <div className="rounded border border-emerald-700/40 bg-emerald-950/30 p-3 text-center">
+            <div className="text-2xl font-bold text-emerald-200">{outcomeStats.geologicalSuccessRate}%</div>
+            <div className="mt-0.5 text-xs text-slate-500">Geo. Success</div>
+          </div>
+          <div className="rounded border border-slate-700 bg-slate-950 p-3 text-center">
+            <div className="text-2xl font-bold text-slate-100">{outcomeStats.totalResourceDiscoveredMMboe.toFixed(0)}</div>
+            <div className="mt-0.5 text-xs text-slate-500">MMboe found</div>
+          </div>
+        </div>
+      </section>
+    )}
 
     {/* Risk-Reward Frontier */}
     <section className="rounded-lg border border-slate-800 bg-slate-900 p-4">

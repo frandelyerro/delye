@@ -1,4 +1,5 @@
 import type { Prospect } from './prospect';
+import { isGeologicalSuccess, isCommercialSuccess } from './outcomes';
 import {
   getPortfolioRecommendations,
   getProspectivityTier,
@@ -281,15 +282,44 @@ export const getDrillSequenceOrder = (prospects: Prospect[], topN = 5): DrillSeq
       commercialScore: p.commercialScore ?? 0,
       dataConfidence: p.dataConfidence ?? 0,
       compositeScore: Math.round(
-        (p.economicAssessment?.simpleEMVUsdMM ?? 0) > 0
-          ? (p.economicAssessment!.simpleEMVUsdMM * 0.6) +
-            (p.geologicalChanceOfSuccess ?? 0) * 30 +
-            ((p.dataConfidence ?? 0) / 100) * 10
-          : (p.geologicalChanceOfSuccess ?? 0) * 50 +
-            ((p.commercialScore ?? 0) / 100) * 30 +
-            ((p.dataConfidence ?? 0) / 100) * 20,
+        Math.max(0, Math.min(100,
+          (p.geologicalChanceOfSuccess ?? 0) * 50 +
+          ((p.commercialScore ?? 0) / 100) * 30 +
+          ((p.dataConfidence ?? 0) / 100) * 20,
+        )),
       ),
     }))
     .sort((a, b) => b.compositeScore - a.compositeScore)
     .slice(0, topN)
     .map((e, i) => ({ ...e, rank: i + 1 }));
+
+export type OutcomeStats = {
+  totalDrilled: number;
+  commercialDiscoveries: number;
+  technicalDiscoveries: number;
+  dryHoles: number;
+  nonCommercial: number;
+  /** Geological success rate (commercial + technical) as 0-100 */
+  geologicalSuccessRate: number;
+  /** Commercial success rate as 0-100 */
+  commercialSuccessRate: number;
+  totalResourceDiscoveredMMboe: number;
+};
+
+/** Aggregates recorded well outcomes across the portfolio. */
+export const getOutcomeStats = (prospects: Prospect[]): OutcomeStats => {
+  const drilled = prospects.filter((p) => p.outcome && p.outcome.label !== 'unknown');
+  if (!drilled.length) {
+    return { totalDrilled: 0, commercialDiscoveries: 0, technicalDiscoveries: 0, dryHoles: 0, nonCommercial: 0, geologicalSuccessRate: 0, commercialSuccessRate: 0, totalResourceDiscoveredMMboe: 0 };
+  }
+  const commercialDiscoveries = drilled.filter((p) => isCommercialSuccess(p.outcome!)).length;
+  const technicalDiscoveries = drilled.filter((p) => isGeologicalSuccess(p.outcome!) && !isCommercialSuccess(p.outcome!)).length;
+  const dryHoles = drilled.filter((p) => p.outcome!.label === 'dry_hole').length;
+  const nonCommercial = drilled.filter((p) => p.outcome!.label === 'non_commercial').length;
+  const geologicalSuccessRate = Math.round(((commercialDiscoveries + technicalDiscoveries) / drilled.length) * 100);
+  const commercialSuccessRate = Math.round((commercialDiscoveries / drilled.length) * 100);
+  const totalResourceDiscoveredMMboe = drilled
+    .filter((p) => isGeologicalSuccess(p.outcome!))
+    .reduce((sum, p) => sum + (p.resourceEstimate ?? 0), 0);
+  return { totalDrilled: drilled.length, commercialDiscoveries, technicalDiscoveries, dryHoles, nonCommercial, geologicalSuccessRate, commercialSuccessRate, totalResourceDiscoveredMMboe };
+};

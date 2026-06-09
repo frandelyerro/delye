@@ -30,8 +30,11 @@ export type SourceEvidence = {
   sources?: EvidenceSourceType[];
 };
 
+export type MigrationStyle = 'vertical' | 'lateral' | 'mixed' | 'unknown';
+
 export type MigrationEvidence = {
   pathway: MigrationPathway;
+  migrationStyle?: MigrationStyle;
   faultConnectivity?: FaultConnectivity;
   carrierBedPresence?: CarrierBedPresence;
   distanceFromKitchenKm?: number;

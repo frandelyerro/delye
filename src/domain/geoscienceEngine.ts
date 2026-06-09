@@ -118,7 +118,14 @@ export const assessMigration = (evidence: MigrationEvidence): ComponentAssessmen
     missing.push('Carrier bed not evaluated');
   }
 
-  if (evidence.distanceFromKitchenKm !== undefined && evidence.distanceFromKitchenKm > 100) {
+  if (evidence.migrationStyle === 'lateral' || evidence.migrationStyle === 'mixed') {
+    if (evidence.carrierBedPresence === 'absent' || evidence.carrierBedPresence === 'unknown') {
+      score -= 0.15; neg.push('Lateral migration inferred but carrier bed absent/unknown — critical charge risk');
+    }
+    if (evidence.distanceFromKitchenKm !== undefined && evidence.distanceFromKitchenKm > 50) {
+      score -= 0.10; neg.push(`Lateral migration distance ${evidence.distanceFromKitchenKm}km exceeds 50km threshold`);
+    }
+  } else if (evidence.distanceFromKitchenKm !== undefined && evidence.distanceFromKitchenKm > 100) {
     score -= 0.08; neg.push(`Long migration distance ${evidence.distanceFromKitchenKm}km`);
   }
 
