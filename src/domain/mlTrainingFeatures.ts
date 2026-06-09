@@ -106,8 +106,8 @@ export const extractTrainingFeatures = (
   const compVariance = componentScores.reduce((acc, v) => acc + (v - compMean) ** 2, 0) / 6;
   features.componentMin = compMin;
   features.componentMax = compMax;
-  features.componentRange = compMax - compMin;   // spread of scores
-  features.componentVariance = compVariance;      // heterogeneity of the play
+  features.componentRange = compMax - compMin;
+  features.componentVariance = compVariance;
 
   if (mode === 'expert_calibration') {
     features.gcosExpert = p.geologicalChanceOfSuccess ?? 0;

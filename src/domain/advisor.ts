@@ -618,5 +618,106 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return 'Post-drill leakage refers to columns that contain information only available AFTER a well has been drilled: actual_net_pay_m, actual_porosity_percent, actual_permeability_md, actual_initial_rate_bopd, actual_reserves_mmboe, actual_recoverable_resource_mmboe, actual_development_status. If these are used as predictive ML features, the model will appear to perform well in training but will fail completely on new undrilled prospects — because the "feature" values are not available at prediction time. These columns should be used for outcome labeling and evaluation only, never as model inputs. PetroTarget AI will flag these columns as warnings during import.';
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", or "norway limitations".';
+  // ── Spatial / map queries ─────────────────────────────────────────────────
+
+  if (
+    (q.includes('basin') && (q.includes('distribution') || q.includes('overview') || q.includes('analysis') || q.includes('breakdown') || q.includes('stats'))) ||
+    q.includes('by basin') ||
+    q.includes('basin summary')
+  ) {
+    const basinMap = new Map<string, Prospect[]>();
+    for (const p of prospects) {
+      const list = basinMap.get(p.basin) ?? [];
+      list.push(p);
+      basinMap.set(p.basin, list);
+    }
+    const sorted = [...basinMap.entries()]
+      .map(([basin, ps]) => ({
+        basin,
+        count: ps.length,
+        avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
+        high: ps.filter((p) => p.priority === 'high').length,
+      }))
+      .sort((a, b) => b.avgGcos - a.avgGcos);
+    const lines = sorted
+      .map((b) => `${b.basin}: ${b.count} prospect${b.count !== 1 ? 's' : ''}, avg GCoS ${Math.round(b.avgGcos * 100)}%, ${b.high} high-priority`)
+      .join('; ');
+    return `Basin distribution across ${sorted.length} basin${sorted.length !== 1 ? 's' : ''} — ${lines}. Best performing basin by average GCoS: ${sorted[0]?.basin ?? '—'}. Focus exploration budget on the highest-GCoS basin with adequate data confidence.`;
+  }
+
+  if (
+    q.includes('best basin') || q.includes('strongest basin') || q.includes('top basin') ||
+    q.includes('worst basin') || q.includes('weakest basin')
+  ) {
+    const basinMap = new Map<string, Prospect[]>();
+    for (const p of prospects) {
+      const list = basinMap.get(p.basin) ?? [];
+      list.push(p);
+      basinMap.set(p.basin, list);
+    }
+    const sorted = [...basinMap.entries()]
+      .map(([basin, ps]) => ({
+        basin,
+        count: ps.length,
+        avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
+      }))
+      .sort((a, b) => b.avgGcos - a.avgGcos);
+    const best = sorted[0];
+    const worst = sorted[sorted.length - 1];
+    const middle = sorted.slice(1, -1).map((b) => `${b.basin} (${Math.round(b.avgGcos * 100)}%)`).join(', ');
+    return `Best basin by avg GCoS: ${best?.basin ?? '—'} (${Math.round((best?.avgGcos ?? 0) * 100)}%, ${best?.count} prospect${best?.count !== 1 ? 's' : ''}). Weakest basin: ${worst?.basin ?? '—'} (${Math.round((worst?.avgGcos ?? 0) * 100)}%, ${worst?.count} prospect${worst?.count !== 1 ? 's' : ''}).${middle ? ` Other basins: ${middle}.` : ''}`;
+  }
+
+  if (
+    q.includes('map overview') || q.includes('map summary') || q.includes('map insights') ||
+    q.includes('spatial overview') || q.includes('spatial summary') ||
+    (q.includes('geographic') && (q.includes('overview') || q.includes('summary') || q.includes('distribution')))
+  ) {
+    const basinCount = new Set(prospects.map((p) => p.basin)).size;
+    const avgGcos = (prospects.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / prospects.length * 100).toFixed(1);
+    const high = prospects.filter((p) => p.priority === 'high').length;
+    const medium = prospects.filter((p) => p.priority === 'medium').length;
+    const low = prospects.filter((p) => p.priority === 'low').length;
+    const lats = prospects.map((p) => p.latitude).filter(Number.isFinite);
+    const lons = prospects.map((p) => p.longitude).filter(Number.isFinite);
+    const latRange = lats.length ? `${Math.min(...lats).toFixed(1)}° to ${Math.max(...lats).toFixed(1)}°` : '?';
+    const lonRange = lons.length ? `${Math.min(...lons).toFixed(1)}° to ${Math.max(...lons).toFixed(1)}°` : '?';
+    return `Spatial map overview: ${prospects.length} prospect${prospects.length !== 1 ? 's' : ''} across ${basinCount} basin${basinCount !== 1 ? 's' : ''}. Geographic extent — lat ${latRange}, lon ${lonRange}. Portfolio average GCoS: ${avgGcos}%. Priority split: ${high} high, ${medium} medium, ${low} low. Use the basin/priority filters on the map to zoom in on specific areas. Export as GeoJSON from the Map page to open in GeoLibre for advanced spatial analysis.`;
+  }
+
+  if (
+    q.includes('cluster') &&
+    (q.includes('basin') || q.includes('region') || q.includes('group') || q.includes('spatial') || q.includes('analysis'))
+  ) {
+    const basinMap = new Map<string, Prospect[]>();
+    for (const p of prospects) {
+      const list = basinMap.get(p.basin) ?? [];
+      list.push(p);
+      basinMap.set(p.basin, list);
+    }
+    const clusters = [...basinMap.entries()]
+      .map(([basin, ps]) => ({
+        basin,
+        count: ps.length,
+        avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
+      }))
+      .sort((a, b) => b.count - a.count);
+    const largest = clusters[0];
+    const highValue = clusters.filter((c) => c.avgGcos > 0.2 && c.count >= 3);
+    return `Spatial cluster analysis: largest cluster is ${largest?.basin ?? '—'} with ${largest?.count} prospect${largest?.count !== 1 ? 's' : ''}. ${highValue.length ? `High-value clusters (≥3 prospects, avg GCoS > 20%): ${highValue.map((c) => `${c.basin} (${c.count}, ${Math.round(c.avgGcos * 100)}%)`).join(', ')}.` : 'No basin cluster has both ≥3 prospects and avg GCoS > 20% yet.'} Zoom into clusters on the map to explore individual prospects.`;
+  }
+
+  if (
+    q.includes('frontier') &&
+    (q.includes('basin') || q.includes('play') || q.includes('region') || q.includes('opportunit'))
+  ) {
+    const frontier = prospects.filter((p) => (p.dataConfidence ?? 0) < 50);
+    if (!frontier.length)
+      return 'No frontier prospects identified (all prospects have data confidence ≥ 50). Frontier plays typically have low data confidence due to limited seismic, wells, or outcrop data.';
+    const withPotential = frontier.filter((p) => (p.geologicalChanceOfSuccess ?? 0) > 0.1);
+    const basinFrontier = [...new Set(frontier.map((p) => p.basin))];
+    return `Frontier region analysis: ${frontier.length} prospect${frontier.length !== 1 ? 's' : ''} with data confidence < 50 across ${basinFrontier.length} basin${basinFrontier.length !== 1 ? 's' : ''} (${basinFrontier.join(', ')}). ${withPotential.length} of these still show GCoS > 10% despite limited data — candidates for seismic acquisition before drilling. Increasing data confidence in frontier prospects improves ML readiness and reduces pre-drill uncertainty.`;
+  }
+
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", "norway limitations", "basin distribution", "best basin", "map overview", "spatial overview", "cluster analysis", or "frontier basin".';
 };

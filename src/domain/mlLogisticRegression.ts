@@ -125,7 +125,7 @@ export const trainLogisticRegression = (
   const tol = config.convergenceTol ?? 1e-6;
 
   if (m > 0 && n > 0) {
-    for (let iter = 0; iter < config.iterations; iter++) {
+    for (let iter = 1; iter <= config.iterations; iter++) {
       const gradW = new Array<number>(n).fill(0);
       let gradB = 0;
 
@@ -148,7 +148,7 @@ export const trainLogisticRegression = (
       intercept -= config.learningRate * (gradB / m);
 
       // Sample loss and check early stopping
-      if ((iter + 1) % LOSS_SAMPLE_INTERVAL === 0 || iter === config.iterations - 1) {
+      if ((iter) % LOSS_SAMPLE_INTERVAL === 0 || iter === config.iterations) {
         const loss = crossEntropyLoss(normalizedRows, weights, intercept, featureNames, config.l2Penalty);
         lossHistory.push(parseFloat(loss.toFixed(6)));
 
@@ -159,7 +159,7 @@ export const trainLogisticRegression = (
           patienceCount++;
           if (patienceCount >= patience) {
             stoppedEarly = true;
-            finalIteration = iter + 1;
+            finalIteration = iter;
             break;
           }
         }

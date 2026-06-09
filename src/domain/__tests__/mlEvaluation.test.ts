@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MLPredictionResult, MLTrainingRow, TrainedMLModel } from '../mlTrainingTypes';
+import type { MLTrainingConfig } from '../mlTrainingTypes';
 import {
   calculateBrierScore,
   calculateConfusionMatrix,
@@ -51,6 +52,8 @@ const trivialModel: TrainedMLModel = {
   finalIteration: 1000,
   lossHistory: [],
 };
+
+const cvConfig: MLTrainingConfig = getDefaultMLTrainingConfig();
 
 describe('splitTrainTest', () => {
   it('is deterministic for the same seed', () => {
@@ -207,6 +210,108 @@ describe('evaluateModel', () => {
     const { metrics } = evaluateModel(trivialModel, testRows);
     expect(metrics.positiveRate).toBe(0.5);
     expect(metrics.predictedPositiveRate).toBe(0.5);
+  });
+
+  it('includes rocAUC in metrics', () => {
+    const testRows = [makeRow('a', 2, 1), makeRow('b', -2, 0), makeRow('c', 1, 1), makeRow('d', -1, 0)];
+    const { metrics } = evaluateModel(trivialModel, testRows);
+    expect(typeof metrics.rocAUC).toBe('number');
+    expect(metrics.rocAUC).toBeGreaterThanOrEqual(0);
+    expect(metrics.rocAUC).toBeLessThanOrEqual(1);
+  });
+
+  it('includes optimalThreshold in metrics', () => {
+    const testRows = [makeRow('a', 2, 1), makeRow('b', -2, 0), makeRow('c', 1, 1), makeRow('d', -1, 0)];
+    const { metrics } = evaluateModel(trivialModel, testRows);
+    expect(typeof metrics.optimalThreshold).toBe('number');
+    expect(metrics.optimalThreshold).toBeGreaterThan(0);
+    expect(metrics.optimalThreshold).toBeLessThan(1);
+  });
+});
+
+describe('calculateROCAUC', () => {
+  it('returns 1.0 for a perfect separator', () => {
+    const rows = [makeRow('a', 1, 1), makeRow('b', 1, 1), makeRow('c', 0, 0), makeRow('d', 0, 0)];
+    const preds = [
+      makePrediction('a', 0.9, 1), makePrediction('b', 0.8, 1),
+      makePrediction('c', 0.2, 0), makePrediction('d', 0.1, 0),
+    ];
+    expect(calculateROCAUC(rows, preds)).toBeCloseTo(1.0, 5);
+  });
+
+  it('returns ~0.5 for a random predictor', () => {
+    const rows = [makeRow('a', 1, 1), makeRow('b', 0, 0), makeRow('c', 1, 1), makeRow('d', 0, 0)];
+    const preds = [
+      makePrediction('a', 0.5, 1), makePrediction('b', 0.5, 0),
+      makePrediction('c', 0.5, 1), makePrediction('d', 0.5, 0),
+    ];
+    expect(calculateROCAUC(rows, preds)).toBeCloseTo(0.5, 1);
+  });
+
+  it('returns 0.5 when only one class is present', () => {
+    const rows = [makeRow('a', 1, 1), makeRow('b', 1, 1)];
+    const preds = [makePrediction('a', 0.9, 1), makePrediction('b', 0.7, 1)];
+    expect(calculateROCAUC(rows, preds)).toBe(0.5);
+  });
+
+  it('result is always in [0, 1]', () => {
+    const rows = [makeRow('a', 1, 1), makeRow('b', 0, 0), makeRow('c', 1, 1)];
+    const preds = [makePrediction('a', 0.3, 0), makePrediction('b', 0.8, 1), makePrediction('c', 0.4, 0)];
+    const auc = calculateROCAUC(rows, preds);
+    expect(auc).toBeGreaterThanOrEqual(0);
+    expect(auc).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('findOptimalThreshold', () => {
+  it('returns 0.5 for empty inputs', () => {
+    expect(findOptimalThreshold([], [])).toBe(0.5);
+  });
+
+  it('returns a threshold in [0.05, 0.95]', () => {
+    const rows = [makeRow('a', 2, 1), makeRow('b', -2, 0), makeRow('c', 1, 1), makeRow('d', -1, 0)];
+    const preds = [
+      makePrediction('a', 0.95, 1), makePrediction('b', 0.05, 0),
+      makePrediction('c', 0.8, 1), makePrediction('d', 0.2, 0),
+    ];
+    const t = findOptimalThreshold(rows, preds);
+    expect(t).toBeGreaterThanOrEqual(0.05);
+    expect(t).toBeLessThanOrEqual(0.95);
+  });
+});
+
+describe('kFoldCrossValidate', () => {
+  const makeBalancedRows = (n: number): MLTrainingRow[] =>
+    Array.from({ length: n }, (_, i) => makeRow(`p${i}`, i % 2 === 0 ? 2 : -2, (i % 2) as 0 | 1));
+
+  it('returns the requested fold count', () => {
+    const rows = makeBalancedRows(20);
+    const result = kFoldCrossValidate(rows, cvConfig, 4);
+    expect(result.folds).toBe(4);
+  });
+
+  it('mean metrics are in valid ranges', () => {
+    const rows = makeBalancedRows(20);
+    const result = kFoldCrossValidate(rows, cvConfig, 5);
+    expect(result.meanMetrics.accuracy).toBeGreaterThanOrEqual(0);
+    expect(result.meanMetrics.accuracy).toBeLessThanOrEqual(1);
+    expect(result.meanMetrics.rocAUC).toBeGreaterThanOrEqual(0);
+    expect(result.meanMetrics.rocAUC).toBeLessThanOrEqual(1);
+    expect(result.stdMetrics.f1).toBeGreaterThanOrEqual(0);
+  });
+
+  it('is deterministic for the same input', () => {
+    const rows = makeBalancedRows(20);
+    const a = kFoldCrossValidate(rows, cvConfig, 5);
+    const b = kFoldCrossValidate(rows, cvConfig, 5);
+    expect(a.meanMetrics.accuracy).toBe(b.meanMetrics.accuracy);
+  });
+
+  it('returns zero metrics for too-few rows', () => {
+    const rows = makeBalancedRows(2);
+    const result = kFoldCrossValidate(rows, cvConfig, 5);
+    expect(result.folds).toBe(0);
+    expect(result.meanMetrics.accuracy).toBe(0);
   });
 });
 

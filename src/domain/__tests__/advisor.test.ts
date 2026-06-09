@@ -227,6 +227,53 @@ describe('advisor trained ML baseline queries', () => {
   });
 });
 
+describe('advisor spatial / map queries', () => {
+  it('basin distribution query returns basin-by-basin breakdown', () => {
+    const response = getAdvisorResponse('Basin distribution?', prospects);
+    expect(response.toLowerCase()).toMatch(/basin|distribution|avg gcos/i);
+    expect(response).toContain('prospect');
+  });
+
+  it('"by basin" query returns multi-basin stats', () => {
+    const response = getAdvisorResponse('Show me performance by basin', prospects);
+    expect(response.toLowerCase()).toMatch(/basin/i);
+    expect(response.length).toBeGreaterThan(30);
+  });
+
+  it('"best basin" query ranks basins by GCoS', () => {
+    const response = getAdvisorResponse('Which is the best basin?', prospects);
+    expect(response.toLowerCase()).toMatch(/best basin|avg gcos/i);
+    expect(response).toContain('%');
+  });
+
+  it('"worst basin" returns weakest basin', () => {
+    const response = getAdvisorResponse('What is the worst basin?', prospects);
+    expect(response.toLowerCase()).toMatch(/weakest basin|worst/i);
+  });
+
+  it('"map overview" returns geographic extent and priority split', () => {
+    const response = getAdvisorResponse('Map overview', prospects);
+    expect(response.toLowerCase()).toMatch(/basin|gcos|priority/i);
+    expect(response.toLowerCase()).toMatch(/lat|lon|geographic/i);
+  });
+
+  it('"spatial overview" returns distribution stats', () => {
+    const response = getAdvisorResponse('Give me a spatial overview of the portfolio', prospects);
+    expect(response.toLowerCase()).toMatch(/basin|prospect/i);
+  });
+
+  it('"cluster analysis" groups by basin', () => {
+    const response = getAdvisorResponse('cluster spatial analysis', prospects);
+    expect(response.toLowerCase()).toMatch(/cluster|basin/i);
+    expect(response.length).toBeGreaterThan(30);
+  });
+
+  it('"frontier basin" identifies low-confidence prospects', () => {
+    const response = getAdvisorResponse('Are there frontier basin opportunities?', prospects);
+    expect(response.toLowerCase()).toMatch(/frontier|confidence/i);
+  });
+});
+
 describe('advisor Norway FactPages queries', () => {
   it('responds to "norway factpages" with adapter description', () => {
     const response = getAdvisorResponse('How do I use Norway FactPages data?', prospects);

@@ -32,7 +32,7 @@ export type MLTrainingConfig = {
   minExamples: number;
   excludeSynthetic: boolean;
   classWeight: MLClassWeight;
-  patience: number;       // early stopping: consecutive non-improving iterations
+  patience: number;       // early stopping: consecutive non-improving checks
   convergenceTol: number; // early stopping: minimum loss improvement
 };
 
@@ -61,7 +61,7 @@ export type TrainedMLModel = {
   classWeight: MLClassWeight;
   stoppedEarly: boolean;
   finalIteration: number;
-  lossHistory: number[]; // loss sampled every 50 iterations
+  lossHistory: number[];
 };
 
 export type MLPredictionResult = {
@@ -117,6 +117,10 @@ export type MLCrossValidationResult = {
     brierScore: number;
   };
 };
+
+// Aliases for backward compatibility with test files
+export type CVFoldMetrics = MLCrossValidationResult['meanMetrics'];
+export type CVResult = MLCrossValidationResult;
 
 export type MLTrainingResult = {
   model: TrainedMLModel;

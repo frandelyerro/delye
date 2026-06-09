@@ -120,7 +120,7 @@ export const calculateROCAUC = (
 };
 
 /**
- * Sweeps thresholds [0.05, 0.50] in 0.05 steps and returns the one that
+ * Sweeps thresholds [0.05, 0.95] in 0.05 steps and returns the one that
  * maximises F1 on the provided rows/predictions. Falls back to 0.5 when
  * F1 is 0 at every threshold (degenerate dataset).
  */
@@ -179,11 +179,10 @@ export const evaluateModel = (
   const f1 = precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);
 
   const brierScore = calculateBrierScore(testRows, predictions);
-  const rocAUC = calculateROCAUC(testRows, predictions);
-  const optimalThreshold = findOptimalThreshold(testRows, predictions);
-
   const positives = testRows.filter((r) => r.label === 1).length;
   const predictedPositives = predictions.filter((p) => p.predictedLabel === 1).length;
+  const rocAUC = calculateROCAUC(testRows, predictions);
+  const optimalThreshold = findOptimalThreshold(testRows, predictions);
 
   const metrics: MLMetrics = {
     accuracy,
