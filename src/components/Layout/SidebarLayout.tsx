@@ -7,6 +7,7 @@ const nav = [
   { to: '/targeting', label: 'AI Targeting' },
   { to: '/comparison', label: 'Compare' },
   { to: '/map', label: 'Map' },
+  { to: '/visualizations', label: 'Visualizations' },
   { to: '/advisor', label: 'Advisor' },
   { to: '/ml-lab', label: 'ML Lab' },
   { to: '/upload', label: 'Upload' },

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import type { FeatureCollection, Point } from 'geojson';
+import type { FeatureCollection, Point, Polygon } from 'geojson';
 import { useProspectStore } from '../store/useProspectStore';
 import { getAdvisorResponse } from '../domain/advisor';
 import type { Prospect } from '../domain/prospect';
@@ -79,6 +79,40 @@ function prospectsToGeoJSON(prospects: Prospect[]): FeatureCollection {
   };
 }
 
+// Builds small square footprints around each prospect so MapLibre's
+// fill-extrusion layer can render them as 3D "bar chart" columns —
+// height encodes GCoS, color reuses the priority palette.
+function prospectsToExtrusionGeoJSON(prospects: Prospect[]): FeatureCollection<Polygon> {
+  const halfSide = 0.15; // degrees
+  return {
+    type: 'FeatureCollection',
+    features: prospects
+      .filter((p) => isValidCoordinate(p.latitude, p.longitude))
+      .map((p) => {
+        const { latitude: lat, longitude: lon } = p;
+        const ring: [number, number][] = [
+          [lon - halfSide, lat - halfSide],
+          [lon + halfSide, lat - halfSide],
+          [lon + halfSide, lat + halfSide],
+          [lon - halfSide, lat + halfSide],
+          [lon - halfSide, lat - halfSide],
+        ];
+        const gcosRaw = p.geologicalChanceOfSuccess ?? 0;
+        return {
+          type: 'Feature' as const,
+          geometry: { type: 'Polygon' as const, coordinates: [ring] },
+          properties: {
+            id: p.id,
+            name: p.name,
+            gcos: Math.round(gcosRaw * 100),
+            height: Math.max(2000, gcosRaw * 200000),
+            color: PRIORITY_COLOR[p.priority ?? 'low'],
+          },
+        };
+      }),
+  };
+}
+
 function buildSpatialInsights(prospects: Prospect[]): string[] {
   if (!prospects.length) return ['No prospects to analyze.'];
   const basinMap = new Map<string, Prospect[]>();
@@ -150,6 +184,7 @@ export function MapPage() {
   const filteredRef = useRef<Prospect[]>([]);
 
   const [filter, setFilter] = useState<FilterState>({ basin: null, priority: null });
+  const [is3D, setIs3D] = useState(false);
   const [geolibreOpen, setGeolibreOpen] = useState(false);
   const [geolibreMsg, setGeolibreMsg] = useState<string | null>(null);
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
@@ -256,6 +291,24 @@ export function MapPage() {
         },
       });
 
+      // 3D columns — height encodes GCoS, hidden until 3D mode is toggled on
+      m.addSource('prospect-columns', {
+        type: 'geojson',
+        data: prospectsToExtrusionGeoJSON(filteredRef.current),
+      });
+      m.addLayer({
+        id: 'prospect-extrusions',
+        type: 'fill-extrusion',
+        source: 'prospect-columns',
+        layout: { visibility: 'none' },
+        paint: {
+          'fill-extrusion-color': ['get', 'color'],
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': 0,
+          'fill-extrusion-opacity': 0.85,
+        },
+      });
+
       // Prospect name labels
       m.addLayer({
         id: 'unclustered-label',
@@ -339,6 +392,8 @@ export function MapPage() {
     if (!mapRef.current || !layersReady.current) return;
     const src = mapRef.current.getSource('prospects') as maplibregl.GeoJSONSource | undefined;
     src?.setData(prospectsToGeoJSON(filteredProspects));
+    const columnsSrc = mapRef.current.getSource('prospect-columns') as maplibregl.GeoJSONSource | undefined;
+    columnsSrc?.setData(prospectsToExtrusionGeoJSON(filteredProspects));
 
     // Fit bounds when a filter is active and there are prospects to show
     if ((filter.basin || filter.priority) && filteredProspects.length > 0) {
@@ -352,6 +407,16 @@ export function MapPage() {
       }
     }
   }, [filteredProspects, filter]);
+
+  // Toggle between 2D clustered view and 3D extrusion ("bar chart") view
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !layersReady.current) return;
+    const twoDLayers = ['clusters', 'cluster-count', 'unclustered-point', 'unclustered-label'];
+    twoDLayers.forEach((id) => m.setLayoutProperty(id, 'visibility', is3D ? 'none' : 'visible'));
+    m.setLayoutProperty('prospect-extrusions', 'visibility', is3D ? 'visible' : 'none');
+    m.easeTo({ pitch: is3D ? 60 : 0, bearing: is3D ? -17 : 0, duration: 600 });
+  }, [is3D]);
 
   const handleAiSend = (q: string) => {
     const question = q.trim();
@@ -463,6 +528,15 @@ export function MapPage() {
               Clear filters ({filteredProspects.length}/{prospects.length})
             </button>
           )}
+          <span className="mx-1 text-slate-700">|</span>
+          <button
+            type="button"
+            onClick={() => setIs3D((v) => !v)}
+            title="Toggle 3D extrusion view (column height = GCoS)"
+            className={`rounded-full border px-3 py-0.5 text-xs font-medium ${is3D ? 'border-cyan-700 bg-cyan-950/40 text-cyan-200' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
+          >
+            {is3D ? '3D View (GCoS height)' : '2D View'}
+          </button>
         </div>
       </section>
 
