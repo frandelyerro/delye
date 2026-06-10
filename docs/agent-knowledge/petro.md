@@ -14,6 +14,11 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   evidence for a tight-sandstone case.
 
 ## Reference material / methodology notes
+- 2026-06-10 (cycle 16): NPV advisor handler (explaining "positive EMV but negative
+  NPV" using `discountRate`/`simpleNPVAtDiscountUsdMM`) and a `mlFeatures.ts` NPV
+  feature are both BLOCKED until PR #23 (`feature/economics-npv`, commit `b81ce6b`)
+  merges to main — those fields don't exist on `claude/funny-allen-BLz4j` yet.
+  Revisit once PR #23 is merged.
 - 2026-06-10: Added an advisor handler for source-kitchen / migration-distance queries
   using `evidence.migration.distanceFromKitchenKm` (>50 km flagged as elevated lateral
   charge risk). This is additive only (advisor.ts), no geoscience engine change.

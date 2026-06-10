@@ -18,12 +18,9 @@ import {
   getTargetingRecommendation,
   getRecommendedActionLabel,
   getTierLabel,
-  type ProspectivityTier,
-  type RecommendedAction,
 } from '../domain/recommendationEngine';
 import { assessExplorationMaturity } from '../domain/earlyExploration';
 import { getDecisionSignalLabel, getEconomicGradeLabel } from '../domain/economics';
-import type { EconomicAssessment } from '../domain/economicTypes';
 import { predictWithBaselineModel, compareExpertAndML } from '../domain/mlModel';
 import { loadTrainedMLModel } from '../services/mlModelStorage';
 import { compareTrainedModelWithExpertGCoS } from '../domain/mlTrainingService';
@@ -31,6 +28,7 @@ import { predictWithModel } from '../domain/mlLogisticRegression';
 import type { MLTrainingTarget } from '../domain/mlTrainingTypes';
 import { getOutcomeLabelText, getOutcomeSummary, isKnownOutcome } from '../domain/outcomes';
 import { findAnalogs } from '../domain/analogFinder';
+import { priorityBadgeClass, riskBadgeClass, tierBadgeClass, actionBadgeClass, economicGradeBadge, decisionSignalBadge, confidenceBadgeClass } from '../utils/badgeStyles';
 
 const mlTargetLabel: Record<MLTrainingTarget, string> = {
   hydrocarbon_presence: 'Hydrocarbon Presence',
@@ -38,67 +36,10 @@ const mlTargetLabel: Record<MLTrainingTarget, string> = {
   commercial_success: 'Commercial Success',
 };
 
-const priorityBadgeClass = {
-  high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
-  medium: 'border-amber-500/30 bg-amber-500/15 text-amber-200',
-  low: 'border-red-500/30 bg-red-500/15 text-red-200'
-};
-
-const riskBadgeClass = {
-  source: 'border-sky-500/30 bg-sky-500/15 text-sky-200',
-  migration: 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200',
-  reservoir: 'border-indigo-500/30 bg-indigo-500/15 text-indigo-200',
-  seal: 'border-violet-500/30 bg-violet-500/15 text-violet-200',
-  trap: 'border-rose-500/30 bg-rose-500/15 text-rose-200',
-  timing: 'border-orange-500/30 bg-orange-500/15 text-orange-200'
-};
-
-const confidenceBadgeClass = {
-  high: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200',
-  medium: 'border-amber-500/30 bg-amber-500/15 text-amber-200',
-  low: 'border-red-500/30 bg-red-500/15 text-red-200',
-  unknown: 'border-slate-600 bg-slate-800 text-slate-400'
-};
-
 const evidenceScoreBadge = (score: number) => {
   if (score >= 0.70) return 'border-emerald-500/30 bg-emerald-500/15 text-emerald-200';
   if (score >= 0.45) return 'border-amber-500/30 bg-amber-500/15 text-amber-200';
   return 'border-red-500/30 bg-red-500/15 text-red-200';
-};
-
-const tierBadgeClass: Record<ProspectivityTier, string> = {
-  tier_1: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
-  tier_2: 'border-cyan-500/40 bg-cyan-500/15 text-cyan-200',
-  tier_3: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
-  tier_4: 'border-slate-600 bg-slate-800/60 text-slate-400',
-};
-
-const actionBadgeClass: Record<RecommendedAction, string> = {
-  drill_candidate: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
-  appraisal_candidate: 'border-teal-500/40 bg-teal-500/15 text-teal-200',
-  acquire_additional_seismic: 'border-sky-500/40 bg-sky-500/15 text-sky-200',
-  validate_reservoir_quality: 'border-indigo-500/40 bg-indigo-500/15 text-indigo-200',
-  validate_seal_continuity: 'border-violet-500/40 bg-violet-500/15 text-violet-200',
-  improve_timing_model: 'border-orange-500/40 bg-orange-500/15 text-orange-200',
-  acreage_review: 'border-cyan-700/40 bg-cyan-900/30 text-cyan-300',
-  farm_in_candidate: 'border-blue-500/40 bg-blue-500/15 text-blue-200',
-  watchlist: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
-  do_not_prioritize: 'border-red-500/40 bg-red-500/15 text-red-300',
-};
-
-const economicGradeBadge: Record<EconomicAssessment['economicGrade'], string> = {
-  strong: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
-  moderate: 'border-cyan-500/40 bg-cyan-500/15 text-cyan-200',
-  weak: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
-  negative: 'border-red-500/40 bg-red-500/15 text-red-300',
-};
-
-const decisionSignalBadge: Record<EconomicAssessment['decisionSignal'], string> = {
-  drill_if_budget_available: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
-  de_risk_before_investment: 'border-sky-500/40 bg-sky-500/15 text-sky-200',
-  consider_farm_in: 'border-blue-500/40 bg-blue-500/15 text-blue-200',
-  investigate_further: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
-  do_not_invest: 'border-red-500/40 bg-red-500/15 text-red-300',
 };
 
 export function ProspectDetailPage() {

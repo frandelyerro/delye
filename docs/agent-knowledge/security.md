@@ -13,6 +13,11 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   upgrade, which risks breaking the Vite/Vitest config and CI — needs a dedicated
   cycle with full regression testing (`npm run typecheck && npm run test && npm run
   build` plus a manual smoke check), not a quick fix folded into an unrelated cycle.
+  - 2026-06-10 (cycle 16): Confirmed there is NO safe minimal fix — even pinning
+    package.json's vitest range to `^2.1.9` (matching the installed version) would
+    not resolve the audit, since 2.1.9 itself is within the vulnerable range
+    (<3.2.6). The major upgrade is the only real fix; still deferred to a dedicated
+    cycle.
 
 ## Reference material / methodology notes
 - 2026-06-10: Baseline security checklist for this app (client-side React SPA,
@@ -30,3 +35,8 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
     (`__proto__`/`constructor`/`prototype`) — keep using typed Prospect interfaces.
   - 2026-06-10 audit: no application-level (HIGH+) findings. All `npm audit` findings
     are dev-dependency only (see Open improvement areas above).
+- 2026-06-10 (cycle 16): Re-audited cycle 15's additions (heatmap layer, advisor
+  compare/prioritize handlers, `numberUtils.ts`) — zero new findings. Cycle 16's
+  changes (VisualizationsPage NaN fixes, badgeStyles.ts extraction, basin
+  bounding-circle overlay) are also additive/refactor-only with no new
+  user-controlled-input or HTML-string surfaces — no new findings.

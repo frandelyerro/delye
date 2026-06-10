@@ -5,7 +5,7 @@ import type { FeatureCollection, Point, Polygon } from 'geojson';
 import { useProspectStore } from '../store/useProspectStore';
 import { getAdvisorResponse } from '../domain/advisor';
 import type { Prospect } from '../domain/prospect';
-import { isValidCoordinate, hasLowPrecisionCoordinates, findIsolated } from '../domain/geoUtils';
+import { isValidCoordinate, hasLowPrecisionCoordinates, findIsolated, basinBoundingCircle, circlePolygonCoordinates } from '../domain/geoUtils';
 import { safeGcos } from '../utils/numberUtils';
 
 type Priority = 'high' | 'medium' | 'low';
@@ -114,6 +114,28 @@ function prospectsToExtrusionGeoJSON(prospects: Prospect[]): FeatureCollection<P
   };
 }
 
+// Builds a fill+line polygon for each basin's bounding circle, so the map can
+// show approximate basin extents without a paid API or @turf/turf dependency.
+function basinCirclesToGeoJSON(prospects: Prospect[]): FeatureCollection<Polygon> {
+  const basinMap = new Map<string, Prospect[]>();
+  for (const p of prospects) {
+    const list = basinMap.get(p.basin) ?? [];
+    list.push(p);
+    basinMap.set(p.basin, list);
+  }
+  const features: FeatureCollection<Polygon>['features'] = [];
+  for (const [basin, ps] of basinMap.entries()) {
+    const circle = basinBoundingCircle(ps);
+    if (!circle) continue;
+    features.push({
+      type: 'Feature' as const,
+      geometry: { type: 'Polygon' as const, coordinates: [circlePolygonCoordinates(circle.center, circle.radiusKm)] },
+      properties: { basin, count: ps.length, radiusKm: Math.round(circle.radiusKm) },
+    });
+  }
+  return { type: 'FeatureCollection', features };
+}
+
 function buildSpatialInsights(prospects: Prospect[]): string[] {
   if (!prospects.length) return ['No prospects to analyze.'];
   const basinMap = new Map<string, Prospect[]>();
@@ -191,6 +213,7 @@ export function MapPage() {
   const [filter, setFilter] = useState<FilterState>({ basin: null, priority: null });
   const [is3D, setIs3D] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showBasinCircles, setShowBasinCircles] = useState(false);
   const [geolibreOpen, setGeolibreOpen] = useState(false);
   const [geolibreMsg, setGeolibreMsg] = useState<string | null>(null);
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
@@ -269,6 +292,34 @@ export function MapPage() {
           ],
           'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 12, 9, 25, 15, 40],
           'heatmap-opacity': 0.75,
+        },
+      });
+
+      // Basin bounding-circle overlays — approximate basin extents (centroid + max
+      // distance to a member prospect), no @turf/turf or paid API required.
+      m.addSource('basin-circles', {
+        type: 'geojson',
+        data: basinCirclesToGeoJSON(filteredRef.current),
+      });
+      m.addLayer({
+        id: 'basin-circles-fill',
+        type: 'fill',
+        source: 'basin-circles',
+        layout: { visibility: 'none' },
+        paint: {
+          'fill-color': '#0891b2',
+          'fill-opacity': 0.06,
+        },
+      });
+      m.addLayer({
+        id: 'basin-circles-line',
+        type: 'line',
+        source: 'basin-circles',
+        layout: { visibility: 'none' },
+        paint: {
+          'line-color': '#0891b2',
+          'line-width': 1.5,
+          'line-dasharray': [2, 2],
         },
       });
 
@@ -429,6 +480,8 @@ export function MapPage() {
     columnsSrc?.setData(prospectsToExtrusionGeoJSON(filteredProspects));
     const heatSrc = mapRef.current.getSource('prospects-heat') as maplibregl.GeoJSONSource | undefined;
     heatSrc?.setData(prospectsToGeoJSON(filteredProspects));
+    const basinCirclesSrc = mapRef.current.getSource('basin-circles') as maplibregl.GeoJSONSource | undefined;
+    basinCirclesSrc?.setData(basinCirclesToGeoJSON(filteredProspects));
 
     // Fit bounds when a filter is active and there are prospects to show
     if ((filter.basin || filter.priority) && filteredProspects.length > 0) {
@@ -459,6 +512,15 @@ export function MapPage() {
     if (!m || !layersReady.current) return;
     m.setLayoutProperty('prospect-heatmap', 'visibility', showHeatmap ? 'visible' : 'none');
   }, [showHeatmap]);
+
+  // Toggle the basin bounding-circle overlays
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !layersReady.current) return;
+    const visibility = showBasinCircles ? 'visible' : 'none';
+    m.setLayoutProperty('basin-circles-fill', 'visibility', visibility);
+    m.setLayoutProperty('basin-circles-line', 'visibility', visibility);
+  }, [showBasinCircles]);
 
   const handleAiSend = (q: string) => {
     const question = q.trim();
@@ -586,6 +648,14 @@ export function MapPage() {
             className={`rounded-full border px-3 py-0.5 text-xs font-medium ${showHeatmap ? 'border-orange-700 bg-orange-950/40 text-orange-200' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
           >
             {showHeatmap ? 'Heatmap On' : 'Heatmap'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowBasinCircles((v) => !v)}
+            title="Toggle approximate basin extent circles"
+            className={`rounded-full border px-3 py-0.5 text-xs font-medium ${showBasinCircles ? 'border-cyan-700 bg-cyan-950/40 text-cyan-200' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
+          >
+            {showBasinCircles ? 'Basin Circles On' : 'Basin Circles'}
           </button>
         </div>
       </section>

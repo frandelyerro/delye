@@ -21,6 +21,12 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   `safeGcos`/`safeNumber` helper to `src/utils/numberUtils.ts` (with its own test file)
   to avoid re-duplicating the `Number.isFinite` guard across pages — use this helper
   for any new GCoS-based arithmetic instead of inlining `?? 0`.
+- 2026-06-10 (cycle 16): Found and fixed 2 more NaN-propagation instances in
+  `VisualizationsPage.tsx` (cross-section sort, bubble-chart x-axis, and forecast
+  ranking/cumulative-resource gcos) using the shared `safeGcos` helper from
+  `src/utils/numberUtils.ts`. This appears to be the last remaining `?? 0` GCoS
+  pattern in `src/pages/` — re-grep `geologicalChanceOfSuccess ?? 0` in new chart
+  code going forward.
 - 2026-06-10 (cycle 15): Reviewed the MapPage `useEffect` that skips `setData` when
   `layersReady.current` is false (data-update effect, runs on filter change) — this is
   NOT a bug: `filteredRef.current` is updated synchronously on every render

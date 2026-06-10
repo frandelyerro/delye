@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { useProspectStore } from '../store/useProspectStore';
 import { componentMap, componentNames, componentLabels } from '../domain/explainability';
+import { safeGcos } from '../utils/numberUtils';
 
 const COMPONENT_COLOR: Record<string, string> = {
   Source: '#38bdf8',
@@ -34,7 +35,7 @@ export function VisualizationsPage() {
   // Section A: 2D geological risk cross-section (top 10 by GCoS, stacked component scores)
   const crossSectionData = React.useMemo(() => {
     return [...prospects]
-      .sort((a, b) => (b.geologicalChanceOfSuccess ?? 0) - (a.geologicalChanceOfSuccess ?? 0))
+      .sort((a, b) => safeGcos(b) - safeGcos(a))
       .slice(0, 10)
       .map((p) => {
         const row: Record<string, string | number> = { name: p.name };
@@ -54,7 +55,7 @@ export function VisualizationsPage() {
       data: prospects
         .filter((p) => confidenceTier(p.dataConfidence) === tier)
         .map((p) => ({
-          x: Math.round((p.geologicalChanceOfSuccess ?? 0) * 100),
+          x: Math.round(safeGcos(p) * 100),
           y: p.commercialScore ?? 0,
           z: p.resourceEstimate,
           name: p.name,
@@ -64,11 +65,11 @@ export function VisualizationsPage() {
 
   // Section C: portfolio resource forecast (cumulative risked vs unrisked resource, ranked by GCoS)
   const forecastData = React.useMemo(() => {
-    const ranked = [...prospects].sort((a, b) => (b.geologicalChanceOfSuccess ?? 0) - (a.geologicalChanceOfSuccess ?? 0));
+    const ranked = [...prospects].sort((a, b) => safeGcos(b) - safeGcos(a));
     let cumRisked = 0;
     let cumUnrisked = 0;
     return ranked.map((p, i) => {
-      const gcos = p.geologicalChanceOfSuccess ?? 0;
+      const gcos = safeGcos(p);
       const resourceEstimate = Number.isFinite(p.resourceEstimate) ? p.resourceEstimate : 0;
       const unrisked = p.economicAssessment?.unriskedResourceMMboe ?? resourceEstimate;
       const risked = p.economicAssessment?.riskedResourceMMboe ?? resourceEstimate * gcos;

@@ -74,3 +74,46 @@ export function findIsolated<T extends { latitude: number; longitude: number }>(
     return !nearest || nearest.distanceKm > thresholdKm;
   });
 }
+
+/** Computes the centroid and the radius of the smallest circle (centered on the
+ * centroid) enclosing all valid items. Returns null if there are no valid items. */
+export function basinBoundingCircle<T extends { latitude: number; longitude: number }>(
+  items: T[],
+): { center: [number, number]; radiusKm: number } | null {
+  const valid = items.filter((c) => isValidCoordinate(c.latitude, c.longitude));
+  if (valid.length === 0) return null;
+  const centerLat = valid.reduce((s, c) => s + c.latitude, 0) / valid.length;
+  const centerLon = valid.reduce((s, c) => s + c.longitude, 0) / valid.length;
+  const radiusKm = Math.max(...valid.map((c) => haversineKm(centerLat, centerLon, c.latitude, c.longitude)));
+  return { center: [centerLon, centerLat], radiusKm };
+}
+
+/**
+ * Returns the [lon, lat] ring coordinates of a circle of the given radius (km)
+ * centered on `center` ([lon, lat]), suitable for a GeoJSON Polygon's outer ring.
+ */
+export function circlePolygonCoordinates(
+  center: [number, number],
+  radiusKm: number,
+  steps = 64,
+): [number, number][] {
+  const distRatio = radiusKm / EARTH_RADIUS_KM;
+  const centerLatRad = center[1] * TO_RAD;
+  const centerLonRad = center[0] * TO_RAD;
+  const coords: [number, number][] = [];
+  for (let i = 0; i <= steps; i++) {
+    const bearing = (i / steps) * 2 * Math.PI;
+    const lat = Math.asin(
+      Math.sin(centerLatRad) * Math.cos(distRatio) +
+        Math.cos(centerLatRad) * Math.sin(distRatio) * Math.cos(bearing),
+    );
+    const lon =
+      centerLonRad +
+      Math.atan2(
+        Math.sin(bearing) * Math.sin(distRatio) * Math.cos(centerLatRad),
+        Math.cos(distRatio) - Math.sin(centerLatRad) * Math.sin(lat),
+      );
+    coords.push([lon / TO_RAD, lat / TO_RAD]);
+  }
+  return coords;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { haversineKm, isValidCoordinate, findNearest, hasLowPrecisionCoordinates, findIsolated } from '../geoUtils';
+import { haversineKm, isValidCoordinate, findNearest, hasLowPrecisionCoordinates, findIsolated, basinBoundingCircle, circlePolygonCoordinates } from '../geoUtils';
 
 describe('haversineKm', () => {
   it('returns 0 for identical coordinates', () => {
@@ -112,5 +112,67 @@ describe('findIsolated', () => {
     ];
     // 'a' (0,0) is filtered out as null-island; 'b' has no remaining valid neighbor, so it's isolated
     expect(findIsolated(items, 50).map((i) => i.id)).toEqual(['b']);
+  });
+});
+
+describe('basinBoundingCircle', () => {
+  it('returns null for an empty array', () => {
+    expect(basinBoundingCircle([])).toBeNull();
+  });
+
+  it('returns a zero-radius circle centered on the single item', () => {
+    const result = basinBoundingCircle([{ latitude: 10, longitude: 20 }]);
+    expect(result?.center).toEqual([20, 10]);
+    expect(result?.radiusKm).toBeCloseTo(0, 5);
+  });
+
+  it('returns a centroid and radius enclosing all valid items', () => {
+    const items = [
+      { latitude: 0, longitude: 0.01 },
+      { latitude: 0, longitude: -0.01 },
+    ];
+    const result = basinBoundingCircle(items);
+    expect(result?.center[0]).toBeCloseTo(0, 5);
+    expect(result?.center[1]).toBeCloseTo(0, 5);
+    expect(result?.radiusKm).toBeGreaterThan(0);
+  });
+
+  it('ignores invalid/null-island coordinates', () => {
+    const items = [
+      { latitude: 0, longitude: 0 },
+      { latitude: 10, longitude: 10 },
+    ];
+    const result = basinBoundingCircle(items);
+    expect(result?.center).toEqual([10, 10]);
+    expect(result?.radiusKm).toBeCloseTo(0, 5);
+  });
+});
+
+describe('circlePolygonCoordinates', () => {
+  it('returns a closed ring (first and last points equal)', () => {
+    const ring = circlePolygonCoordinates([0, 0], 50);
+    expect(ring[0][0]).toBeCloseTo(ring[ring.length - 1][0], 6);
+    expect(ring[0][1]).toBeCloseTo(ring[ring.length - 1][1], 6);
+  });
+
+  it('returns steps + 1 points', () => {
+    expect(circlePolygonCoordinates([0, 0], 50, 16)).toHaveLength(17);
+  });
+
+  it('every point is approximately radiusKm from the center', () => {
+    const center: [number, number] = [10, 20];
+    const radiusKm = 100;
+    const ring = circlePolygonCoordinates(center, radiusKm, 32);
+    for (const [lon, lat] of ring) {
+      expect(haversineKm(center[1], center[0], lat, lon)).toBeCloseTo(radiusKm, 0);
+    }
+  });
+
+  it('collapses to the center point for zero radius', () => {
+    const ring = circlePolygonCoordinates([5, 5], 0, 8);
+    for (const [lon, lat] of ring) {
+      expect(lon).toBeCloseTo(5, 5);
+      expect(lat).toBeCloseTo(5, 5);
+    }
   });
 });
