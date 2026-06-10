@@ -5,7 +5,7 @@ import type { FeatureCollection, Point, Polygon } from 'geojson';
 import { useProspectStore } from '../store/useProspectStore';
 import { getAdvisorResponse } from '../domain/advisor';
 import type { Prospect } from '../domain/prospect';
-import { isValidCoordinate, hasLowPrecisionCoordinates } from '../domain/geoUtils';
+import { isValidCoordinate, hasLowPrecisionCoordinates, findIsolated } from '../domain/geoUtils';
 
 type Priority = 'high' | 'medium' | 'low';
 type FilterState = { basin: string | null; priority: Priority | null };
@@ -97,7 +97,7 @@ function prospectsToExtrusionGeoJSON(prospects: Prospect[]): FeatureCollection<P
           [lon - halfSide, lat + halfSide],
           [lon - halfSide, lat - halfSide],
         ];
-        const gcosRaw = p.geologicalChanceOfSuccess ?? 0;
+        const gcosRaw = Number.isFinite(p.geologicalChanceOfSuccess) ? Math.max(0, p.geologicalChanceOfSuccess as number) : 0;
         return {
           type: 'Feature' as const,
           geometry: { type: 'Polygon' as const, coordinates: [ring] },
@@ -144,6 +144,7 @@ function buildSpatialInsights(prospects: Prospect[]): string[] {
   const lowPrecisionCount = prospects.filter(
     (p) => isValidCoordinate(p.latitude, p.longitude) && hasLowPrecisionCoordinates(p.latitude, p.longitude),
   ).length;
+  const isolated = findIsolated(prospects, 50);
   return [
     `${prospects.length} prospect${prospects.length !== 1 ? 's' : ''} across ${sorted.length} basin${sorted.length !== 1 ? 's' : ''}.`,
     sorted[0] ? `Best basin: ${sorted[0].basin} (avg GCoS ${Math.round(sorted[0].avgGcos * 100)}%, ${sorted[0].count} prospect${sorted[0].count !== 1 ? 's' : ''}, dominant play: ${sorted[0].dominantPlay}, top prospect: ${sorted[0].bestProspect}).` : '',
@@ -151,6 +152,9 @@ function buildSpatialInsights(prospects: Prospect[]): string[] {
     `${high} high · ${medium} medium · ${low} low priority.`,
     lowPrecisionCount > 0
       ? `${lowPrecisionCount} prospect${lowPrecisionCount !== 1 ? 's' : ''} have coordinates with fewer than 4 decimal places — verify location precision.`
+      : '',
+    isolated.length > 0
+      ? `${isolated.length} prospect${isolated.length !== 1 ? 's' : ''} ${isolated.length !== 1 ? 'are' : 'is'} >50 km from the nearest peer (${isolated.map((p) => p.name).join(', ')}) — expect higher standalone infrastructure cost.`
       : '',
   ].filter(Boolean);
 }

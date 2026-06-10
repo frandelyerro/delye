@@ -26,7 +26,10 @@ export function isValidCoordinate(lat: number, lon: number): boolean {
 
 /** Returns the number of digits after the decimal point in a number's string form. */
 function decimalDigits(n: number): number {
-  const s = String(n);
+  if (!Number.isFinite(n)) return 0;
+  // Avoid scientific notation (e.g. "1e-7") for very small numbers, which would
+  // otherwise be miscounted as having no decimal places.
+  const s = Math.abs(n) < 1 && n !== 0 ? n.toFixed(10).replace(/0+$/, '') : String(n);
   const i = s.indexOf('.');
   return i === -1 ? 0 : s.length - i - 1;
 }
@@ -53,4 +56,21 @@ export function findNearest<T extends { latitude: number; longitude: number }>(
     }
   }
   return best ? { item: best, distanceKm: bestDist } : null;
+}
+
+/**
+ * Returns items whose nearest neighbor is farther than `thresholdKm` away (or that have
+ * no neighbor at all). Isolated prospects typically carry higher standalone
+ * infrastructure/tie-back costs.
+ */
+export function findIsolated<T extends { latitude: number; longitude: number }>(
+  items: T[],
+  thresholdKm = 50,
+): T[] {
+  const valid = items.filter((c) => isValidCoordinate(c.latitude, c.longitude));
+  return valid.filter((item) => {
+    const others = valid.filter((c) => c !== item);
+    const nearest = findNearest(others, item.latitude, item.longitude);
+    return !nearest || nearest.distanceKm > thresholdKm;
+  });
 }

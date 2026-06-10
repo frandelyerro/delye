@@ -340,6 +340,16 @@ describe('advisor geological queries', () => {
     const response = getAdvisorResponse('what is the target depth for drilling', prospects);
     expect(response.toLowerCase()).toMatch(/depth|formation|drilling/i);
   });
+
+  it('"kitchen" returns source-kitchen distance assessment', () => {
+    const response = getAdvisorResponse('how far are prospects from the source kitchen?', prospects);
+    expect(response.toLowerCase()).toMatch(/kitchen|km/i);
+  });
+
+  it('"migration distance" flags prospects far from the source kitchen', () => {
+    const response = getAdvisorResponse('which prospects have a long migration distance?', prospects);
+    expect(response.toLowerCase()).toMatch(/kitchen|km/i);
+  });
 });
 
 describe('advisor spatial proximity queries', () => {

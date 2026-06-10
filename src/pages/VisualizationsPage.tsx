@@ -39,7 +39,8 @@ export function VisualizationsPage() {
       .map((p) => {
         const row: Record<string, string | number> = { name: p.name };
         componentNames.forEach((key) => {
-          row[componentLabels[key]] = Math.round(Number(p[componentMap[key]]) * 100);
+          const value = Number(p[componentMap[key]]);
+          row[componentLabels[key]] = Math.round((Number.isFinite(value) ? value : 0) * 100);
         });
         return row;
       });
@@ -68,8 +69,9 @@ export function VisualizationsPage() {
     let cumUnrisked = 0;
     return ranked.map((p, i) => {
       const gcos = p.geologicalChanceOfSuccess ?? 0;
-      const unrisked = p.economicAssessment?.unriskedResourceMMboe ?? p.resourceEstimate;
-      const risked = p.economicAssessment?.riskedResourceMMboe ?? p.resourceEstimate * gcos;
+      const resourceEstimate = Number.isFinite(p.resourceEstimate) ? p.resourceEstimate : 0;
+      const unrisked = p.economicAssessment?.unriskedResourceMMboe ?? resourceEstimate;
+      const risked = p.economicAssessment?.riskedResourceMMboe ?? resourceEstimate * gcos;
       cumUnrisked += unrisked;
       cumRisked += risked;
       return {

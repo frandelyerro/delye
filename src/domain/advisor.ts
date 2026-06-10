@@ -221,6 +221,19 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Migration risk: avg migration score ${(avgMig * 100).toFixed(0)}%. ${lowMig.length} prospect(s) score <30%${lowMig.length ? `: ${lowMig.map((p) => p.name).join(', ')}` : ''}. ${mainMigRisk.length} prospect(s) list migration as main risk${mainMigRisk.length ? `: ${mainMigRisk.map((p) => p.name).join(', ')}` : ': none'}. De-risk via carrier bed mapping, fault connectivity analysis, and hydrocarbon shows correlation.`;
   }
 
+  if (q.includes('kitchen') || q.includes('charge distance') || q.includes('migration distance')) {
+    const withDistance = prospects
+      .map((p) => ({ p, km: p.evidence?.migration?.distanceFromKitchenKm }))
+      .filter((x): x is { p: Prospect; km: number } => typeof x.km === 'number');
+    if (!withDistance.length) {
+      return 'No source-kitchen distance evidence is recorded for this portfolio. Capture distanceFromKitchenKm in migration evidence to assess lateral charge risk.';
+    }
+    const farFromKitchen = withDistance.filter((x) => x.km > 50);
+    return farFromKitchen.length
+      ? `Prospects with long migration distance from the source kitchen (>50 km): ${farFromKitchen.map((x) => `${x.p.name} (${x.km.toFixed(0)} km)`).join(', ')}. Lateral migration over long distances increases charge risk — validate with seismic mapping and pressure data.`
+      : `All ${withDistance.length} prospect(s) with recorded kitchen distance are within 50 km of the source kitchen — lateral charge risk from migration distance is limited.`;
+  }
+
   if (q.includes('critical geoscience risk') || q.includes('critical risk')) {
     const riskCount = prospects.reduce<Record<string, number>>((acc, p) => {
       const risk = p.mainRisk ?? 'unknown';

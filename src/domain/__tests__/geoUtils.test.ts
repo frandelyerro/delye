@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { haversineKm, isValidCoordinate, findNearest, hasLowPrecisionCoordinates } from '../geoUtils';
+import { haversineKm, isValidCoordinate, findNearest, hasLowPrecisionCoordinates, findIsolated } from '../geoUtils';
 
 describe('haversineKm', () => {
   it('returns 0 for identical coordinates', () => {
@@ -51,6 +51,11 @@ describe('hasLowPrecisionCoordinates', () => {
   it('returns true for whole-number coordinates', () => {
     expect(hasLowPrecisionCoordinates(25, -90)).toBe(true);
   });
+
+  it('handles very small magnitude coordinates without misreading scientific notation', () => {
+    // 1e-7 would stringify as "1e-7" (no '.') if not handled, miscounting decimal digits
+    expect(hasLowPrecisionCoordinates(1e-7, -90.12345)).toBe(false);
+  });
 });
 
 describe('findNearest', () => {
@@ -73,5 +78,39 @@ describe('findNearest', () => {
     const withNullIsland = [{ id: 'null', latitude: 0, longitude: 0 }, ...items];
     const result = findNearest(withNullIsland, 0.2, 0.2);
     expect(result?.item.id).toBe('a');
+  });
+});
+
+describe('findIsolated', () => {
+  it('returns items farther than the threshold from their nearest neighbor', () => {
+    const items = [
+      { id: 'a', latitude: 0, longitude: 0.01 },
+      { id: 'b', latitude: 0, longitude: 0.02 },
+      { id: 'c', latitude: 30, longitude: 30 },
+    ];
+    const result = findIsolated(items, 50);
+    expect(result.map((i) => i.id)).toEqual(['c']);
+  });
+
+  it('returns empty array when all items are within threshold', () => {
+    const items = [
+      { id: 'a', latitude: 0, longitude: 0.01 },
+      { id: 'b', latitude: 0, longitude: 0.02 },
+    ];
+    expect(findIsolated(items, 50)).toEqual([]);
+  });
+
+  it('returns the single item when there is only one', () => {
+    const items = [{ id: 'a', latitude: 10, longitude: 10 }];
+    expect(findIsolated(items, 50).map((i) => i.id)).toEqual(['a']);
+  });
+
+  it('ignores invalid/null-island coordinates', () => {
+    const items = [
+      { id: 'a', latitude: 0, longitude: 0 },
+      { id: 'b', latitude: 10, longitude: 10 },
+    ];
+    // 'a' (0,0) is filtered out as null-island; 'b' has no remaining valid neighbor, so it's isolated
+    expect(findIsolated(items, 50).map((i) => i.id)).toEqual(['b']);
   });
 });
