@@ -41,6 +41,18 @@ const findMentionedProspect = (question: string, prospects: Prospect[]): Prospec
     .find((prospect) => lowerQuestion.includes(prospect.name.toLowerCase()));
 };
 
+// Finds up to two distinct prospects mentioned by name in the question, longest names first
+// so a shorter name that is a substring of a longer one isn't matched twice.
+const findMentionedProspects = (question: string, prospects: Prospect[]): Prospect[] => {
+  const lowerQuestion = question.toLowerCase();
+  const matches: Prospect[] = [];
+  for (const prospect of [...prospects].sort((a, b) => b.name.length - a.name.length)) {
+    if (lowerQuestion.includes(prospect.name.toLowerCase())) matches.push(prospect);
+    if (matches.length === 2) break;
+  }
+  return matches;
+};
+
 const formatConfidence = (prospect: Prospect) => `${prospect.name} (${prospect.dataConfidence ?? 0}/100)`;
 const formatComponents = (prospect: Prospect) =>
   getStrongestComponents(prospect).map((component) => componentLabels[component]).join(' and ');
@@ -146,6 +158,40 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
 
     const best = ranked[0];
     return `The highest-ranked current prospect is strongest in ${formatComponents(best)}.`;
+  }
+
+  if (q.includes('compare') && findMentionedProspects(q, prospects).length === 2) {
+    const [a, b] = findMentionedProspects(q, prospects);
+    const componentEntries = (Object.keys(componentLabels) as (keyof typeof componentLabels)[]).map((key) => {
+      const componentKey = `${key}Score` as keyof Prospect;
+      const aVal = Number(a[componentKey]) || 0;
+      const bVal = Number(b[componentKey]) || 0;
+      return { key, label: componentLabels[key], aVal, bVal, delta: Math.abs(aVal - bVal) };
+    });
+    const biggest = [...componentEntries].sort((x, y) => y.delta - x.delta)[0];
+    const gcosA = Math.round((a.geologicalChanceOfSuccess ?? 0) * 100);
+    const gcosB = Math.round((b.geologicalChanceOfSuccess ?? 0) * 100);
+    return `${a.name} (${gcosA}% GCoS) vs ${b.name} (${gcosB}% GCoS): the largest divergence is in ${biggest.label} `
+      + `(${a.name} ${biggest.aVal.toFixed(2)} vs ${b.name} ${biggest.bVal.toFixed(2)}). `
+      + `${a.name} is strongest in ${formatComponents(a)}; ${b.name} is strongest in ${formatComponents(b)}.`;
+  }
+
+  if (q.includes('which component') && (q.includes('prioritize') || q.includes('focus') || q.includes('most') || q.includes('matters most') || q.includes('budget'))) {
+    const componentAverages = (Object.keys(componentLabels) as (keyof typeof componentLabels)[]).map((key) => {
+      const componentKey = `${key}Score` as keyof Prospect;
+      const avg = prospects.reduce((sum, p) => sum + (Number(p[componentKey]) || 0), 0) / prospects.length;
+      return { key, label: componentLabels[key], avg };
+    });
+    const lowest = [...componentAverages].sort((x, y) => x.avg - y.avg)[0];
+    const weakestCounts = prospects.reduce<Record<string, number>>((acc, prospect) => {
+      const weakest = getWeakestComponent(prospect);
+      acc[weakest] = (acc[weakest] ?? 0) + 1;
+      return acc;
+    }, {});
+    const mostFrequentWeakest = Object.entries(weakestCounts).sort((x, y) => y[1] - x[1])[0];
+    return `${lowest.label} has the lowest portfolio-average score (${lowest.avg.toFixed(2)}) across ${prospects.length} prospects, `
+      + `and ${componentLabels[mostFrequentWeakest[0] as keyof typeof componentLabels]} is the weakest component for ${mostFrequentWeakest[1]} of them. `
+      + `Prioritizing ${lowest.label.toLowerCase()}-related data acquisition (e.g. additional seismic, geochemistry, or pressure data depending on which component) is likely to give the best portfolio-wide de-risking return.`;
   }
 
   if (q.includes('portfolio summary')) {

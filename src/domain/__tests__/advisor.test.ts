@@ -35,6 +35,19 @@ describe('advisor explainability responses', () => {
     const response = getAdvisorResponse('How is GCoS calculated?', prospects);
     expect(response).toContain('Geological Chance of Success');
   });
+
+  it('compares two named prospects and highlights the largest component divergence', () => {
+    const response = getAdvisorResponse('Compare Vaca Norte Lead and Austral Shelf Fan', prospects);
+    expect(response).toContain('Vaca Norte Lead');
+    expect(response).toContain('Austral Shelf Fan');
+    expect(response.toLowerCase()).toMatch(/gcos|divergence|strongest/);
+  });
+
+  it('identifies which component to prioritize de-risking across the portfolio', () => {
+    const response = getAdvisorResponse('Which component should we prioritize to de-risk the portfolio?', prospects);
+    expect(response.toLowerCase()).toMatch(/source|migration|reservoir|seal|trap|timing/);
+    expect(response.toLowerCase()).toContain('portfolio');
+  });
 });
 
 describe('advisor targeting queries', () => {

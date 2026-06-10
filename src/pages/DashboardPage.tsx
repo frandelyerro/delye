@@ -14,6 +14,7 @@ import { getEconomicGradeLabel } from '../domain/economics';
 import type { EconomicAssessment } from '../domain/economicTypes';
 import { exportPortfolioAsCsv, exportPortfolioAsJson } from '../utils/exportReport';
 import { getRiskConcentration, getGCoSHistogram, getBasinStats, getBasinDiversityIndex, getDrillSequenceOrder, getOutcomeStats } from '../domain/portfolioIntelligence';
+import { safeGcos } from '../utils/numberUtils';
 
 const colors = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
 
@@ -75,9 +76,9 @@ export function DashboardPage() {
     (!filters.priority || p.priority === filters.priority) &&
     (!scoringModeFilter || (scoringModeFilter === 'manual' ? (!p.scoringMode || p.scoringMode === 'manual') : p.scoringMode === scoringModeFilter))
   );
-  const ranked = [...filtered].sort((a, b) => (b.geologicalChanceOfSuccess ?? 0) - (a.geologicalChanceOfSuccess ?? 0));
+  const ranked = [...filtered].sort((a, b) => safeGcos(b) - safeGcos(a));
 
-  const avg = filtered.length ? filtered.reduce((a, p) => a + (p.geologicalChanceOfSuccess ?? 0), 0) / filtered.length : 0;
+  const avg = filtered.length ? filtered.reduce((a, p) => a + safeGcos(p), 0) / filtered.length : 0;
   const totals = filtered.reduce((a, p) => a + p.resourceEstimate, 0);
   const top = ranked[0];
   const priorityDist = ['high', 'medium', 'low'].map((k) => ({ name: k, value: filtered.filter((p) => p.priority === k).length }));
@@ -87,14 +88,14 @@ export function DashboardPage() {
     name: play.length > 18 ? play.slice(0, 16) + '…' : play,
     count: filtered.filter((p) => (p.playType || 'Unknown') === play).length,
     avgGcos: Math.round(filtered.filter((p) => (p.playType || 'Unknown') === play)
-      .reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) /
+      .reduce((s, p) => s + safeGcos(p), 0) /
       Math.max(filtered.filter((p) => (p.playType || 'Unknown') === play).length, 1) * 100),
   })).sort((a, b) => b.count - a.count).slice(0, 8);
   const kpis = [
     ['Portfolio', filtered.length, 'filtered prospects'],
     ['Average GCoS', `${Math.round(avg * 100)}%`, 'geological chance of success'],
     ['Unrisked resources', `${totals} MMboe`, 'current filtered portfolio'],
-    ['Top prospect', top?.name ?? '-', top ? `${Math.round((top.geologicalChanceOfSuccess ?? 0) * 100)}% GCoS` : 'no active match']
+    ['Top prospect', top?.name ?? '-', top ? `${Math.round(safeGcos(top) * 100)}% GCoS` : 'no active match']
   ];
 
   const gcosHistogram = getGCoSHistogram(filtered);
@@ -111,7 +112,7 @@ export function DashboardPage() {
       data: filtered
         .filter((p) => p.basin === basin)
         .map((p) => ({
-          x: Math.round((p.geologicalChanceOfSuccess ?? 0) * 100),
+          x: Math.round(safeGcos(p) * 100),
           y: p.resourceEstimate,
           z: p.commercialScore ?? 50,
           name: p.name,

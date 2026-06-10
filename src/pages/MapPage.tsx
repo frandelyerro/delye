@@ -6,6 +6,7 @@ import { useProspectStore } from '../store/useProspectStore';
 import { getAdvisorResponse } from '../domain/advisor';
 import type { Prospect } from '../domain/prospect';
 import { isValidCoordinate, hasLowPrecisionCoordinates, findIsolated } from '../domain/geoUtils';
+import { safeGcos } from '../utils/numberUtils';
 
 type Priority = 'high' | 'medium' | 'low';
 type FilterState = { basin: string | null; priority: Priority | null };
@@ -62,8 +63,8 @@ function prospectsToGeoJSON(prospects: Prospect[]): FeatureCollection {
           basin: p.basin,
           block: p.block ?? '',
           playType: p.playType,
-          gcos: Math.round((p.geologicalChanceOfSuccess ?? 0) * 100),
-          gcosRaw: p.geologicalChanceOfSuccess ?? 0,
+          gcos: Math.round(safeGcos(p) * 100),
+          gcosRaw: safeGcos(p),
           priority: p.priority ?? 'low',
           resource: p.resourceEstimate,
           mainRisk: p.mainRisk ?? '',
@@ -97,7 +98,7 @@ function prospectsToExtrusionGeoJSON(prospects: Prospect[]): FeatureCollection<P
           [lon - halfSide, lat + halfSide],
           [lon - halfSide, lat - halfSide],
         ];
-        const gcosRaw = Number.isFinite(p.geologicalChanceOfSuccess) ? Math.max(0, p.geologicalChanceOfSuccess as number) : 0;
+        const gcosRaw = safeGcos(p);
         return {
           type: 'Feature' as const,
           geometry: { type: 'Polygon' as const, coordinates: [ring] },
@@ -124,20 +125,20 @@ function buildSpatialInsights(prospects: Prospect[]): string[] {
   }
   const sorted = [...basinMap.entries()]
     .map(([basin, ps]) => {
-      const best = ps.reduce((a, b) => ((b.geologicalChanceOfSuccess ?? 0) > (a.geologicalChanceOfSuccess ?? 0) ? b : a));
+      const best = ps.reduce((a, b) => (safeGcos(b) > safeGcos(a) ? b : a));
       const playCounts: Record<string, number> = {};
       for (const p of ps) if (p.playType) playCounts[p.playType] = (playCounts[p.playType] ?? 0) + 1;
       const dominantPlay = Object.entries(playCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
       return {
         basin,
         count: ps.length,
-        avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
+        avgGcos: ps.reduce((s, p) => s + safeGcos(p), 0) / ps.length,
         bestProspect: best.name,
         dominantPlay,
       };
     })
     .sort((a, b) => b.avgGcos - a.avgGcos);
-  const avgGcos = prospects.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / prospects.length;
+  const avgGcos = prospects.reduce((s, p) => s + safeGcos(p), 0) / prospects.length;
   const high = prospects.filter((p) => p.priority === 'high').length;
   const medium = prospects.filter((p) => p.priority === 'medium').length;
   const low = prospects.filter((p) => p.priority === 'low').length;
@@ -189,6 +190,7 @@ export function MapPage() {
 
   const [filter, setFilter] = useState<FilterState>({ basin: null, priority: null });
   const [is3D, setIs3D] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const [geolibreOpen, setGeolibreOpen] = useState(false);
   const [geolibreMsg, setGeolibreMsg] = useState<string | null>(null);
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
@@ -241,6 +243,33 @@ export function MapPage() {
         cluster: true,
         clusterMaxZoom: 10,
         clusterRadius: 40,
+      });
+
+      // Heatmap of prospect density / GCoS intensity — separate, unclustered source
+      // so density isn't distorted by the cluster aggregation above.
+      m.addSource('prospects-heat', {
+        type: 'geojson',
+        data: prospectsToGeoJSON(filteredRef.current),
+      });
+      m.addLayer({
+        id: 'prospect-heatmap',
+        type: 'heatmap',
+        source: 'prospects-heat',
+        layout: { visibility: 'none' },
+        paint: {
+          'heatmap-weight': ['interpolate', ['linear'], ['get', 'gcosRaw'], 0, 0.1, 0.5, 0.6, 1, 1],
+          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 0.3, 9, 1, 15, 1.5],
+          'heatmap-color': [
+            'interpolate', ['linear'], ['heatmap-density'],
+            0, 'rgba(8,145,178,0)',
+            0.25, '#0891b2',
+            0.5, '#6366f1',
+            0.75, '#f59e0b',
+            1, '#ef4444',
+          ],
+          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 12, 9, 25, 15, 40],
+          'heatmap-opacity': 0.75,
+        },
       });
 
       // Cluster circles
@@ -398,6 +427,8 @@ export function MapPage() {
     src?.setData(prospectsToGeoJSON(filteredProspects));
     const columnsSrc = mapRef.current.getSource('prospect-columns') as maplibregl.GeoJSONSource | undefined;
     columnsSrc?.setData(prospectsToExtrusionGeoJSON(filteredProspects));
+    const heatSrc = mapRef.current.getSource('prospects-heat') as maplibregl.GeoJSONSource | undefined;
+    heatSrc?.setData(prospectsToGeoJSON(filteredProspects));
 
     // Fit bounds when a filter is active and there are prospects to show
     if ((filter.basin || filter.priority) && filteredProspects.length > 0) {
@@ -421,6 +452,13 @@ export function MapPage() {
     m.setLayoutProperty('prospect-extrusions', 'visibility', is3D ? 'visible' : 'none');
     m.easeTo({ pitch: is3D ? 60 : 0, bearing: is3D ? -17 : 0, duration: 600 });
   }, [is3D]);
+
+  // Toggle the GCoS-weighted density heatmap overlay
+  useEffect(() => {
+    const m = mapRef.current;
+    if (!m || !layersReady.current) return;
+    m.setLayoutProperty('prospect-heatmap', 'visibility', showHeatmap ? 'visible' : 'none');
+  }, [showHeatmap]);
 
   const handleAiSend = (q: string) => {
     const question = q.trim();
@@ -540,6 +578,14 @@ export function MapPage() {
             className={`rounded-full border px-3 py-0.5 text-xs font-medium ${is3D ? 'border-cyan-700 bg-cyan-950/40 text-cyan-200' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
           >
             {is3D ? '3D View (GCoS height)' : '2D View'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowHeatmap((v) => !v)}
+            title="Toggle GCoS-weighted density heatmap"
+            className={`rounded-full border px-3 py-0.5 text-xs font-medium ${showHeatmap ? 'border-orange-700 bg-orange-950/40 text-orange-200' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
+          >
+            {showHeatmap ? 'Heatmap On' : 'Heatmap'}
           </button>
         </div>
       </section>
