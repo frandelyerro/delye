@@ -3,6 +3,13 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
+- Basin nearest-neighbor clustering stats: `basinClusteringStats()` (per-basin avg/min/
+  max NN distance, dense vs scattered flag at ~100 km avg NN) + a "basin cluster
+  density/spacing" advisor handler — informs infrastructure-sharing strategy. ~95
+  lines, pure functions, no deps. Deferred from cycle 18 to keep scope bounded.
+- MapPage zoom-to-outcomes: a "Show Outcomes" button that fitBounds to
+  outcome-labeled prospects, plus hardening the existing filter fitBounds for the
+  single-valid-prospect case (easeTo instead of degenerate bounds). ~60 lines.
 - Basin convex hull visualization — would require `@turf/turf` (justified, no paid
   API) for a tighter-fitting polygon than the bounding-circle approximation added in
   cycle 16. Lower priority now that basin extents are visualized without a new
@@ -21,6 +28,14 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   as `basin-circles-fill`/`basin-circles-line` layers from a `basin-circles` source
   in MapPage.tsx, toggled via the "Basin Circles" button. This supersedes the
   convex-hull item as the primary basin-extent visualization for now.
+- Analog proximity — IMPLEMENTED in cycle 18: `findNearestOutcome()` and
+  `rankByAnalogProximity()` in `geoUtils.ts` (generic over
+  `{ latitude, longitude, outcome?: { label } }`, `label !== 'unknown'` counts as
+  drilled), plus a "nearest analog to [name]" / "closest analog" advisor handler that
+  returns the nearest drilled well with outcome + distance for a named prospect, or a
+  top-3 analog-proximity ranking portfolio-wide. Handler placed BEFORE the
+  analog-field and nearest-prospect handlers (pattern precedence). 8 new geoUtils
+  tests + 4 advisor tests.
 - Point-to-point distance advisor query — IMPLEMENTED in cycle 17: new "how far is
   [name] from [name]" / "distance between" handler in `advisor.ts`, using the existing
   `haversineKm()` and `isValidCoordinate()` from `geoUtils.ts` plus the new

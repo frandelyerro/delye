@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { haversineKm, isValidCoordinate, findNearest, hasLowPrecisionCoordinates, findIsolated, basinBoundingCircle, circlePolygonCoordinates } from '../geoUtils';
+import { haversineKm, isValidCoordinate, findNearest, hasLowPrecisionCoordinates, findIsolated, basinBoundingCircle, circlePolygonCoordinates, findNearestOutcome, rankByAnalogProximity } from '../geoUtils';
 
 describe('haversineKm', () => {
   it('returns 0 for identical coordinates', () => {
@@ -78,6 +78,74 @@ describe('findNearest', () => {
     const withNullIsland = [{ id: 'null', latitude: 0, longitude: 0 }, ...items];
     const result = findNearest(withNullIsland, 0.2, 0.2);
     expect(result?.item.id).toBe('a');
+  });
+});
+
+type LabeledTestItem = { id: string; latitude: number; longitude: number; outcome?: { label: string } };
+
+describe('findNearestOutcome', () => {
+  const discovery: LabeledTestItem = { id: 'disc', latitude: 1, longitude: 1, outcome: { label: 'commercial_discovery' } };
+  const dryHole: LabeledTestItem = { id: 'dry', latitude: 20, longitude: 20, outcome: { label: 'dry_hole' } };
+  const unknownLabel: LabeledTestItem = { id: 'unk', latitude: 1.1, longitude: 1.1, outcome: { label: 'unknown' } };
+  const undrilled: LabeledTestItem = { id: 'und', latitude: 2, longitude: 2 };
+
+  it('finds the closest outcome-labeled candidate', () => {
+    const result = findNearestOutcome(undrilled, [discovery, dryHole, undrilled]);
+    expect(result?.item.id).toBe('disc');
+    expect(result!.distanceKm).toBeGreaterThan(0);
+  });
+
+  it('ignores unknown-label outcomes and other undrilled prospects', () => {
+    const result = findNearestOutcome(undrilled, [unknownLabel, dryHole, undrilled]);
+    expect(result?.item.id).toBe('dry');
+  });
+
+  it('returns null when the target has invalid coordinates', () => {
+    const badTarget: LabeledTestItem = { id: 'bad', latitude: 0, longitude: 0 };
+    expect(findNearestOutcome(badTarget, [discovery])).toBeNull();
+  });
+
+  it('returns null when no labeled analogs exist', () => {
+    expect(findNearestOutcome(undrilled, [unknownLabel, undrilled])).toBeNull();
+  });
+
+  it('never returns the target itself even if it is labeled', () => {
+    const result = findNearestOutcome(discovery, [discovery, dryHole]);
+    expect(result?.item.id).toBe('dry');
+  });
+});
+
+describe('rankByAnalogProximity', () => {
+  it('ranks undrilled prospects by distance to nearest labeled analog, closest first', () => {
+    const prospects: LabeledTestItem[] = [
+      { id: 'disc', latitude: 0.5, longitude: 0.5, outcome: { label: 'commercial_discovery' } },
+      { id: 'near', latitude: 1, longitude: 0.5 },
+      { id: 'far', latitude: 10, longitude: 10 },
+    ];
+    const ranked = rankByAnalogProximity(prospects);
+    expect(ranked).toHaveLength(2);
+    expect(ranked[0].item.id).toBe('near');
+    expect(ranked[1].item.id).toBe('far');
+    expect(ranked[0].nearest.id).toBe('disc');
+    expect(ranked[0].distanceKm).toBeLessThan(ranked[1].distanceKm);
+  });
+
+  it('returns empty array when no labeled outcomes exist', () => {
+    const prospects: LabeledTestItem[] = [
+      { id: 'a', latitude: 1, longitude: 1 },
+      { id: 'b', latitude: 2, longitude: 2 },
+    ];
+    expect(rankByAnalogProximity(prospects)).toEqual([]);
+  });
+
+  it('treats unknown-label prospects as undrilled and excludes labeled ones from the ranking', () => {
+    const prospects: LabeledTestItem[] = [
+      { id: 'disc', latitude: 1, longitude: 1, outcome: { label: 'dry_hole' } },
+      { id: 'unk', latitude: 1.5, longitude: 1.5, outcome: { label: 'unknown' } },
+    ];
+    const ranked = rankByAnalogProximity(prospects);
+    expect(ranked).toHaveLength(1);
+    expect(ranked[0].item.id).toBe('unk');
   });
 });
 

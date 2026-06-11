@@ -3,6 +3,17 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
+- Seal / fault-seal analysis module (top candidate for a future cycle): a pure
+  `sealAnalysis.ts` grouping prospects by seal lithology, flagging
+  `faultSealRisk === 'high'` and seal-limited prospects, cross-tabbed with trap type
+  (subsalt traps need higher seal confidence), plus advisor handlers ("which prospects
+  have high fault seal risk"). Methodology: AAPG Memoir 74; Knipe et al. (1997) fault
+  seal prediction. ~120–150 lines, additive only. Seal failure is the most common
+  dry-hole cause, and the evidence fields already exist but aren't exposed to the advisor.
+- `findAnalogs()` (analogFinder.ts) ignores play type and basin — add optional
+  `samePlayType`/`sameBasin`/`byMainRisk` filters and an outcome-conditioned variant
+  (analogs restricted to prospects with historical outcomes). Complements the
+  cycle-18 spatial analog-proximity work (geodata.md), which is distance-based only.
 - Unconventional reservoir flag-consistency check (`geoscienceEngine.ts` ~line 174):
   porosity/permeability assessment branches on `evidence.isUnconventional`, but there's
   no validation that this flag matches the actual porosity/permeability profile (e.g.
@@ -14,6 +25,15 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   evidence for a tight-sandstone case.
 
 ## Completed
+- Outcome success-rate analytics — IMPLEMENTED in cycle 18: `getBasinOutcomeStats()`,
+  `getPlayTypeOutcomeStats()` (shared `groupOutcomeStats` helper) and
+  `getOutcomeCalibration()` (10 GCoS buckets, actual vs midpoint-expected success rate,
+  Rose & Associates lookback methodology) in `portfolioIntelligence.ts`, plus two
+  advisor handlers: "success rate (by basin/play)" and "gcos calibration" (flags
+  OPTIMISTIC/CONSERVATIVE buckets only when n>=5). Only outcomes with
+  `label !== 'unknown'` count; small-sample caveat included in every response.
+  Surfaced in the new Calibration page (/calibration, see dev.md). Pure aggregation —
+  no scoring/engine change.
 - Trap-geometry advisor query — IMPLEMENTED in cycle 17: new handler in `advisor.ts`
   triggered by trap-type/geometry/closure/subsalt keywords. Reads `evidence?.trap`
   (`TrapEvidence`: `closureMapped`, `trapType`, `closureAreaKm2`, `closureHeightM`,

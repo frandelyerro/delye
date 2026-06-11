@@ -293,6 +293,10 @@ export const getDrillSequenceOrder = (prospects: Prospect[], topN = 5): DrillSeq
     .slice(0, topN)
     .map((e, i) => ({ ...e, rank: i + 1 }));
 
+// `?? 0` does not catch an explicit NaN (NaN is a `number`); these stats feed charts.
+const finiteGcos = (p: Prospect): number =>
+  Number.isFinite(p.geologicalChanceOfSuccess) ? Math.max(0, p.geologicalChanceOfSuccess as number) : 0;
+
 export type OutcomeStats = {
   totalDrilled: number;
   commercialDiscoveries: number;
@@ -323,3 +327,92 @@ export const getOutcomeStats = (prospects: Prospect[]): OutcomeStats => {
     .reduce((sum, p) => sum + (p.resourceEstimate ?? 0), 0);
   return { totalDrilled: drilled.length, commercialDiscoveries, technicalDiscoveries, dryHoles, nonCommercial, geologicalSuccessRate, commercialSuccessRate, totalResourceDiscoveredMMboe };
 };
+
+export type OutcomeCalibrationBucket = {
+  /** Label, e.g. "10–20%" */
+  label: string;
+  /** Bottom of bucket, 0–1 */
+  min: number;
+  /** Outcome-labeled prospects whose pre-drill GCoS falls in this bucket */
+  drilled: number;
+  /** Geological successes (commercial + technical discoveries) in this bucket */
+  successes: number;
+  /** Observed geological success rate for the bucket, 0–100 */
+  actualSuccessRate: number;
+  /** Bucket midpoint as 0–100 — what a perfectly calibrated GCoS would predict */
+  expectedSuccessRate: number;
+};
+
+/**
+ * Buckets outcome-labeled prospects by pre-drill expert GCoS (10% bins) and
+ * compares the observed geological success rate against the bucket midpoint.
+ * A well-calibrated portfolio has actual ≈ expected in every populated bucket
+ * (Rose & Associates lookback methodology). Small buckets (<5 wells) are noisy.
+ */
+export const getOutcomeCalibration = (prospects: Prospect[]): OutcomeCalibrationBucket[] => {
+  const buckets: OutcomeCalibrationBucket[] = Array.from({ length: 10 }, (_, i) => ({
+    label: `${i * 10}–${(i + 1) * 10}%`,
+    min: i / 10,
+    drilled: 0,
+    successes: 0,
+    actualSuccessRate: 0,
+    expectedSuccessRate: i * 10 + 5,
+  }));
+  for (const p of prospects) {
+    if (!p.outcome || p.outcome.label === 'unknown') continue;
+    const idx = Math.min(Math.floor(finiteGcos(p) * 10), 9);
+    buckets[idx].drilled++;
+    if (isGeologicalSuccess(p.outcome)) buckets[idx].successes++;
+  }
+  for (const b of buckets) {
+    b.actualSuccessRate = b.drilled ? Math.round((b.successes / b.drilled) * 100) : 0;
+  }
+  return buckets;
+};
+
+export type GroupOutcomeStats = {
+  group: string;
+  drilled: number;
+  geologicalSuccesses: number;
+  commercialSuccesses: number;
+  /** Observed geological success rate, 0–100 */
+  geologicalSuccessRate: number;
+  /** Observed commercial success rate, 0–100 */
+  commercialSuccessRate: number;
+  /** Average pre-drill expert GCoS of the drilled prospects, 0–100 */
+  avgPredrillGcos: number;
+};
+
+const groupOutcomeStats = (prospects: Prospect[], keyOf: (p: Prospect) => string): GroupOutcomeStats[] => {
+  const groups = new Map<string, Prospect[]>();
+  for (const p of prospects) {
+    if (!p.outcome || p.outcome.label === 'unknown') continue;
+    const key = keyOf(p) || 'Unknown';
+    const list = groups.get(key) ?? [];
+    list.push(p);
+    groups.set(key, list);
+  }
+  return [...groups.entries()]
+    .map(([group, drilled]) => {
+      const geologicalSuccesses = drilled.filter((p) => isGeologicalSuccess(p.outcome!)).length;
+      const commercialSuccesses = drilled.filter((p) => isCommercialSuccess(p.outcome!)).length;
+      return {
+        group,
+        drilled: drilled.length,
+        geologicalSuccesses,
+        commercialSuccesses,
+        geologicalSuccessRate: Math.round((geologicalSuccesses / drilled.length) * 100),
+        commercialSuccessRate: Math.round((commercialSuccesses / drilled.length) * 100),
+        avgPredrillGcos: Math.round((drilled.reduce((s, p) => s + finiteGcos(p), 0) / drilled.length) * 100),
+      };
+    })
+    .sort((a, b) => b.drilled - a.drilled);
+};
+
+/** Observed drilling success rates per basin (outcome-labeled prospects only). */
+export const getBasinOutcomeStats = (prospects: Prospect[]): GroupOutcomeStats[] =>
+  groupOutcomeStats(prospects, (p) => p.basin);
+
+/** Observed drilling success rates per play type (outcome-labeled prospects only). */
+export const getPlayTypeOutcomeStats = (prospects: Prospect[]): GroupOutcomeStats[] =>
+  groupOutcomeStats(prospects, (p) => p.playType);

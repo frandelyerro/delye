@@ -14,14 +14,14 @@ import {
   getProspectivityTier,
   getTierLabel,
 } from './recommendationEngine';
-import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk, getDrillSequenceOrder } from './portfolioIntelligence';
+import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk, getDrillSequenceOrder, getOutcomeStats, getBasinOutcomeStats, getPlayTypeOutcomeStats, getOutcomeCalibration } from './portfolioIntelligence';
 import { getEconomicAssumptionDefaults, getDecisionSignalLabel } from './economics';
 import { assessMLReadiness } from './mlReadiness';
 import { compareExpertAndML } from './mlModel';
 import { buildTrainingRows } from './mlTrainingFeatures';
 import { getDefaultMLTrainingConfig } from './mlTrainingService';
 import { isKnownOutcome, isGeologicalSuccess, isCommercialSuccess, getOutcomeLabelText } from './outcomes';
-import { haversineKm, isValidCoordinate, findNearest } from './geoUtils';
+import { haversineKm, isValidCoordinate, findNearest, findNearestOutcome, rankByAnalogProximity } from './geoUtils';
 
 // Summarizes the real labeled training set the baseline model would use.
 // Kept pure (no localStorage): advisor answers are based on portfolio
@@ -642,6 +642,50 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return lines.join(' ') + ' These are positive examples in the real training dataset. No trained ML model is connected yet.';
   }
 
+  if (
+    q.includes('success rate') ||
+    q.includes('success rates') ||
+    (q.includes('success') && (q.includes('by basin') || q.includes('by play') || q.includes('per basin') || q.includes('per play')))
+  ) {
+    const stats = getOutcomeStats(prospects);
+    if (!stats.totalDrilled) {
+      return 'No drilled outcomes recorded yet, so no success rates can be computed. Label outcomes in bulk on the Outcome Labeling page (/outcomes) or per prospect via the Historical Outcome section.';
+    }
+    const byBasin = getBasinOutcomeStats(prospects);
+    const byPlay = getPlayTypeOutcomeStats(prospects);
+    const lines: string[] = [
+      `Portfolio success rates (${stats.totalDrilled} drilled): ${stats.geologicalSuccessRate}% geological, ${stats.commercialSuccessRate}% commercial (${stats.commercialDiscoveries} commercial discoveries, ${stats.technicalDiscoveries} technical, ${stats.dryHoles} dry holes, ${stats.nonCommercial} non-commercial).`,
+    ];
+    if (byBasin.length) {
+      lines.push(`By basin: ${byBasin.map((b) => `${b.group} ${b.geologicalSuccessRate}% geological over ${b.drilled} well${b.drilled !== 1 ? 's' : ''} (avg pre-drill GCoS ${b.avgPredrillGcos}%)`).join('; ')}.`);
+    }
+    if (byPlay.length) {
+      lines.push(`By play type: ${byPlay.map((p) => `${p.group} ${p.geologicalSuccessRate}% geological over ${p.drilled} well${p.drilled !== 1 ? 's' : ''} (avg pre-drill GCoS ${p.avgPredrillGcos}%)`).join('; ')}.`);
+    }
+    lines.push('Groups with fewer than 5 wells are statistically noisy — treat their rates as indicative only. See the Calibration page (/calibration) for the actual-vs-predicted breakdown.');
+    return lines.join(' ');
+  }
+
+  if (
+    q.includes('calibrat') ||
+    q.includes('actual vs predicted') ||
+    q.includes('predicted vs actual') ||
+    (q.includes('gcos') && q.includes('outcome') && (q.includes('match') || q.includes('compare')))
+  ) {
+    const populated = getOutcomeCalibration(prospects).filter((b) => b.drilled > 0);
+    if (!populated.length) {
+      return 'GCoS calibration compares predicted chance of success against observed drilling outcomes (Rose & Associates lookback methodology). No drilled outcomes are recorded yet — label outcomes on the Outcome Labeling page (/outcomes), then check the Calibration page (/calibration).';
+    }
+    const rows = populated.map((b) => `${b.label} GCoS bucket: ${b.actualSuccessRate}% actual success over ${b.drilled} well${b.drilled !== 1 ? 's' : ''} (calibrated would be ~${b.expectedSuccessRate}%)`);
+    const overconfident = populated.filter((b) => b.drilled >= 5 && b.actualSuccessRate < b.expectedSuccessRate - 10);
+    const underconfident = populated.filter((b) => b.drilled >= 5 && b.actualSuccessRate > b.expectedSuccessRate + 10);
+    let verdict = 'Buckets with fewer than 5 wells are too small to judge calibration.';
+    if (overconfident.length) verdict = `GCoS appears OPTIMISTIC in ${overconfident.map((b) => b.label).join(', ')} — actual success ran below prediction; tighten risking in those ranges.`;
+    else if (underconfident.length) verdict = `GCoS appears CONSERVATIVE in ${underconfident.map((b) => b.label).join(', ')} — actual success ran above prediction.`;
+    else if (populated.some((b) => b.drilled >= 5)) verdict = 'Populated buckets with 5+ wells are within ±10% of prediction — GCoS looks reasonably calibrated so far.';
+    return `GCoS calibration vs drilled outcomes: ${rows.join('; ')}. ${verdict} Full chart on the Calibration page (/calibration).`;
+  }
+
   // ---- Norway FactPages Adapter queries ----
 
   if (
@@ -824,6 +868,40 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     const withPotential = frontier.filter((p) => (p.geologicalChanceOfSuccess ?? 0) > 0.1);
     const basinFrontier = [...new Set(frontier.map((p) => p.basin))];
     return `Frontier region analysis: ${frontier.length} prospect${frontier.length !== 1 ? 's' : ''} with data confidence < 50 across ${basinFrontier.length} basin${basinFrontier.length !== 1 ? 's' : ''} (${basinFrontier.join(', ')}). ${withPotential.length} of these still show GCoS > 10% despite limited data — candidates for seismic acquisition before drilling. Increasing data confidence in frontier prospects improves ML readiness and reduces pre-drill uncertainty.`;
+  }
+
+  if (
+    q.includes('nearest analog') ||
+    q.includes('closest analog') ||
+    q.includes('analog proximity') ||
+    q.includes('nearest outcome') ||
+    q.includes('nearest discovery') ||
+    q.includes('nearest dry hole') ||
+    ((q.includes('analog') || q.includes('outcome')) && (q.includes('nearest') || q.includes('closest')))
+  ) {
+    const labeled = prospects.filter((p) => p.outcome && isKnownOutcome(p.outcome) && isValidCoordinate(p.latitude, p.longitude));
+    if (!labeled.length) {
+      return 'No outcome-labeled prospects with valid coordinates exist yet, so analog proximity cannot be computed. Record drilling outcomes on the Outcome Labeling page (/outcomes) first.';
+    }
+    const target = findMentionedProspect(q, prospects);
+    if (target) {
+      if (!isValidCoordinate(target.latitude, target.longitude)) {
+        return `${target.name} has no valid coordinates — cannot compute analog proximity. Fix its latitude/longitude in the Edit Prospect form.`;
+      }
+      if (target.outcome && isKnownOutcome(target.outcome)) {
+        return `${target.name} is already outcome-labeled (${getOutcomeLabelText(target.outcome.label)}) — it serves as a spatial analog for nearby undrilled prospects rather than needing one itself.`;
+      }
+      const nearest = findNearestOutcome(target, prospects);
+      if (!nearest) return `No outcome-labeled analog found for ${target.name}.`;
+      const o = nearest.item.outcome!;
+      const detail = [o.wellName ? `well ${o.wellName}` : '', o.drillYear ? `${o.drillYear}` : ''].filter(Boolean).join(', ');
+      return `Nearest drilled analog to ${target.name}: ${nearest.item.name} — ${getOutcomeLabelText(o.label)}${detail ? ` (${detail})` : ''} at ${Math.round(nearest.distanceKm)} km. ${o.label === 'dry_hole' || o.label === 'non_commercial' ? 'A nearby failure is a de-risking warning — review whether it tested the same play elements (source, charge, seal) before relying on it as a negative analog.' : 'A nearby success de-risks shared play elements, but only if it tested the same reservoir/seal pair — verify play equivalence before crediting it.'}`;
+    }
+    const ranked = rankByAnalogProximity(prospects).slice(0, 3);
+    if (!ranked.length) {
+      return 'All prospects with valid coordinates already have recorded outcomes — there are no undrilled prospects to rank by analog proximity.';
+    }
+    return `Undrilled prospects closest to a drilled analog: ${ranked.map((r) => `${r.item.name} → ${r.nearest.name} (${getOutcomeLabelText(r.nearest.outcome!.label)}, ${Math.round(r.distanceKm)} km)`).join('; ')}. Proximity to drilled wells provides the most direct calibration data — start de-risking reviews with these. Ask "nearest analog to [name]" for a specific prospect.`;
   }
 
   if (
@@ -1021,5 +1099,5 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Play-type distribution across ${prospects.length} prospect${prospects.length !== 1 ? 's' : ''}: ${lines}. Dominant play type: ${dominant?.play ?? '—'} with ${dominant?.count} prospect${dominant?.count !== 1 ? 's' : ''}. Diversifying across play types reduces correlated geological risk — if all prospects share the same source kitchen or seal type, a single regional failure could eliminate the entire portfolio value. The Map page play-type filter lets you visualize spatial play concentration.`;
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "migration risk", "risk reward", "risk-reward", "capital efficiency", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", "norway limitations", "basin distribution", "best basin", "map overview", "spatial overview", "cluster analysis", "frontier basin", "analog field", "source rock maturity", "seal integrity", "reservoir quality", "trap geometry", "target depth", "nearest prospect", "how far is [name] from [name]", "play type distribution", or "explain GCoS".';
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "migration risk", "risk reward", "risk-reward", "capital efficiency", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", "norway limitations", "basin distribution", "best basin", "map overview", "spatial overview", "cluster analysis", "frontier basin", "analog field", "source rock maturity", "seal integrity", "reservoir quality", "trap geometry", "target depth", "nearest prospect", "how far is [name] from [name]", "play type distribution", "success rate by basin", "gcos calibration", "nearest analog to [name]", or "explain GCoS".';
 };

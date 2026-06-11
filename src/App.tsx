@@ -14,6 +14,7 @@ const UploadPage = lazy(() => import('./pages/UploadPage').then((m) => ({ defaul
 const AgentEvolutionPage = lazy(() => import('./pages/AgentEvolutionPage').then((m) => ({ default: m.AgentEvolutionPage })));
 const VisualizationsPage = lazy(() => import('./pages/VisualizationsPage').then((m) => ({ default: m.VisualizationsPage })));
 const BatchOutcomePage = lazy(() => import('./pages/BatchOutcomePage').then((m) => ({ default: m.BatchOutcomePage })));
+const CalibrationPage = lazy(() => import('./pages/CalibrationPage').then((m) => ({ default: m.CalibrationPage })));
 
 const PageFallback = () => (
   <div className="flex items-center justify-center h-64 text-slate-500 text-sm">Loading…</div>
@@ -33,6 +34,7 @@ export function App() {
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/ml-lab" element={<MLLabPage />} />
           <Route path="/outcomes" element={<BatchOutcomePage />} />
+          <Route path="/calibration" element={<CalibrationPage />} />
           <Route path="/comparison" element={<ComparisonPage />} />
           <Route path="/agents" element={<AgentEvolutionPage />} />
           <Route path="/prospects/new" element={<ProspectFormPage />} />

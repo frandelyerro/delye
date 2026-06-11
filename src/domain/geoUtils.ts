@@ -75,6 +75,46 @@ export function findIsolated<T extends { latitude: number; longitude: number }>(
   });
 }
 
+type MaybeLabeled = { latitude: number; longitude: number; outcome?: { label: string } };
+
+const hasKnownOutcome = (item: MaybeLabeled): boolean =>
+  Boolean(item.outcome && item.outcome.label !== 'unknown');
+
+/**
+ * Finds the nearest outcome-labeled prospect (any known outcome class) to the
+ * target. Returns null when the target has invalid coordinates or no labeled
+ * analog exists. The nearest drilled well — discovery or dry hole — is the most
+ * direct spatial analog for calibrating an undrilled prospect.
+ */
+export function findNearestOutcome<T extends MaybeLabeled>(
+  target: T,
+  candidates: T[],
+): { item: T; distanceKm: number } | null {
+  if (!isValidCoordinate(target.latitude, target.longitude)) return null;
+  const labeled = candidates.filter((c) => c !== target && hasKnownOutcome(c));
+  return findNearest(labeled, target.latitude, target.longitude);
+}
+
+/**
+ * Ranks undrilled prospects (no known outcome) by distance to their nearest
+ * outcome-labeled analog, closest first. Returns [] when no labeled analogs
+ * or no undrilled prospects with valid coordinates exist.
+ */
+export function rankByAnalogProximity<T extends MaybeLabeled>(
+  prospects: T[],
+): { item: T; nearest: T; distanceKm: number }[] {
+  const undrilled = prospects.filter(
+    (p) => !hasKnownOutcome(p) && isValidCoordinate(p.latitude, p.longitude),
+  );
+  return undrilled
+    .map((p) => {
+      const n = findNearestOutcome(p, prospects);
+      return n ? { item: p, nearest: n.item, distanceKm: n.distanceKm } : null;
+    })
+    .filter((x): x is { item: T; nearest: T; distanceKm: number } => x !== null)
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
 /** Computes the centroid and the radius of the smallest circle (centered on the
  * centroid) enclosing all valid items. Returns null if there are no valid items. */
 export function basinBoundingCircle<T extends { latitude: number; longitude: number }>(

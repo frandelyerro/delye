@@ -3,8 +3,20 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
+- `advisor.ts` reached ~1100 lines (cycle 18): `getAdvisorResponse()` is one function
+  with ~40 `q.includes(...)` branches. Proposed split: extract handlers into
+  `advisorHandlers.ts` with a pattern→handler registry. DEFERRED — branch precedence
+  is load-bearing (earlier greedy patterns like "why is", "seal risk" intentionally
+  shadow later ones), so a mechanical registry refactor is regression-prone. Needs a
+  dedicated cycle that (a) freezes handler additions, (b) preserves exact ordering in
+  the registry array, and (c) leans on the ~60 advisor tests as the safety net.
 - Large pages lacking internal decomposition: MLLabPage (~900L), ProspectFormPage
   (~900L), ProspectDetailPage (~760L). Split into per-section subcomponents.
+  For ProspectFormPage specifically: extract an `<EvidenceSection>` subcomponent
+  (6 nearly identical evidence blocks at ~lines 459–752).
+- MLLabPage: `buildTrainingRows()` recomputes on every UI toggle — split the
+  expensive row-building memo (deps: prospects, config) from the cheap
+  filtering/aggregation memo (deps: UI state), or use `useDeferredValue`.
 - `COMPONENT_COLOR` and `CONFIDENCE_COLOR` (VisualizationsPage) remain page-local —
   `CONFIDENCE_COLOR.high` (`#34d399`) differs intentionally from `PRIORITY_COLOR.high`
   (`#22c55e`), so do NOT merge these into `chartConfig.ts`'s `PRIORITY_COLOR`.

@@ -3,9 +3,22 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- (none currently flagged — re-assess feature backlog next cycle)
+- Drill-sequence / budget allocation planner: `getDrillSequenceOrder()` exists but
+  there's no budget-constrained view (EMV waterfall, cumulative capex vs risked
+  resource). Next-best candidate after calibration; uses existing
+  `economicAssessment` fields only.
+- CSV export exists on Dashboard; consider a calibration-data CSV export on
+  /calibration if users ask for lookback data offline.
 
 ## Completed
+- Outcome Calibration page — IMPLEMENTED in cycle 18: new
+  `src/pages/CalibrationPage.tsx` at route `/calibration` (sidebar: "Calibration").
+  KPI row from `getOutcomeStats`, actual-vs-predicted grouped bar chart from
+  `getOutcomeCalibration` (only populated buckets), and per-basin / per-play-type
+  success tables from `getBasinOutcomeStats`/`getPlayTypeOutcomeStats` with
+  optimistic/conservative/calibrated badges (±10% threshold, n>=5 gate, "n<5"
+  otherwise). Empty state links to /outcomes. Closes the label → calibrate → train
+  UX loop opened by cycle 17's Outcome Labeling page.
 - Batch outcome labeling — IMPLEMENTED in cycle 17: new `src/pages/BatchOutcomePage.tsx`
   at route `/outcomes` (sidebar: "Outcome Labeling"). Shows an ML-readiness summary
   (via `assessMLReadiness`), basin + "unlabeled only" filters, a per-row outcome-label

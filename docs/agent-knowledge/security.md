@@ -11,6 +11,14 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   (`npm run typecheck && npm run test && npm run build` plus a manual smoke check).
 
 ## Resolved
+- 2026-06-11 (cycle 18): Re-audit clean — `npm audit` unchanged (2 moderate dev-only),
+  all MapLibre popup interpolations still `esc()`-escaped (incl. the outcome label
+  added in cycle 17), BatchOutcomePage select values are enum-constrained at the
+  `<option>` source before the `as` casts, localStorage keys remain hardcoded
+  constants, and CSV/JSON import has no dynamic property assignment from
+  user-controlled keys. Cycle-18 additions (calibration stats, analog proximity,
+  CalibrationPage) are pure aggregation + React-rendered JSX — no new HTML-string or
+  injection surfaces.
 - 2026-06-10 (cycle 17): The previously-flagged CRITICAL finding (vitest <=3.2.5 /
   vite <=6.4.1 / esbuild <=0.24.2, vitest UI arbitrary file read/exec) is RESOLVED.
   Root cause was simpler than previously assessed: `node_modules/maplibre-gl` was

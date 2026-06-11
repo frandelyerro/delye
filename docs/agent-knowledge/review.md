@@ -6,6 +6,14 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
 - (none recorded yet)
 
 ## Completed
+- 2026-06-11 (cycle 18): Full sweep of cycle-17 code (BatchOutcomePage,
+  `batchUpdateOutcomes`, trap-geometry/distance advisor handlers, MapLibre cleanup,
+  chartConfig dedup) found ZERO HIGH/MEDIUM issues. Re-verified the
+  `geologicalChanceOfSuccess ?? 0` pattern is eliminated from `src/pages/`; remaining
+  `?? 0` uses in `advisor.ts` are display-only string interpolation (safe). Note for
+  future advisor tests: prospect NAMES can contain trigger words (e.g. "Caspian Seal
+  Risk" fires the seal-risk handler before a later handler sees the question) — pick
+  neutral names like "Vaca Norte Lead" when interpolating names into test questions.
 - 2026-06-10 (cycle 17): Fixed `findMentionedProspects()` in `advisor.ts` (HIGH) —
   it matched any prospect whose name was a substring of another matched prospect's
   name (e.g. "Tupi" inside "Tupi North"), so two-prospect queries (compare, distance)

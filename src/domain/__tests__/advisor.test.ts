@@ -412,3 +412,60 @@ describe('advisor spatial proximity queries', () => {
     expect(response.toLowerCase()).toMatch(/play/i);
   });
 });
+
+describe('advisor outcome analytics queries', () => {
+  // Label by name (not index) so the tests stay deterministic, and pick an
+  // undrilled target whose name contains no advisor trigger words (e.g.
+  // "Caspian Seal Risk" would fire the seal-risk handler first).
+  const labeled = prospects.map((p) => {
+    if (p.name === 'Wolfcamp East') return { ...p, outcome: { label: 'commercial_discovery' as const, targetVariable: 'geological_success' as const, resultConfidence: 'high' as const, source: 'historical' as const } };
+    if (p.name === 'Austral Shelf Fan') return { ...p, outcome: { label: 'dry_hole' as const, targetVariable: 'geological_success' as const, resultConfidence: 'high' as const, source: 'historical' as const } };
+    return p;
+  });
+
+  it('"success rate by basin" reports rates when outcomes exist', () => {
+    const response = getAdvisorResponse('what is our success rate by basin?', labeled);
+    expect(response).toContain('Portfolio success rates');
+    expect(response).toMatch(/\d+% geological/);
+    expect(response.toLowerCase()).toContain('by basin');
+  });
+
+  it('"success rate" with no outcomes points to the Outcome Labeling page', () => {
+    const response = getAdvisorResponse('what is our success rate?', prospects);
+    expect(response.toLowerCase()).toMatch(/no drilled outcomes|\/outcomes/);
+  });
+
+  it('"gcos calibration" reports bucket calibration when outcomes exist', () => {
+    const response = getAdvisorResponse('how is our gcos calibration looking?', labeled);
+    expect(response.toLowerCase()).toContain('calibration');
+    expect(response).toMatch(/\d+–\d+% GCoS bucket/);
+  });
+
+  it('"calibration" with no outcomes explains lookback methodology and points to /outcomes', () => {
+    const response = getAdvisorResponse('is our gcos calibrated?', prospects);
+    expect(response.toLowerCase()).toContain('calibration');
+    expect(response).toContain('/outcomes');
+  });
+
+  it('"nearest analog to [name]" names the closest labeled analog with distance', () => {
+    const response = getAdvisorResponse('what is the nearest analog to Vaca Norte Lead?', labeled);
+    expect(response).toContain('Nearest drilled analog to Vaca Norte Lead');
+    expect(response).toMatch(/\d+ km/);
+  });
+
+  it('"nearest analog" without a name ranks undrilled prospects by analog proximity', () => {
+    const response = getAdvisorResponse('which prospects are closest to a drilled analog?', labeled);
+    expect(response.toLowerCase()).toMatch(/closest to a drilled analog|nearest drilled analog/);
+    expect(response).toMatch(/km/);
+  });
+
+  it('"nearest analog" with no labeled outcomes points to the Outcome Labeling page', () => {
+    const response = getAdvisorResponse('show me the nearest analog to anything', prospects);
+    expect(response).toContain('/outcomes');
+  });
+
+  it('"nearest analog to [name]" for an already-labeled prospect says it serves as an analog', () => {
+    const response = getAdvisorResponse('nearest analog to Wolfcamp East', labeled);
+    expect(response.toLowerCase()).toMatch(/already outcome-labeled|serves as a spatial analog/);
+  });
+});

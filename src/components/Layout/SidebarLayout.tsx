@@ -11,6 +11,7 @@ const nav = [
   { to: '/advisor', label: 'Advisor' },
   { to: '/ml-lab', label: 'ML Lab' },
   { to: '/outcomes', label: 'Outcome Labeling' },
+  { to: '/calibration', label: 'Calibration' },
   { to: '/upload', label: 'Upload' },
   { to: '/agents', label: 'Agent Evolution' },
 ];

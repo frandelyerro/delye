@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 17;
+const CURRENT_CYCLE = 18;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata';
 
@@ -36,7 +36,7 @@ const AGENTS: AgentDef[] = [
     depth: 78,
     totalFindings: 25,
     implemented: 20,
-    latestFinding: 'Extracted shared chart styling into src/utils/chartConfig.ts (CHART_TOOLTIP_STYLE, PRIORITY_COLOR, BASIN_PALETTE) — removed duplicated tooltip and palette constants from DashboardPage, MapPage, VisualizationsPage, and ComparisonPage.',
+    latestFinding: 'Flagged advisor.ts at 1025 lines (36 if-branches in one function) — proposed a pattern-registry split into advisorHandlers.ts. Deferred to a dedicated cycle: branch precedence makes a mechanical registry refactor regression-prone while handlers are still being added.',
     knownGaps: ['Missing useMemo on O(n²) renders', 'ProspectFormPage (915), ProspectDetailPage (728), MapPage (601) still >300 lines', '<PanelSection> extraction still pending (~10 call sites)'],
   },
   {
@@ -51,7 +51,7 @@ const AGENTS: AgentDef[] = [
     depth: 85,
     totalFindings: 36,
     implemented: 33,
-    latestFinding: 'Added a trap-geometry advisor handler covering trap-type distribution, unmapped closures, and subsalt seismic-confidence flags from evidence.trap — surfaces trap-limited prospects with a methodology note.',
+    latestFinding: 'Shipped outcome success-rate analytics: getBasinOutcomeStats/getPlayTypeOutcomeStats/getOutcomeCalibration in portfolioIntelligence.ts plus "success rate by basin" and "gcos calibration" advisor handlers — Rose & Associates lookback methodology over the new labeled outcomes.',
     knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation'],
   },
   {
@@ -66,7 +66,7 @@ const AGENTS: AgentDef[] = [
     depth: 90,
     totalFindings: 20,
     implemented: 19,
-    latestFinding: 'Fixed findMentionedProspects() matching prospects whose names overlap as substrings (e.g. "Tupi" inside "Tupi North") — now excludes overlapping matches so multi-prospect advisor queries (compare, distance) target the correct pair.',
+    latestFinding: 'Cycle-18 sweep of all cycle-17 code (BatchOutcomePage, batchUpdateOutcomes, trap/distance handlers, MapLibre cleanup) found zero HIGH/MEDIUM issues — confirmed the `geologicalChanceOfSuccess ?? 0` NaN pattern is fully eliminated from src/pages/.',
     knownGaps: ['useEffect stale closure detection', 'Missing useCallback on memoized-child setters'],
   },
   {
@@ -81,7 +81,7 @@ const AGENTS: AgentDef[] = [
     depth: 82,
     totalFindings: 9,
     implemented: 8,
-    latestFinding: 'vitest upgraded to 4.1.8 — patched CVSS 9.8 arbitrary file read (GHSA-5xrq-8626-4rwp).',
+    latestFinding: 'Cycle-18 re-audit clean: all MapLibre popup interpolations esc()-escaped, BatchOutcomePage selects enum-constrained, localStorage keys hardcoded, no prototype-pollution path in CSV/JSON import. Only the 2 known moderate dev-only esbuild/vite findings remain (deferred).',
     knownGaps: ['Dynamic property access on external data', 'Vite CSP header config'],
   },
   {
@@ -96,7 +96,7 @@ const AGENTS: AgentDef[] = [
     depth: 70,
     totalFindings: 18,
     implemented: 14,
-    latestFinding: 'Shipped the Outcome Labeling page (/outcomes) — bulk-edit drilling outcomes with basin/unlabeled filters and a one-click "apply to visible" action, wired to a new batchUpdateOutcomes store mutation that feeds ML readiness.',
+    latestFinding: 'Shipped the Outcome Calibration page (/calibration) — actual-vs-predicted success by GCoS bucket with optimistic/conservative/calibrated badges, plus per-basin and per-play success-rate tables, closing the label → calibrate → train UX loop.',
     knownGaps: ['Play-type legend WCAG AA contrast not yet verified', 'Mobile breakpoint validation'],
   },
   {
@@ -111,7 +111,7 @@ const AGENTS: AgentDef[] = [
     depth: 76,
     totalFindings: 14,
     implemented: 12,
-    latestFinding: 'Added a great-circle distance advisor query ("how far is X from Y") using haversineKm — returns distance plus shared-infrastructure guidance tiered at <50km / <200km / >=200km.',
+    latestFinding: 'Added analog-proximity analysis: findNearestOutcome()/rankByAnalogProximity() in geoUtils.ts plus a "nearest analog to [name]" advisor handler — ranks undrilled prospects by distance to the nearest drilled (outcome-labeled) well.',
     knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred — requires MapLibre expression-based clusterProperties, untestable by unit tests, risk of cluster regressions'],
   },
 ];
@@ -145,6 +145,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 15, architect: 1, petro: 2, review: 2, security: 1, dev: 0, geodata: 1, highlight: 'GCoS NaN-safety (numberUtils), density heatmap layer, advisor compare/prioritize handlers' },
   { cycle: 16, architect: 2, petro: 1, review: 2, security: 1, dev: 0, geodata: 1, highlight: 'VisualizationsPage NaN fixes, badge-style dedup, basin bounding-circle overlay' },
   { cycle: 17, architect: 1, petro: 2, review: 3, security: 1, dev: 1, geodata: 2, highlight: 'Trap-geometry advisor query, great-circle distance query, findMentionedProspects substring fix, chart-config dedup, batch outcome labeling' },
+  { cycle: 18, architect: 0, petro: 1, review: 0, security: 0, dev: 1, geodata: 1, highlight: 'Outcome Calibration page (/calibration), success-rate-by-basin/play advisor analytics, nearest-drilled-analog proximity ranking' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {
