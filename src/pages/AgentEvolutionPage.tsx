@@ -5,7 +5,7 @@ import {
 
 const CURRENT_CYCLE = 18;
 
-type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata';
+type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata' | 'ml';
 
 type AgentDef = {
   id: AgentId;
@@ -114,6 +114,21 @@ const AGENTS: AgentDef[] = [
     latestFinding: 'Added analog-proximity analysis: findNearestOutcome()/rankByAnalogProximity() in geoUtils.ts plus a "nearest analog to [name]" advisor handler — ranks undrilled prospects by distance to the nearest drilled (outcome-labeled) well.',
     knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred — requires MapLibre expression-based clusterProperties, untestable by unit tests, risk of cluster regressions'],
   },
+  {
+    id: 'ml',
+    label: 'AI / ML',
+    color: '#ec4899',
+    ring: 'border-pink-500/40',
+    description: 'ML feature/label honesty, baseline model calibration, ML Lab UX, advisor ML coverage.',
+    specialties: ['Feature engineering', 'Synthetic vs. real labels', 'Baseline model calibration', 'ML readiness'],
+    precision: 0,
+    recall: 0,
+    depth: 0,
+    totalFindings: 0,
+    implemented: 0,
+    latestFinding: 'New specialist agent added in cycle 19 — covers mlFeatures/mlDataset/mlModel/mlReadiness/mlTrainingFeatures/mlTrainingService/mlEvaluation/mlLogisticRegression/norwayFactpagesAdapter and MLLabPage. First audit pending.',
+    knownGaps: ['mlReadiness/mlEvaluation may not yet leverage real outcome labels added in cycles 17-18'],
+  },
 ];
 
 type CycleRow = {
@@ -124,28 +139,29 @@ type CycleRow = {
   security: number;
   dev: number;
   geodata: number;
+  ml: number;
   highlight: string;
 };
 
 const CYCLE_HISTORY: CycleRow[] = [
-  { cycle: 1, architect: 2, petro: 2, review: 1, security: 2, dev: 1, geodata: 0, highlight: 'Bootstrap — evidence types, domain scoring' },
-  { cycle: 2, architect: 2, petro: 3, review: 2, security: 1, dev: 1, geodata: 0, highlight: 'GCoS formula hardening, advisor base queries' },
-  { cycle: 3, architect: 3, petro: 2, review: 2, security: 1, dev: 2, geodata: 0, highlight: 'Map clustering, XSS esc() in popups' },
-  { cycle: 4, architect: 2, petro: 3, review: 1, security: 1, dev: 2, geodata: 1, highlight: 'Decision economics, seal/timing scoring' },
-  { cycle: 5, architect: 3, petro: 3, review: 2, security: 1, dev: 2, geodata: 2, highlight: 'ML Core v1 — feature extraction, baseline model' },
-  { cycle: 6, architect: 2, petro: 3, review: 3, security: 1, dev: 2, geodata: 2, highlight: 'Norway adapter, ML readiness assessment' },
-  { cycle: 7, architect: 3, petro: 4, review: 2, security: 1, dev: 2, geodata: 2, highlight: 'Oil/gas maturity windows, anhydrite seal' },
-  { cycle: 8, architect: 3, petro: 3, review: 2, security: 1, dev: 3, geodata: 3, highlight: 'Portfolio intelligence, HHI basin diversity' },
-  { cycle: 9, architect: 4, petro: 3, review: 3, security: 1, dev: 3, geodata: 2, highlight: 'Migration lateral/mixed, double-penalty fix' },
-  { cycle: 10, architect: 4, petro: 3, review: 1, security: 0, dev: 1, geodata: 2, highlight: 'Play-type map, Norway hook, unconventional porosity' },
-  { cycle: 11, architect: 3, petro: 2, review: 1, security: 0, dev: 1, geodata: 2, highlight: 'Play-type legend, unconventional perm, fault-conduit migration, advisor false-positives' },
-  { cycle: 12, architect: 0, petro: 2, review: 0, security: 0, dev: 1, geodata: 1, highlight: 'Analog prospect finder, play-type legend filtering, source-rock-type TOC scoring, evaporite seal thickness' },
-  { cycle: 13, architect: 1, petro: 3, review: 2, security: 0, dev: 1, geodata: 1, highlight: 'useMLTraining hook extraction, subsalt trap risk, GCoS methodology advisor query, comparison-page analogs, coordinate precision warning' },
-  { cycle: 14, architect: 1, petro: 1, review: 2, security: 0, dev: 0, geodata: 1, highlight: 'NaN-safety fixes, kitchen-distance advisor query, isolated-prospect spatial insight' },
-  { cycle: 15, architect: 1, petro: 2, review: 2, security: 1, dev: 0, geodata: 1, highlight: 'GCoS NaN-safety (numberUtils), density heatmap layer, advisor compare/prioritize handlers' },
-  { cycle: 16, architect: 2, petro: 1, review: 2, security: 1, dev: 0, geodata: 1, highlight: 'VisualizationsPage NaN fixes, badge-style dedup, basin bounding-circle overlay' },
-  { cycle: 17, architect: 1, petro: 2, review: 3, security: 1, dev: 1, geodata: 2, highlight: 'Trap-geometry advisor query, great-circle distance query, findMentionedProspects substring fix, chart-config dedup, batch outcome labeling' },
-  { cycle: 18, architect: 0, petro: 1, review: 0, security: 0, dev: 1, geodata: 1, highlight: 'Outcome Calibration page (/calibration), success-rate-by-basin/play advisor analytics, nearest-drilled-analog proximity ranking' },
+  { cycle: 1, architect: 2, petro: 2, review: 1, security: 2, dev: 1, geodata: 0, ml: 0, highlight: 'Bootstrap — evidence types, domain scoring' },
+  { cycle: 2, architect: 2, petro: 3, review: 2, security: 1, dev: 1, geodata: 0, ml: 0, highlight: 'GCoS formula hardening, advisor base queries' },
+  { cycle: 3, architect: 3, petro: 2, review: 2, security: 1, dev: 2, geodata: 0, ml: 0, highlight: 'Map clustering, XSS esc() in popups' },
+  { cycle: 4, architect: 2, petro: 3, review: 1, security: 1, dev: 2, geodata: 1, ml: 0, highlight: 'Decision economics, seal/timing scoring' },
+  { cycle: 5, architect: 3, petro: 3, review: 2, security: 1, dev: 2, geodata: 2, ml: 0, highlight: 'ML Core v1 — feature extraction, baseline model' },
+  { cycle: 6, architect: 2, petro: 3, review: 3, security: 1, dev: 2, geodata: 2, ml: 0, highlight: 'Norway adapter, ML readiness assessment' },
+  { cycle: 7, architect: 3, petro: 4, review: 2, security: 1, dev: 2, geodata: 2, ml: 0, highlight: 'Oil/gas maturity windows, anhydrite seal' },
+  { cycle: 8, architect: 3, petro: 3, review: 2, security: 1, dev: 3, geodata: 3, ml: 0, highlight: 'Portfolio intelligence, HHI basin diversity' },
+  { cycle: 9, architect: 4, petro: 3, review: 3, security: 1, dev: 3, geodata: 2, ml: 0, highlight: 'Migration lateral/mixed, double-penalty fix' },
+  { cycle: 10, architect: 4, petro: 3, review: 1, security: 0, dev: 1, geodata: 2, ml: 0, highlight: 'Play-type map, Norway hook, unconventional porosity' },
+  { cycle: 11, architect: 3, petro: 2, review: 1, security: 0, dev: 1, geodata: 2, ml: 0, highlight: 'Play-type legend, unconventional perm, fault-conduit migration, advisor false-positives' },
+  { cycle: 12, architect: 0, petro: 2, review: 0, security: 0, dev: 1, geodata: 1, ml: 0, highlight: 'Analog prospect finder, play-type legend filtering, source-rock-type TOC scoring, evaporite seal thickness' },
+  { cycle: 13, architect: 1, petro: 3, review: 2, security: 0, dev: 1, geodata: 1, ml: 0, highlight: 'useMLTraining hook extraction, subsalt trap risk, GCoS methodology advisor query, comparison-page analogs, coordinate precision warning' },
+  { cycle: 14, architect: 1, petro: 1, review: 2, security: 0, dev: 0, geodata: 1, ml: 0, highlight: 'NaN-safety fixes, kitchen-distance advisor query, isolated-prospect spatial insight' },
+  { cycle: 15, architect: 1, petro: 2, review: 2, security: 1, dev: 0, geodata: 1, ml: 0, highlight: 'GCoS NaN-safety (numberUtils), density heatmap layer, advisor compare/prioritize handlers' },
+  { cycle: 16, architect: 2, petro: 1, review: 2, security: 1, dev: 0, geodata: 1, ml: 0, highlight: 'VisualizationsPage NaN fixes, badge-style dedup, basin bounding-circle overlay' },
+  { cycle: 17, architect: 1, petro: 2, review: 3, security: 1, dev: 1, geodata: 2, ml: 0, highlight: 'Trap-geometry advisor query, great-circle distance query, findMentionedProspects substring fix, chart-config dedup, batch outcome labeling' },
+  { cycle: 18, architect: 0, petro: 1, review: 0, security: 0, dev: 1, geodata: 1, ml: 0, highlight: 'Outcome Calibration page (/calibration), success-rate-by-basin/play advisor analytics, nearest-drilled-analog proximity ranking' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {
@@ -155,6 +171,7 @@ const AGENT_COLORS: Record<AgentId, string> = {
   security: '#ef4444',
   dev: '#06b6d4',
   geodata: '#a855f7',
+  ml: '#ec4899',
 };
 
 const META_IMPROVEMENTS = [
@@ -200,6 +217,13 @@ const META_IMPROVEMENTS = [
     suggestion: 'Add — "Validate coordinate precision ≥4 decimals; check antimeridian wrapping for ±180° basins."',
     priority: 'low',
   },
+  {
+    agent: 'ml',
+    label: 'AI / ML',
+    color: '#ec4899',
+    suggestion: 'Add — "Cross-check mlReadiness/mlEvaluation against real outcome labels (cycles 17-18), not just synthetic ones."',
+    priority: 'high',
+  },
 ];
 
 const PRIORITY_BADGE: Record<string, string> = {
@@ -220,7 +244,7 @@ export function AgentEvolutionPage() {
   const totalImplemented = AGENTS.reduce((s, a) => s + a.implemented, 0);
   const avgPrecision = Math.round(AGENTS.reduce((s, a) => s + a.precision, 0) / AGENTS.length);
   const findingsThisCycle = CYCLE_HISTORY[CYCLE_HISTORY.length - 1];
-  const cycleFindingsSum = (['architect', 'petro', 'review', 'security', 'dev', 'geodata'] as AgentId[])
+  const cycleFindingsSum = (['architect', 'petro', 'review', 'security', 'dev', 'geodata', 'ml'] as AgentId[])
     .reduce((s, k) => s + (findingsThisCycle[k] ?? 0), 0);
 
   return (
@@ -324,7 +348,7 @@ export function AgentEvolutionPage() {
                 labelStyle={{ color: '#94a3b8' }}
               />
               <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
-              {(['architect', 'petro', 'review', 'security', 'dev', 'geodata'] as AgentId[]).map((k) => (
+              {(['architect', 'petro', 'review', 'security', 'dev', 'geodata', 'ml'] as AgentId[]).map((k) => (
                 <Bar key={k} dataKey={k} stackId="a" fill={AGENT_COLORS[k]} />
               ))}
             </BarChart>
@@ -373,7 +397,7 @@ export function AgentEvolutionPage() {
             <thead>
               <tr className="border-b border-slate-800">
                 <th className="pb-2 text-left text-slate-500 font-medium">Cycle</th>
-                {(['architect', 'petro', 'review', 'security', 'dev', 'geodata'] as AgentId[]).map((k) => (
+                {(['architect', 'petro', 'review', 'security', 'dev', 'geodata', 'ml'] as AgentId[]).map((k) => (
                   <th key={k} className="pb-2 text-center text-slate-500 font-medium capitalize">{k}</th>
                 ))}
                 <th className="pb-2 text-left text-slate-500 font-medium pl-4">Highlight</th>
@@ -381,14 +405,14 @@ export function AgentEvolutionPage() {
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {CYCLE_HISTORY.map((row) => {
-                const total = (['architect', 'petro', 'review', 'security', 'dev', 'geodata'] as AgentId[]).reduce((s, k) => s + row[k], 0);
+                const total = (['architect', 'petro', 'review', 'security', 'dev', 'geodata', 'ml'] as AgentId[]).reduce((s, k) => s + row[k], 0);
                 const isCurrent = row.cycle === CURRENT_CYCLE;
                 return (
                   <tr key={row.cycle} className={isCurrent ? 'bg-slate-800/40' : ''}>
                     <td className={`py-2 font-semibold ${isCurrent ? 'text-indigo-400' : 'text-slate-400'}`}>
                       C{row.cycle} {isCurrent && <span className="text-xs text-indigo-400">← now</span>}
                     </td>
-                    {(['architect', 'petro', 'review', 'security', 'dev', 'geodata'] as AgentId[]).map((k) => (
+                    {(['architect', 'petro', 'review', 'security', 'dev', 'geodata', 'ml'] as AgentId[]).map((k) => (
                       <td key={k} className="py-2 text-center">
                         {row[k] > 0 ? (
                           <span

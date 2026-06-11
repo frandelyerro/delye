@@ -34,9 +34,9 @@ Summarize: "Since the last `/advance`, the following changed: [list from git log
 
 ## Execution Plan
 
-### Phase 1 — Parallel Analysis (launch all 6 agents simultaneously)
+### Phase 1 — Parallel Analysis (launch all 7 agents simultaneously)
 
-Spawn all 6 specialist agents at once. Each returns findings only — no implementation yet:
+Spawn all 7 specialist agents at once. Each returns findings only — no implementation yet:
 
 1. **Architecture Agent** (see `/architect`):
    Audit `src/` for files >300 lines, missing abstractions, circular deps, bundle size.
@@ -67,6 +67,15 @@ Spawn all 6 specialist agents at once. Each returns findings only — no impleme
    Check: is turf.js installed? Are basin hulls, heatmap, and density analysis implemented?
    Return: top 3 geospatial improvements with concrete implementation plan.
 
+7. **AI/ML Agent** (see `/ml`):
+   Audit `src/domain/mlFeatures.ts`, `mlDataset.ts`, `mlModel.ts`, `mlReadiness.ts`,
+   `mlTrainingFeatures.ts`, `mlTrainingService.ts`, `mlEvaluation.ts`, `mlLogisticRegression.ts`,
+   `norwayFactpagesAdapter.ts`, and `src/pages/MLLabPage.tsx`.
+   Check: feature/label honesty (no leakage, correct synthetic-vs-real labeling), whether
+   `assessMLReadiness`/`mlEvaluation` leverage the real outcome labels added in cycles 17-18,
+   advisor ML coverage, and required "no trained model" disclaimers everywhere predictions appear.
+   Return: top 3 ML improvements with `file:line` and concrete implementation plan.
+
 ---
 
 ### Phase 2 — Prioritize
@@ -80,7 +89,8 @@ Collect all findings from Phase 1. Apply this strict prioritization:
 | P2 | Architecture: files >500 lines | Blocks future work |
 | P3 | Petroleum domain accuracy | Core product value |
 | P4 | Geospatial spatial intelligence | Map page differentiator |
-| P5 | New features from backlog | Net new value |
+| P5 | AI/ML pipeline correctness & honesty | Advisory-only ML credibility |
+| P6 | New features from backlog | Net new value |
 
 Within each priority level, prefer changes with: smaller diff size, broader test coverage, no risk of regressions.
 
