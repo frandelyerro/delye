@@ -3,9 +3,9 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- ARCH-004/006 (Zustand fine-grained selectors): planned for cycle 24 as a
-  fast-follow to ARCH-005 (verified plan: ~6 selector exports from
-  useProspectStore.ts adopted in MLLabPage/ProspectDetailPage, ~25 diff lines).
+- Large pages still lacking decomposition: MLLabPage (~966L), ProspectDetailPage
+  (~728L), MapPage (~880L). MLLabPage is the next decomposition candidate (extract
+  per-section subcomponents + the training-preview memo).
 - `advisor.ts` reached ~1100 lines (cycle 18): `getAdvisorResponse()` is one function
   with ~40 `q.includes(...)` branches. Proposed split: extract handlers into
   `advisorHandlers.ts` with a pattern→handler registry. DEFERRED — branch precedence
@@ -34,6 +34,15 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   the existing open item above).
 
 ## Completed
+- 2026-06-11 (cycle 24): ARCH-004/006 IMPLEMENTED — converted the 7 remaining
+  coarse `useProspectStore()` destructures to fine-grained inline selectors
+  (`useProspectStore((s) => s.prospects)` etc.) in CalibrationPage, MLLabPage,
+  VisualizationsPage, DashboardPage (5 selectors), TargetingPage,
+  BatchOutcomePage, ComparisonPage. Chosen over named selector exports to match
+  the 9 pre-existing inline-selector call sites (idiomatic Zustand). No store
+  API, state shape, or persistence change; prospects array consumers still read
+  the full array (no shallow-equality wrappers needed since selected values are
+  a stable array ref or stable action fns). ~15 net diff lines.
 - 2026-06-11 (cycle 23): ARCH-005 IMPLEMENTED — extracted the shared
   `<EvidenceSection>` wrapper to `src/components/ProspectForm/EvidenceSection.tsx`
   (title + accentClass props, children pattern). The six evidence blocks in

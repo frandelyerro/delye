@@ -35,12 +35,15 @@ const bucketConfig: Array<{ label: string; actions: RecommendedAction[]; colorCl
 ];
 
 export function TargetingPage() {
-  const { prospects } = useProspectStore();
+  const prospects = useProspectStore((s) => s.prospects);
   const [basinFilter, setBasinFilter] = React.useState('');
   const [playTypeFilter, setPlayTypeFilter] = React.useState('');
   const [scoringModeFilter, setScoringModeFilter] = React.useState('');
   const [tierFilter, setTierFilter] = React.useState('');
   const [actionFilter, setActionFilter] = React.useState('');
+  // GCoS range filter, entered as percentages (0–100); empty = unbounded.
+  const [gcosMin, setGcosMin] = React.useState('');
+  const [gcosMax, setGcosMax] = React.useState('');
 
   const allRecs = getPortfolioRecommendations(prospects);
   const summary = getPortfolioSummary(prospects);
@@ -60,6 +63,11 @@ export function TargetingPage() {
     }
     if (tierFilter && r.tier !== tierFilter) return false;
     if (actionFilter && r.action !== actionFilter) return false;
+    const gcosPct = (p.geologicalChanceOfSuccess ?? 0) * 100;
+    const minPct = gcosMin === '' ? null : Number(gcosMin);
+    const maxPct = gcosMax === '' ? null : Number(gcosMax);
+    if (minPct !== null && Number.isFinite(minPct) && gcosPct < minPct) return false;
+    if (maxPct !== null && Number.isFinite(maxPct) && gcosPct > maxPct) return false;
     return true;
   });
 
@@ -149,6 +157,37 @@ export function TargetingPage() {
             <option value="watchlist">Watchlist</option>
             <option value="do_not_prioritize">Do Not Prioritize</option>
           </select>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">GCoS range (%)</span>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            placeholder="min"
+            value={gcosMin}
+            onChange={(e) => setGcosMin(e.target.value)}
+            className="w-24 rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+          />
+          <span className="text-slate-600">–</span>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            placeholder="max"
+            value={gcosMax}
+            onChange={(e) => setGcosMax(e.target.value)}
+            className="w-24 rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+          />
+          {(gcosMin !== '' || gcosMax !== '') && (
+            <button
+              type="button"
+              onClick={() => { setGcosMin(''); setGcosMax(''); }}
+              className="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+            >
+              Clear GCoS range
+            </button>
+          )}
         </div>
       </section>
 

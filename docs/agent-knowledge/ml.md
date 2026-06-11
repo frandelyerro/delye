@@ -12,6 +12,18 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   no behavioral fix, so it stays low priority.
 
 ## Completed
+- 2026-06-11 (cycle 24 audit): No findings — clean report. Deep-audited three
+  not-recently-checked areas: (1) mlLogisticRegression.ts numerics — zero-variance
+  normalization sets std=1 (no div-by-zero), log-loss clamps to
+  [1e-6, 1-1e-6], early-stopping/patience correct. (2) mlTrainingService split is
+  deterministic (mulberry32 seed 42) with a >=30-row minExamples guard. The
+  highest-value check — old models (trained pre-cycle-22, without the 3
+  interaction features) meeting the new feature keys — is SAFE BY DESIGN:
+  `predictProbability()` iterates only over `model.featureNames`, so extra keys
+  in the extracted vector are ignored via `features[name] ?? 0`; no mismatch, no
+  crash, no silent mis-prediction. (3) norwayFactpagesAdapter labels real imports
+  `is_synthetic: false` and synthetic derivations `source: 'synthetic'` — data
+  honesty intact.
 - 2026-06-11 (cycle 23 audit): VERIFIED the cycle-22 interaction features flow
   correctly through the full training pipeline — mlTrainingTypes rows use a
   dynamic `Record<string, number>`, mlLogisticRegression/mlTrainingService

@@ -30,9 +30,15 @@ const CSV_HEADERS = [
   'riskedResourceMMboe', 'simpleEMVUsdMM',
 ] as const;
 
-const csvEscape = (v: unknown): string => {
+export const csvEscape = (v: unknown): string => {
   const s = v == null ? '' : String(v);
-  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  // Guard against CSV formula injection: a value starting with =, +, -, @, tab
+  // or carriage return can be executed as a formula by Excel/Sheets. Prefix it
+  // with a single quote so spreadsheet apps treat it as literal text.
+  const guarded = s !== '' && '=+-@\t\r'.includes(s[0]) ? `'${s}` : s;
+  return guarded.includes(',') || guarded.includes('"') || guarded.includes('\n')
+    ? `"${guarded.replace(/"/g, '""')}"`
+    : guarded;
 };
 
 export const exportPortfolioAsCsv = (prospects: Prospect[]): void => {

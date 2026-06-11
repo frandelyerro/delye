@@ -11,6 +11,17 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   (`npm run typecheck && npm run test && npm run build` plus a manual smoke check).
 
 ## Resolved
+- 2026-06-11 (cycle 24): Fixed a MEDIUM CSV formula-injection issue in
+  `csvEscape()` (`src/utils/exportReport.ts`). The shared escaper only quoted
+  comma/quote/newline; a value beginning with `=`, `+`, `-`, `@`, tab or CR
+  (e.g. a prospect name, well name, or operator) could be executed as a formula
+  when the exported CSV is opened in Excel/Sheets. This affected BOTH the
+  long-standing `exportPortfolioAsCsv` and cycle 23's new
+  `exportCalibrationDataAsCsv`. Fix: prefix such values with a single quote so
+  spreadsheets treat them as literal text (OWASP CSV-injection guidance).
+  `csvEscape` is now exported and covered by 5 unit tests. Rest of the re-audit
+  clean (npm audit unchanged, popup esc() intact, MapLibre text-field is not an
+  HTML surface, localStorage keys hardcoded).
 - 2026-06-11 (cycle 23): Re-audit clean — zero HIGH+ findings. npm audit
   unchanged (2 moderate dev-only). Cycle-22 additions verified: outcome filter
   chips use hardcoded labels/enum-constrained types (no user strings reach

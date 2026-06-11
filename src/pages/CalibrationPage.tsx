@@ -74,7 +74,7 @@ function GroupStatsTable({ title, rows }: { title: string; rows: GroupOutcomeSta
 }
 
 export function CalibrationPage() {
-  const { prospects } = useProspectStore();
+  const prospects = useProspectStore((s) => s.prospects);
 
   const stats = useMemo(() => getOutcomeStats(prospects), [prospects]);
   const calibration = useMemo(

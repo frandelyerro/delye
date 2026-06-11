@@ -3,24 +3,24 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- 2026-06-11 (cycle 22): Dev agent proposed TargetingPage keyboard navigation
-  (ArrowUp/Down/Enter/'e' shortcuts) citing a "backlog item #9" — no such item
-  exists in this file's history. The actual deferred dev item remains the GCoS
-  range slider + filter presets (below). No implementation this cycle; re-propose
-  with a concrete file:line plan next cycle if still desired.
 - Drill-sequence / budget allocation planner: `getDrillSequenceOrder()` exists but
   there's no budget-constrained view (EMV waterfall, cumulative capex vs risked
-  resource). Next-best candidate after calibration; uses existing
-  `economicAssessment` fields only.
-- GCoS range slider + filter presets for TargetingPage (validated cycle 21): new
+  resource). Next-best candidate; uses existing `economicAssessment` fields only.
+- Filter PRESETS for TargetingPage (the GCoS range half shipped cycle 24): a new
   `src/domain/filterPresets.ts` (save/load/delete/validate via localStorage key
-  `petrotarget:filter-presets`), `gcosMin`/`gcosMax` added to the store's `Filters`
-  type, and a range-slider + preset dropdown in `TargetingPage.tsx` (currently local
-  component state, lines ~39-43, not store-backed). ~200 lines across 4 files
-  (domain + store + page + tests). Deferred from cycle 21 for sizing — ready to
-  implement next cycle.
+  `petrotarget:filter-presets`) + a preset dropdown in `TargetingPage.tsx`. NOTE
+  (corrected cycle 24): TargetingPage filters are LOCAL component state, NOT the
+  store's `Filters` type — presets only need the page + a small domain module +
+  tests (~120 lines), no store changes. The earlier "store-backed" framing was
+  stale.
 
 ## Completed
+- 2026-06-11 (cycle 24): GCoS min/max range filter IMPLEMENTED on TargetingPage
+  — two percentage inputs (0–100) + a "Clear GCoS range" button, local
+  `gcosMin`/`gcosMax` string state, filtering `r`'s prospect by
+  `geologicalChanceOfSuccess * 100`. Composes with the existing basin/play/
+  scoring-mode/tier/action filters. No store change, no new domain module (the
+  presets half is deferred — see Open areas).
 - 2026-06-11 (cycle 23): Calibration-data CSV export IMPLEMENTED — new
   `exportCalibrationDataAsCsv()` in `src/utils/exportReport.ts` (reuses
   `csvEscape`/`downloadText`): one row per known-outcome prospect with

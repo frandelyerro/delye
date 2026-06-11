@@ -50,7 +50,8 @@ const trainAgreementBadge: Record<string, string> = {
 
 
 export function MLLabPage() {
-  const { prospects, importProspects } = useProspectStore();
+  const prospects = useProspectStore((s) => s.prospects);
+  const importProspects = useProspectStore((s) => s.importProspects);
   const readiness = useMemo(() => assessMLReadiness(prospects), [prospects]);
   const features = useMemo(() => extractMLFeaturesForPortfolio(prospects), [prospects]);
   const modelStatus = useMemo(() => getMLModelStatus(), []);

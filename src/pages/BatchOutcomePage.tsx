@@ -36,7 +36,8 @@ type PendingEdit = { label: OutcomeLabel; resultConfidence: ProspectOutcome['res
 const selectClass = 'rounded border border-slate-700 bg-slate-950 px-2 py-1 text-xs';
 
 export function BatchOutcomePage() {
-  const { prospects, batchUpdateOutcomes } = useProspectStore();
+  const prospects = useProspectStore((s) => s.prospects);
+  const batchUpdateOutcomes = useProspectStore((s) => s.batchUpdateOutcomes);
   const [basinFilter, setBasinFilter] = useState('');
   const [unlabeledOnly, setUnlabeledOnly] = useState(false);
   const [pending, setPending] = useState<Record<string, PendingEdit>>({});

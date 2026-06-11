@@ -43,7 +43,7 @@ function MetricRow({ label, values }: { label: string; values: ReactNode[] }) {
 }
 
 export function ComparisonPage() {
-  const { prospects: rawProspects } = useProspectStore();
+  const rawProspects = useProspectStore((s) => s.prospects);
   const prospects = rawProspects.map((p) =>
     p.geologicalChanceOfSuccess === undefined ? scoreProspect(p) : p,
   );

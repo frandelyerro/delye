@@ -3,12 +3,20 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- Verify symbol-layer text rendering in production: `OSM_STYLE` in MapPage.tsx
-  defines no `glyphs` URL, yet three symbol layers use `text-field`
-  (`cluster-count`, `unclustered-label`, and the new `basin-circles-labels`).
-  If text does not render in the deployed app, add a free glyphs endpoint to
-  OSM_STYLE (and extend CSP connect-src accordingly). Needs a browser check —
-  not verifiable from unit tests.
+- (none blocking)
+
+## Resolved / verified
+- 2026-06-11 (cycle 24): The "no glyphs URL" concern is VERIFIED NON-ISSUE.
+  MapLibre GL JS v5 (`node_modules/maplibre-gl/src/render/glyph_manager.ts`
+  ~lines 104-107) falls back to client-side TinySDF glyph rendering when a style
+  has no `glyphs` property — `setURL(undefined)` makes `this.url` falsy and the
+  manager draws glyphs locally with the default font stack
+  ("Open Sans Regular", "Arial Unicode MS Regular") instead of throwing. So all
+  three symbol layers (`cluster-count`, `unclustered-label`, `basin-circles-labels`)
+  DO render text in production today. Adding a glyphs endpoint
+  (e.g. demotiles.maplibre.org) is a pure perf optimization (offloads client CPU)
+  and was DECLINED — it adds a third-party dependency + a CSP connect-src change
+  for no functional gain.
 - Basin convex hull visualization — would require `@turf/turf` (justified, no paid
   API) for a tighter-fitting polygon than the bounding-circle approximation added in
   cycle 16. Lower priority now that basin extents are visualized without a new

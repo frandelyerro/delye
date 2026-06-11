@@ -31,7 +31,7 @@ const confidenceTier = (dataConfidence: number | undefined): 'high' | 'medium' |
 };
 
 export function VisualizationsPage() {
-  const { prospects } = useProspectStore();
+  const prospects = useProspectStore((s) => s.prospects);
 
   // Section A: 2D geological risk cross-section (top 10 by GCoS, stacked component scores)
   const crossSectionData = React.useMemo(() => {

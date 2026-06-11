@@ -18,6 +18,17 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   methodology citation (SPE/AAPG/SEG unconventional definitions) and before/after test
   evidence for a tight-sandstone case.
 ## Completed
+- 2026-06-11 (cycle 24): sealAnalysis.ts re-verified and READY but DEFERRED to
+  cycle 25 (this cycle's budget went to the Zustand selector refactor + the
+  security CSV-injection fix). Verified plan: new `src/domain/sealAnalysis.ts`
+  (~85L) with `analyzeSealTrapRisk()` (cross-tab by SealLithology × TrapType,
+  flagging subsalt traps with non-evaporite/non-salt/non-anhydrite seals per AAPG
+  Memoir 74 / Knipe 1997) + `getSubsaltNonEvaporiteRisks()`, plus an advisor
+  handler triggered by "seal lithology"/"subsalt seal"/"seal type"/"evaporite
+  seal" inserted AFTER the cycle-21 "fault seal" handler but BEFORE the broader
+  "seal risk" handler (precedence). ~145 LOC incl. tests. Also a cheap follow-on:
+  surface the cycle-23 `outcomeOnly` analog filter via a "drilled analogs for
+  [prospect]" advisor phrase (~10L).
 - 2026-06-11 (cycle 23): Outcome-conditioned analog variant IMPLEMENTED — added
   `outcomeOnly?: boolean` to `AnalogFilters` in `analogFinder.ts`; when set,
   candidates are restricted to prospects with a known historical outcome

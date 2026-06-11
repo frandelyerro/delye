@@ -16,7 +16,11 @@ import { priorityBadgeClass, riskBadgeClass, tierBadgeClass, actionBadgeClass, e
 import { CHART_TOOLTIP_STYLE, PRIORITY_COLOR, BASIN_PALETTE } from '../utils/chartConfig';
 
 export function DashboardPage() {
-  const { prospects, filters, setFilters, deleteProspect, resetProspects } = useProspectStore();
+  const prospects = useProspectStore((s) => s.prospects);
+  const filters = useProspectStore((s) => s.filters);
+  const setFilters = useProspectStore((s) => s.setFilters);
+  const deleteProspect = useProspectStore((s) => s.deleteProspect);
+  const resetProspects = useProspectStore((s) => s.resetProspects);
   const [scoringModeFilter, setScoringModeFilter] = React.useState<'' | 'manual' | 'evidence_derived'>('');
   const basins = [...new Set(prospects.map((p) => p.basin))];
   const blocks = [...new Set(prospects.map((p) => p.block))];

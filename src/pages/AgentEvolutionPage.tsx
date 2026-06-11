@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 23;
+const CURRENT_CYCLE = 24;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata' | 'ml';
 
@@ -34,10 +34,10 @@ const AGENTS: AgentDef[] = [
     precision: 82,
     recall: 71,
     depth: 78,
-    totalFindings: 26,
-    implemented: 21,
-    latestFinding: 'Shipped ARCH-005: extracted the shared <EvidenceSection> wrapper (src/components/ProspectForm/EvidenceSection.tsx) from ProspectFormPage\'s six near-identical evidence blocks (Source/Migration/Reservoir/Seal/Trap/Timing) — identical section card + accent heading + responsive grid now defined once. Behavior-preserving; form state, validation and setters untouched.',
-    knownGaps: ['ARCH-004/006 Zustand fine-grained selectors (planned for cycle 24)', 'Missing useMemo on O(n²) renders', 'ProspectDetailPage (728), MapPage (~680) still >300 lines', 'advisor.ts pattern-registry split still deferred (precedence-sensitive)'],
+    totalFindings: 27,
+    implemented: 22,
+    latestFinding: 'Shipped ARCH-004/006: converted the 7 remaining coarse useProspectStore() destructures (CalibrationPage, MLLabPage, VisualizationsPage, DashboardPage, TargetingPage, BatchOutcomePage, ComparisonPage) to fine-grained inline selectors (s => s.prospects, etc.), matching the 9 existing inline-selector call sites — store mutations no longer force a full re-render of every consumer. No store API or persistence change.',
+    knownGaps: ['Missing useMemo on O(n²) renders', 'ProspectDetailPage (728), MapPage (~880), MLLabPage (~966) still >300 lines', 'advisor.ts pattern-registry split still deferred (precedence-sensitive)'],
   },
   {
     id: 'petro',
@@ -79,9 +79,9 @@ const AGENTS: AgentDef[] = [
     precision: 88,
     recall: 76,
     depth: 82,
-    totalFindings: 11,
-    implemented: 10,
-    latestFinding: 'Cycle-22 re-audit found zero HIGH+ issues. Implemented the last deferred LOW finding: added `worker-src \'self\' blob:` to the CSP in vercel.json so MapLibre GL WebGL workers are explicitly allowed (no behavior change — the app already worked, this just removes implicit/default-src reliance).',
+    totalFindings: 12,
+    implemented: 11,
+    latestFinding: 'Found and fixed a MEDIUM CSV formula-injection issue in csvEscape() (exportReport.ts) — affected both the long-standing portfolio export and cycle 23\'s new calibration export. A prospect name/well/operator starting with =, +, -, @, tab or CR could execute as a formula when the CSV is opened in Excel/Sheets; csvEscape now prefixes such values with a single quote. 5 new csvEscape tests.',
     knownGaps: ['Dynamic property access on external data', 'esbuild/vite dev-only npm audit findings (deferred — major version jump risk)'],
   },
   {
@@ -94,10 +94,10 @@ const AGENTS: AgentDef[] = [
     precision: 75,
     recall: 82,
     depth: 70,
-    totalFindings: 19,
-    implemented: 15,
-    latestFinding: 'Shipped the calibration-data CSV export on /calibration: exportCalibrationDataAsCsv() pairs each known-outcome prospect\'s pre-drill GCoS and data confidence with its observed result (label, well, year, operator, confidence, source) for offline lookback analysis.',
-    knownGaps: ['GCoS range slider + filter presets for TargetingPage (~200 lines, deferred)', 'Budget-constrained drill-sequence planner (large)', 'Play-type legend WCAG AA contrast not yet verified'],
+    totalFindings: 20,
+    implemented: 16,
+    latestFinding: 'Added a GCoS min/max range filter to the Targeting workbench — two percentage inputs (0–100) plus a "Clear GCoS range" button that narrow the recommendation table by geologicalChanceOfSuccess, composing with the existing basin/play/scoring-mode/tier/action filters. Local component state only; no store changes.',
+    knownGaps: ['Filter presets (localStorage save/load) for TargetingPage — the slider half shipped cycle 24, presets remain', 'Budget-constrained drill-sequence planner (large)', 'Play-type legend WCAG AA contrast not yet verified'],
   },
   {
     id: 'geodata',
@@ -167,6 +167,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 21, architect: 0, petro: 1, review: 1, security: 1, dev: 0, geodata: 0, ml: 1, highlight: 'Baseline calibration report against real labeled outcomes (evaluateBaselineOnLabeledOutcomes), fault-seal-risk advisor handler, 10MB CSV import size guard, defensive fix for basinClusteringStats nearest-neighbor lookup' },
   { cycle: 22, architect: 0, petro: 1, review: 0, security: 1, dev: 0, geodata: 1, ml: 0, highlight: 'CSP worker-src blob: for MapLibre WebGL workers, source/migration and reservoir/seal interaction features + min(trap,timing) bottleneck feature for ML training, single-prospect map fitBounds fix (easeTo instead of degenerate bounding box) plus outcome-based map filter chips (Discoveries/Dry Holes/Non-Commercial)' },
   { cycle: 23, architect: 1, petro: 1, review: 0, security: 0, dev: 1, geodata: 1, ml: 0, highlight: 'EvidenceSection extraction from ProspectFormPage (ARCH-005), outcome-conditioned analog filter (outcomeOnly) in analogFinder, basin circle density labels (avg nearest-neighbor + dense/scattered color coding), calibration-data CSV export on /calibration, empty-filter map view reset' },
+  { cycle: 24, architect: 1, petro: 0, review: 0, security: 1, dev: 1, geodata: 0, ml: 0, highlight: 'CSV formula-injection guard in csvEscape (both portfolio + calibration exports), Zustand fine-grained selectors across 7 pages (ARCH-004/006), GCoS min/max range filter on the Targeting workbench; verified glyphs render via MapLibre TinySDF fallback (no fix needed)' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {
