@@ -14,7 +14,7 @@ import {
   getProspectivityTier,
   getTierLabel,
 } from './recommendationEngine';
-import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk, getDrillSequenceOrder, getOutcomeStats, getBasinOutcomeStats, getPlayTypeOutcomeStats, getOutcomeCalibration } from './portfolioIntelligence';
+import { getHighGCoSLowConfidenceProspects, getPortfolioMainRisk, getDrillSequenceOrder, getOutcomeStats, getBasinOutcomeStats, getPlayTypeOutcomeStats, getOutcomeCalibration, finiteGcos } from './portfolioIntelligence';
 import { getEconomicAssumptionDefaults, getDecisionSignalLabel } from './economics';
 import { assessMLReadiness } from './mlReadiness';
 import { compareExpertAndML } from './mlModel';
@@ -783,7 +783,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       .map(([basin, ps]) => ({
         basin,
         count: ps.length,
-        avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
+        avgGcos: ps.reduce((s, p) => s + finiteGcos(p), 0) / ps.length,
         high: ps.filter((p) => p.priority === 'high').length,
       }))
       .sort((a, b) => b.avgGcos - a.avgGcos);
@@ -808,7 +808,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       .map(([basin, ps]) => ({
         basin,
         count: ps.length,
-        avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
+        avgGcos: ps.reduce((s, p) => s + finiteGcos(p), 0) / ps.length,
       }))
       .sort((a, b) => b.avgGcos - a.avgGcos);
     if (!sorted.length) return 'No prospects with valid coordinates to compare basins.';
@@ -825,7 +825,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     (q.includes('geographic') && (q.includes('overview') || q.includes('summary') || q.includes('distribution')))
   ) {
     const basinCount = new Set(prospects.map((p) => p.basin)).size;
-    const avgGcos = (prospects.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / prospects.length * 100).toFixed(1);
+    const avgGcos = (prospects.reduce((s, p) => s + finiteGcos(p), 0) / prospects.length * 100).toFixed(1);
     const high = prospects.filter((p) => p.priority === 'high').length;
     const medium = prospects.filter((p) => p.priority === 'medium').length;
     const low = prospects.filter((p) => p.priority === 'low').length;
@@ -868,7 +868,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       .map(([basin, ps]) => ({
         basin,
         count: ps.length,
-        avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
+        avgGcos: ps.reduce((s, p) => s + finiteGcos(p), 0) / ps.length,
       }))
       .sort((a, b) => b.count - a.count);
     const largest = clusters[0];
@@ -1109,7 +1109,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
       .map(([play, ps]) => ({
         play,
         count: ps.length,
-        avgGcos: ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length,
+        avgGcos: ps.reduce((s, p) => s + finiteGcos(p), 0) / ps.length,
       }))
       .sort((a, b) => b.count - a.count);
     const lines = sorted.map((pt) => `${pt.play}: ${pt.count} prospect${pt.count !== 1 ? 's' : ''} (avg GCoS ${Math.round(pt.avgGcos * 100)}%)`).join('; ');

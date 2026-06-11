@@ -52,6 +52,16 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   tie-back guidance for dense basins. Placed BEFORE the existing broader "cluster"
   handler to avoid precedence collisions. 6 new geoUtils tests.
 
+- Coordinate-precision flagging — IMPLEMENTED in cycle 20: `prospectsToGeoJSON()` in
+  `MapPage.tsx` now computes `hasLowPrecisionCoordinates()` once per prospect and
+  exports it as both `lowPrecisionCoords` (boolean) and a human-readable
+  `coordinatePrecision` ("low (<4 decimals)" / "standard (4+ decimals)") GeoJSON
+  property — visible in GeoJSON exports for downstream GIS QA. The point-click
+  popup also renders an amber "⚠ Low-precision coordinates ... verify location
+  before well planning" notice when `lowPrecisionCoords` is true. No new
+  dependencies; reuses the existing `hasLowPrecisionCoordinates()` from
+  `geoUtils.ts`.
+
 ## Reference material / methodology notes
 - 2026-06-10: `@turf/turf` is still NOT installed. MapLibre native clustering is in
   use (clusterRadius 40, clusterMaxZoom 10) and covers basic density; the heatmap

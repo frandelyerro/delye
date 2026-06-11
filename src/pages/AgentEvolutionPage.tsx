@@ -64,9 +64,9 @@ const AGENTS: AgentDef[] = [
     precision: 95,
     recall: 80,
     depth: 90,
-    totalFindings: 20,
-    implemented: 19,
-    latestFinding: 'Cycle-18 sweep of all cycle-17 code (BatchOutcomePage, batchUpdateOutcomes, trap/distance handlers, MapLibre cleanup) found zero HIGH/MEDIUM issues — confirmed the `geologicalChanceOfSuccess ?? 0` NaN pattern is fully eliminated from src/pages/.',
+    totalFindings: 21,
+    implemented: 20,
+    latestFinding: 'Found that `(p.geologicalChanceOfSuccess ?? 0)` does not catch explicit NaN — the existing `finiteGcos` helper was unused in advisor.ts cluster/basin/play aggregations and portfolioIntelligence.getBasinStats, silently breaking the `avgGcos > 0.2` high-value-cluster threshold. Fixed by exporting `finiteGcos` and using it in all 6 affected aggregations.',
     knownGaps: ['useEffect stale closure detection', 'Missing useCallback on memoized-child setters'],
   },
   {
@@ -109,9 +109,9 @@ const AGENTS: AgentDef[] = [
     precision: 80,
     recall: 74,
     depth: 76,
-    totalFindings: 15,
-    implemented: 13,
-    latestFinding: 'Added basinClusteringStats() to geoUtils.ts (avg/min/max nearest-neighbor distance per basin, dense vs. scattered classification) plus a "basin cluster spacing" advisor handler — surfaces shared-facility/tie-back candidates.',
+    totalFindings: 16,
+    implemented: 14,
+    latestFinding: 'Flagged low-precision coordinates (<4 decimals) directly on the map: prospectsToGeoJSON() now exports a coordinatePrecision/lowPrecisionCoords property, and the point-click popup shows an amber "verify location before well planning" warning for affected prospects.',
     knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred — requires MapLibre expression-based clusterProperties, untestable by unit tests, risk of cluster regressions'],
   },
   {
@@ -121,13 +121,13 @@ const AGENTS: AgentDef[] = [
     ring: 'border-pink-500/40',
     description: 'ML feature/label honesty, baseline model calibration, ML Lab UX, advisor ML coverage.',
     specialties: ['Feature engineering', 'Synthetic vs. real labels', 'Baseline model calibration', 'ML readiness'],
-    precision: 80,
-    recall: 60,
-    depth: 65,
-    totalFindings: 1,
-    implemented: 1,
-    latestFinding: 'Shipped computeFeatureCorrelations() in mlEvaluation.ts and a "Feature Correlations (Exploratory)" panel in ML Lab — point-biserial correlation between each training feature and the selected target on currently-labeled prospects, clearly marked exploratory-only.',
-    knownGaps: ['mlReadiness/mlEvaluation may not yet fully leverage real outcome labels added in cycles 17-18'],
+    precision: 82,
+    recall: 62,
+    depth: 67,
+    totalFindings: 2,
+    implemented: 2,
+    latestFinding: 'Removed riskedResource/simpleEMV/prospectivityTierNumeric (post-drill/economics-derived fields, never used by the training pipeline) from the training-dataset CSV export in mlDataset.ts — closes a feature-leakage honesty gap for users exporting "training" data.',
+    knownGaps: ['mlReadiness/mlEvaluation may not yet fully leverage real outcome labels added in cycles 17-18', 'No function yet computes baseline-model accuracy/Brier/ROC-AUC against real labeled outcomes (only exploratory correlations exist)'],
   },
 ];
 
@@ -163,6 +163,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 17, architect: 1, petro: 2, review: 3, security: 1, dev: 1, geodata: 2, ml: 0, highlight: 'Trap-geometry advisor query, great-circle distance query, findMentionedProspects substring fix, chart-config dedup, batch outcome labeling' },
   { cycle: 18, architect: 0, petro: 1, review: 0, security: 0, dev: 1, geodata: 1, ml: 0, highlight: 'Outcome Calibration page (/calibration), success-rate-by-basin/play advisor analytics, nearest-drilled-analog proximity ranking' },
   { cycle: 19, architect: 0, petro: 1, review: 0, security: 0, dev: 0, geodata: 1, ml: 1, highlight: 'AI/ML specialist agent added; basin clustering/spacing analytics + advisor query, findAnalogs basin/play-type/main-risk filters, exploratory feature-correlation panel in ML Lab' },
+  { cycle: 20, architect: 0, petro: 0, review: 1, security: 0, dev: 0, geodata: 1, ml: 1, highlight: 'NaN-safe basin/play/cluster GCoS averages (finiteGcos), removed leaked post-drill features from ML training CSV export, low-precision-coordinate flag on map popups and GeoJSON export' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {

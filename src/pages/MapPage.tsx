@@ -48,29 +48,34 @@ function prospectsToGeoJSON(prospects: Prospect[]): FeatureCollection {
     type: 'FeatureCollection',
     features: prospects
       .filter((p) => isValidCoordinate(p.latitude, p.longitude))
-      .map((p) => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [p.longitude, p.latitude] },
-        properties: {
-          id: p.id,
-          name: p.name,
-          basin: p.basin,
-          block: p.block ?? '',
-          playType: p.playType,
-          gcos: Math.round(safeGcos(p) * 100),
-          gcosRaw: safeGcos(p),
-          priority: p.priority ?? 'low',
-          resource: p.resourceEstimate,
-          mainRisk: p.mainRisk ?? '',
-          dataConfidence: p.dataConfidence ?? 0,
-          commercialScore: p.commercialScore,
-          sourceScore: p.sourceScore,
-          reservoirScore: p.reservoirScore,
-          sealScore: p.sealScore,
-          trapScore: p.trapScore,
-          outcome: p.outcome?.label ?? '',
-        },
-      })),
+      .map((p) => {
+        const lowPrecisionCoords = hasLowPrecisionCoordinates(p.latitude, p.longitude);
+        return {
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: [p.longitude, p.latitude] },
+          properties: {
+            id: p.id,
+            name: p.name,
+            basin: p.basin,
+            block: p.block ?? '',
+            playType: p.playType,
+            gcos: Math.round(safeGcos(p) * 100),
+            gcosRaw: safeGcos(p),
+            priority: p.priority ?? 'low',
+            resource: p.resourceEstimate,
+            mainRisk: p.mainRisk ?? '',
+            dataConfidence: p.dataConfidence ?? 0,
+            commercialScore: p.commercialScore,
+            sourceScore: p.sourceScore,
+            reservoirScore: p.reservoirScore,
+            sealScore: p.sealScore,
+            trapScore: p.trapScore,
+            outcome: p.outcome?.label ?? '',
+            coordinatePrecision: lowPrecisionCoords ? 'low (<4 decimals)' : 'standard (4+ decimals)',
+            lowPrecisionCoords,
+          },
+        };
+      }),
   };
 }
 
@@ -428,10 +433,14 @@ export function MapPage() {
           name: string; basin: string; block: string; gcos: number;
           priority: string; resource: number; mainRisk: string;
           dataConfidence: number; outcome: string; playType: string;
+          lowPrecisionCoords: boolean;
         };
         const coords = (e.features[0].geometry as Point).coordinates as [number, number];
         const outcomeHtml = props.outcome
           ? `<div><span style="color:#888">Outcome</span><br/><b style="font-size:10px;text-transform:capitalize">${esc(props.outcome.replace(/_/g, ' '))}</b></div>`
+          : '';
+        const precisionWarningHtml = props.lowPrecisionCoords
+          ? `<div style="color:#b45309;font-size:10px;margin-top:8px">⚠ Low-precision coordinates (&lt; 4 decimals) — verify location before well planning.</div>`
           : '';
         new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
           .setLngLat(coords)
@@ -448,6 +457,7 @@ export function MapPage() {
                 <div><span style="color:#888">Play type</span><br/><b style="font-size:11px">${esc(props.playType || '—')}</b></div>
                 ${outcomeHtml}
               </div>
+              ${precisionWarningHtml}
             </div>`)
           .addTo(m);
       });

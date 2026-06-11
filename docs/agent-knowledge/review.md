@@ -53,6 +53,20 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   `safeGcos`/`safeNumber` helper to `src/utils/numberUtils.ts` (with its own test file)
   to avoid re-duplicating the `Number.isFinite` guard across pages — use this helper
   for any new GCoS-based arithmetic instead of inlining `?? 0`.
+- 2026-06-11 (cycle 20): Found `(p.geologicalChanceOfSuccess ?? 0)` (does not catch
+  explicit `NaN`, since `NaN ?? 0 === NaN`) still in use in `advisor.ts` (basin
+  distribution, best/worst basin, map overview, spatial cluster analysis, play-type
+  breakdown — 5 `reduce` aggregations) and `portfolioIntelligence.ts:getBasinStats`
+  (avgGCoS). The cluster-analysis handler's `c.avgGcos > 0.2 && c.count >= 3`
+  high-value-cluster filter would silently exclude any basin containing a NaN-GCoS
+  prospect (`NaN > 0.2` is `false`). Fixed by promoting the existing
+  `finiteGcos(p)` helper from a private const in `portfolioIntelligence.ts` to an
+  exported one (placed near the top of the file, before its first use in
+  `getBasinStats`), and using it in all 6 affected aggregations
+  (`portfolioIntelligence.ts:getBasinStats` + `advisor.ts` lines ~786/811/828/871/1112).
+  Added tests: `finiteGcos`/`getBasinStats` NaN cases in
+  `portfolioIntelligence.test.ts`, and a "cluster spatial analysis with NaN GCoS
+  prospect" case in `advisor.test.ts` asserting the response never contains "NaN".
 - 2026-06-10 (cycle 16): Found and fixed 2 more NaN-propagation instances in
   `VisualizationsPage.tsx` (cross-section sort, bubble-chart x-axis, and forecast
   ranking/cumulative-resource gcos) using the shared `safeGcos` helper from

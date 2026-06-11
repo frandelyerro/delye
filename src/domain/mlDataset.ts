@@ -110,7 +110,6 @@ export const exportTrainingDatasetAsCsv = (examples: MLTrainingExample[]): strin
     'mainRisk_seal', 'mainRisk_trap', 'mainRisk_timing',
     'isEvidenceDerived', 'evidenceCompleteness',
     'positiveEvidenceCount', 'negativeEvidenceCount', 'missingEvidenceCount',
-    'riskedResource', 'simpleEMV', 'prospectivityTierNumeric',
   ];
 
   const headers = ['prospectName', 'basin', 'playType', 'source', 'label', 'target', ...scalarFeatureKeys];

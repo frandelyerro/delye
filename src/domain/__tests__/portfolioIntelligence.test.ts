@@ -3,6 +3,8 @@ import {
   getOutcomeCalibration,
   getBasinOutcomeStats,
   getPlayTypeOutcomeStats,
+  getBasinStats,
+  finiteGcos,
 } from '../portfolioIntelligence';
 import type { Prospect } from '../prospect';
 import type { ProspectOutcome } from '../outcomes';
@@ -31,6 +33,42 @@ const outcome = (label: ProspectOutcome['label']): ProspectOutcome => ({
   targetVariable: 'geological_success',
   resultConfidence: 'high',
   source: 'historical',
+});
+
+describe('finiteGcos', () => {
+  it('returns geologicalChanceOfSuccess when finite', () => {
+    expect(finiteGcos(baseProspect({ geologicalChanceOfSuccess: 0.42 }))).toBeCloseTo(0.42);
+  });
+
+  it('returns 0 for NaN geologicalChanceOfSuccess', () => {
+    expect(finiteGcos(baseProspect({ geologicalChanceOfSuccess: NaN }))).toBe(0);
+  });
+
+  it('returns 0 for undefined geologicalChanceOfSuccess', () => {
+    expect(finiteGcos(baseProspect({ geologicalChanceOfSuccess: undefined }))).toBe(0);
+  });
+});
+
+describe('getBasinStats', () => {
+  it('computes avgGCoS across a basin', () => {
+    const prospects = [
+      baseProspect({ id: 'a', basin: 'Basin A', geologicalChanceOfSuccess: 0.4 }),
+      baseProspect({ id: 'b', basin: 'Basin A', geologicalChanceOfSuccess: 0.6 }),
+    ];
+    const stats = getBasinStats(prospects);
+    expect(stats).toHaveLength(1);
+    expect(stats[0].avgGCoS).toBe(50);
+  });
+
+  it('does not let a NaN geologicalChanceOfSuccess poison the basin average', () => {
+    const prospects = [
+      baseProspect({ id: 'a', basin: 'Basin A', geologicalChanceOfSuccess: 0.4 }),
+      baseProspect({ id: 'b', basin: 'Basin A', geologicalChanceOfSuccess: NaN }),
+    ];
+    const stats = getBasinStats(prospects);
+    expect(stats[0].avgGCoS).toBe(20);
+    expect(Number.isFinite(stats[0].avgGCoS)).toBe(true);
+  });
 });
 
 describe('getOutcomeCalibration', () => {

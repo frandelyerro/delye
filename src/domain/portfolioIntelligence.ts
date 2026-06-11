@@ -7,6 +7,10 @@ import {
   type TargetingRecommendation,
 } from './recommendationEngine';
 
+// `?? 0` does not catch an explicit NaN (NaN is a `number`); these stats feed charts.
+export const finiteGcos = (p: Prospect): number =>
+  Number.isFinite(p.geologicalChanceOfSuccess) ? Math.max(0, p.geologicalChanceOfSuccess as number) : 0;
+
 export type RiskConcentrationResult = {
   /** True when more than 50% of prospects share the same mainRisk */
   concentrated: boolean;
@@ -93,7 +97,7 @@ export const getBasinStats = (prospects: Prospect[]): BasinStats[] => {
     .map(([basin, ps]) => ({
       basin,
       count: ps.length,
-      avgGCoS: Math.round(ps.reduce((s, p) => s + (p.geologicalChanceOfSuccess ?? 0), 0) / ps.length * 100),
+      avgGCoS: Math.round(ps.reduce((s, p) => s + finiteGcos(p), 0) / ps.length * 100),
       drillCandidates: ps.filter((p) => getRecommendedAction(p) === 'drill_candidate').length,
       avgDataConfidence: Math.round(ps.reduce((s, p) => s + (p.dataConfidence ?? 0), 0) / ps.length),
     }))
@@ -292,10 +296,6 @@ export const getDrillSequenceOrder = (prospects: Prospect[], topN = 5): DrillSeq
     .sort((a, b) => b.compositeScore - a.compositeScore)
     .slice(0, topN)
     .map((e, i) => ({ ...e, rank: i + 1 }));
-
-// `?? 0` does not catch an explicit NaN (NaN is a `number`); these stats feed charts.
-const finiteGcos = (p: Prospect): number =>
-  Number.isFinite(p.geologicalChanceOfSuccess) ? Math.max(0, p.geologicalChanceOfSuccess as number) : 0;
 
 export type OutcomeStats = {
   totalDrilled: number;

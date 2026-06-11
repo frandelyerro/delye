@@ -324,6 +324,15 @@ describe('advisor spatial / map queries', () => {
     expect(response.length).toBeGreaterThan(30);
   });
 
+  it('"cluster analysis" does not let a NaN GCoS poison the basin average', () => {
+    const withNaN = [
+      ...prospects,
+      { ...prospects[0], id: 'nan-gcos', geologicalChanceOfSuccess: NaN },
+    ];
+    const response = getAdvisorResponse('cluster spatial analysis', withNaN);
+    expect(response).not.toMatch(/NaN/);
+  });
+
   it('"frontier basin" identifies low-confidence prospects', () => {
     const response = getAdvisorResponse('Are there frontier basin opportunities?', prospects);
     expect(response.toLowerCase()).toMatch(/frontier|confidence/i);
