@@ -5,6 +5,30 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
 ## Open improvement areas
 - (none recorded yet)
 
+## Completed
+- 2026-06-10 (cycle 17): Fixed `findMentionedProspects()` in `advisor.ts` (HIGH) —
+  it matched any prospect whose name was a substring of another matched prospect's
+  name (e.g. "Tupi" inside "Tupi North"), so two-prospect queries (compare, distance)
+  could silently pick the wrong pair or duplicate-match. Now sorts candidates by name
+  length (longest first) and skips a candidate if its name overlaps (in either
+  direction) with an already-matched name. Regression test added with synthetic
+  "Tupi"/"Tupi North" prospects.
+- 2026-06-10 (cycle 17): Fixed a double-call of `findMentionedProspects()` in the
+  advisor's "compare" handler (MEDIUM) — the result is now computed once into
+  `comparePair` and reused.
+- 2026-06-10 (cycle 17): `AgentEvolutionPage.tsx` had `CURRENT_CYCLE = 14` while
+  `CYCLE_HISTORY` already had rows through cycle 16 (MEDIUM) — the "← now" highlight
+  and "This Cycle" KPI silently showed stale data. Bumped to the live cycle number
+  each `/advance` run and added the corresponding `CYCLE_HISTORY` rows; keep these two
+  in sync going forward (`CURRENT_CYCLE` should always equal the last `CYCLE_HISTORY`
+  row's `cycle`).
+- 2026-06-10 (cycle 17): 8 more display-only `(p.geologicalChanceOfSuccess ?? 0)` /
+  `(prospect.geologicalChanceOfSuccess ?? 0)` NaN-unsafe sites found across
+  ComparisonPage, TargetingPage, ProspectDetailPage, and DashboardPage (MEDIUM) —
+  replaced with `safeGcos(p)` from `src/utils/numberUtils.ts`, consistent with the
+  cycle 15/16 fixes. A repo-wide grep for `geologicalChanceOfSuccess ?? 0` now returns
+  no matches in `src/pages/`.
+
 ## Reference material / methodology notes
 - 2026-06-10: Recurring NaN-propagation pattern found in chart/visualization code —
   optional numeric fields (`geologicalChanceOfSuccess`, `resourceEstimate`, component

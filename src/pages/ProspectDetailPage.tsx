@@ -29,6 +29,7 @@ import type { MLTrainingTarget } from '../domain/mlTrainingTypes';
 import { getOutcomeLabelText, getOutcomeSummary, isKnownOutcome } from '../domain/outcomes';
 import { findAnalogs } from '../domain/analogFinder';
 import { priorityBadgeClass, riskBadgeClass, tierBadgeClass, actionBadgeClass, economicGradeBadge, decisionSignalBadge, confidenceBadgeClass } from '../utils/badgeStyles';
+import { safeGcos } from '../utils/numberUtils';
 
 const mlTargetLabel: Record<MLTrainingTarget, string> = {
   hydrocarbon_presence: 'Hydrocarbon Presence',
@@ -67,7 +68,7 @@ export function ProspectDetailPage() {
     { name: 'timing', value: prospect.timingScore }
   ];
   const primaryMetrics = [
-    ['GCoS', `${Math.round((prospect.geologicalChanceOfSuccess ?? 0) * 100)}%`],
+    ['GCoS', `${Math.round(safeGcos(prospect) * 100)}%`],
     ['Commercial Score', `${prospect.commercialScore}/100`],
     ['Resource Estimate', `${prospect.resourceEstimate} MMboe`],
     ['Priority', prospect.priority],
@@ -188,7 +189,7 @@ export function ProspectDetailPage() {
           </div>
           <div className="rounded border border-slate-800 bg-slate-950 p-4">
             <div className="text-xs uppercase tracking-wide text-slate-500">Final GCoS</div>
-            <p className="mt-2 text-slate-200">{Math.round((prospect.geologicalChanceOfSuccess ?? 0) * 100)}%</p>
+            <p className="mt-2 text-slate-200">{Math.round(safeGcos(prospect) * 100)}%</p>
           </div>
           <div className="rounded border border-slate-800 bg-slate-950 p-4 md:col-span-2">
             <div className="text-xs uppercase tracking-wide text-slate-500">Interpretation</div>
@@ -691,7 +692,7 @@ export function ProspectDetailPage() {
                   <div className="font-medium text-slate-100">{analog.name}</div>
                   <div className="mt-1 text-xs text-slate-500">{analog.basin} · {analog.playType}</div>
                   <div className="mt-1 text-xs text-slate-400">
-                    GCoS {Math.round((analog.geologicalChanceOfSuccess ?? 0) * 100)}%
+                    GCoS {Math.round(safeGcos(analog) * 100)}%
                   </div>
                 </Link>
               </li>

@@ -21,6 +21,12 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   as `basin-circles-fill`/`basin-circles-line` layers from a `basin-circles` source
   in MapPage.tsx, toggled via the "Basin Circles" button. This supersedes the
   convex-hull item as the primary basin-extent visualization for now.
+- Point-to-point distance advisor query — IMPLEMENTED in cycle 17: new "how far is
+  [name] from [name]" / "distance between" handler in `advisor.ts`, using the existing
+  `haversineKm()` and `isValidCoordinate()` from `geoUtils.ts` plus the new
+  `findMentionedProspects()` substring-overlap fix (see review.md) to identify the
+  pair. Returns great-circle distance, basin context, and tiered shared-infrastructure
+  guidance (<50km / <200km / >=200km).
 
 ## Reference material / methodology notes
 - 2026-06-10: `@turf/turf` is still NOT installed. MapLibre native clustering is in

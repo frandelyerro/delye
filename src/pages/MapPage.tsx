@@ -7,15 +7,9 @@ import { getAdvisorResponse } from '../domain/advisor';
 import type { Prospect } from '../domain/prospect';
 import { isValidCoordinate, hasLowPrecisionCoordinates, findIsolated, basinBoundingCircle, circlePolygonCoordinates } from '../domain/geoUtils';
 import { safeGcos } from '../utils/numberUtils';
+import { PRIORITY_COLOR, type Priority } from '../utils/chartConfig';
 
-type Priority = 'high' | 'medium' | 'low';
 type FilterState = { basin: string | null; priority: Priority | null };
-
-const PRIORITY_COLOR: Record<Priority, string> = {
-  high: '#22c55e',
-  medium: '#f59e0b',
-  low: '#ef4444',
-};
 
 const PLAY_TYPE_COLOR: Record<string, string> = {
   'Conventional Clastic':   '#3b82f6',

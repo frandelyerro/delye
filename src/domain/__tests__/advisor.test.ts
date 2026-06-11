@@ -50,6 +50,37 @@ describe('advisor explainability responses', () => {
   });
 });
 
+describe('advisor trap geometry + distance queries', () => {
+  it('answers a trap geometry breakdown with closure/seismic methodology', () => {
+    const response = getAdvisorResponse('Give me a trap geometry breakdown', prospects);
+    expect(response).toContain('Trap geometry assessment');
+    expect(response.toLowerCase()).toMatch(/closure|seismic|structural|stratigraphic/);
+  });
+
+  it('computes great-circle distance between two named prospects', () => {
+    const response = getAdvisorResponse('How far is Vaca Norte Lead from Austral Shelf Fan?', prospects);
+    expect(response).toContain('Vaca Norte Lead');
+    expect(response).toContain('Austral Shelf Fan');
+    expect(response).toMatch(/\d+ km apart/);
+    expect(response.toLowerCase()).toContain('basin');
+  });
+
+  it('asks for two prospects when only one is named in a distance query', () => {
+    const response = getAdvisorResponse('How far is Vaca Norte Lead from the coast?', prospects);
+    expect(response.toLowerCase()).toMatch(/name two prospects|could not resolve/);
+  });
+
+  it('does not double-match a prospect whose name is a substring of another', () => {
+    const overlapping = scoreProspects([
+      { id: 't1', name: 'Tupi North', basin: 'Santos Basin', block: 'S-1', playType: 'Carbonate', latitude: -25.0, longitude: -42.0, sourceScore: 0.7, migrationScore: 0.7, reservoirScore: 0.7, sealScore: 0.7, trapScore: 0.7, timingScore: 0.7, commercialScore: 70, resourceEstimate: 100 },
+      { id: 't2', name: 'Tupi', basin: 'Santos Basin', block: 'S-2', playType: 'Carbonate', latitude: -24.0, longitude: -42.5, sourceScore: 0.6, migrationScore: 0.6, reservoirScore: 0.6, sealScore: 0.6, trapScore: 0.6, timingScore: 0.6, commercialScore: 60, resourceEstimate: 80 },
+    ]);
+    // Mentioning only "Tupi North" must NOT also match the shorter "Tupi" and fire a bogus distance.
+    const response = getAdvisorResponse('How far is Tupi North from somewhere?', overlapping);
+    expect(response.toLowerCase()).toMatch(/name two prospects|could not resolve/);
+  });
+});
+
 describe('advisor targeting queries', () => {
   it('responds to drill candidates query', () => {
     const response = getAdvisorResponse('Which prospects are drill candidates?', prospects);

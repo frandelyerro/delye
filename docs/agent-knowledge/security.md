@@ -3,21 +3,23 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- `vitest` is at 2.1.9 (package.json declares `^4.1.8`, which is unsatisfiable with the
-  current `vite ^5.4.19` — npm reports the installed vitest as "invalid"). `npm audit`
-  flags this dependency chain: vitest <=3.2.5 / vite <=6.4.1 / esbuild <=0.24.2 (1
-  critical: vitest UI arbitrary file read/exec; moderate: vite path traversal in
-  sourcemaps, esbuild dev-server CORS). All three are dev-only dependencies (no
-  production bundle impact for this client-side SPA), but the version pin mismatch
-  should be resolved. A full fix requires a vite 5→6+ and vitest →3.2.6+/4.x major
-  upgrade, which risks breaking the Vite/Vitest config and CI — needs a dedicated
-  cycle with full regression testing (`npm run typecheck && npm run test && npm run
-  build` plus a manual smoke check), not a quick fix folded into an unrelated cycle.
-  - 2026-06-10 (cycle 16): Confirmed there is NO safe minimal fix — even pinning
-    package.json's vitest range to `^2.1.9` (matching the installed version) would
-    not resolve the audit, since 2.1.9 itself is within the vulnerable range
-    (<3.2.6). The major upgrade is the only real fix; still deferred to a dedicated
-    cycle.
+- `npm audit` reports 2 moderate, dev-only findings: `esbuild <=0.24.2` (dev server
+  allows any website to send requests to it and read the response) via `vite <=6.4.1`.
+  Fixing requires `npm audit fix --force`, which installs `vite@8.0.16` — a major
+  version jump (5→8) that risks breaking the Vite/Vitest config and CI. No production
+  bundle impact (dev-only). Defer to a dedicated cycle with full regression testing
+  (`npm run typecheck && npm run test && npm run build` plus a manual smoke check).
+
+## Resolved
+- 2026-06-10 (cycle 17): The previously-flagged CRITICAL finding (vitest <=3.2.5 /
+  vite <=6.4.1 / esbuild <=0.24.2, vitest UI arbitrary file read/exec) is RESOLVED.
+  Root cause was simpler than previously assessed: `node_modules/maplibre-gl` was
+  missing despite being declared in `package.json`, so `node_modules` was stale
+  relative to the lockfile/manifest. Running `npm install` (to fix the missing
+  maplibre-gl build error after fast-forwarding `main`) also brought `vitest` up to
+  the already-declared `^4.1.8` range — no manual version-pin change was needed.
+  `npm ls vitest` now reports `vitest@4.1.8`, matching `package.json`. Only the 2
+  moderate esbuild/vite findings above remain.
 
 ## Reference material / methodology notes
 - 2026-06-10: Baseline security checklist for this app (client-side React SPA,

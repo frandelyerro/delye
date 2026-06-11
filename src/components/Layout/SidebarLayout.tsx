@@ -10,6 +10,7 @@ const nav = [
   { to: '/visualizations', label: 'Visualizations' },
   { to: '/advisor', label: 'Advisor' },
   { to: '/ml-lab', label: 'ML Lab' },
+  { to: '/outcomes', label: 'Outcome Labeling' },
   { to: '/upload', label: 'Upload' },
   { to: '/agents', label: 'Agent Evolution' },
 ];

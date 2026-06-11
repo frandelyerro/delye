@@ -13,10 +13,7 @@ import { exportPortfolioAsCsv, exportPortfolioAsJson } from '../utils/exportRepo
 import { getRiskConcentration, getGCoSHistogram, getBasinStats, getBasinDiversityIndex, getDrillSequenceOrder, getOutcomeStats } from '../domain/portfolioIntelligence';
 import { safeGcos } from '../utils/numberUtils';
 import { priorityBadgeClass, riskBadgeClass, tierBadgeClass, actionBadgeClass, economicGradeBadge } from '../utils/badgeStyles';
-
-const colors = { high: '#22c55e', medium: '#f59e0b', low: '#ef4444' };
-
-const BASIN_PALETTE = ['#38bdf8','#a78bfa','#34d399','#f472b6','#fb923c','#facc15','#60a5fa','#f87171','#4ade80','#e879f9','#94a3b8'];
+import { CHART_TOOLTIP_STYLE, PRIORITY_COLOR, BASIN_PALETTE } from '../utils/chartConfig';
 
 export function DashboardPage() {
   const { prospects, filters, setFilters, deleteProspect, resetProspects } = useProspectStore();
@@ -127,7 +124,7 @@ export function DashboardPage() {
         <ResponsiveContainer>
           <PieChart>
             <Pie data={priorityDist} dataKey="value" nameKey="name" outerRadius={82}>
-              {priorityDist.map((entry) => <Cell key={entry.name} fill={colors[entry.name as keyof typeof colors]} />)}
+              {priorityDist.map((entry) => <Cell key={entry.name} fill={PRIORITY_COLOR[entry.name as keyof typeof PRIORITY_COLOR]} />)}
             </Pie>
             <Tooltip/>
           </PieChart>
@@ -141,7 +138,7 @@ export function DashboardPage() {
             <YAxis type="category" dataKey="name" width={96} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} tickLine={false} />
             <Tooltip
               formatter={(v: number, name: string) => [v, name === 'count' ? 'prospects' : 'avg GCoS %']}
-              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
+              contentStyle={CHART_TOOLTIP_STYLE}
             />
             <Bar dataKey="count" name="count" fill="#38bdf8" fillOpacity={0.8} radius={[0, 3, 3, 0]} />
           </BarChart>
@@ -179,7 +176,7 @@ export function DashboardPage() {
                     />
                     <Tooltip
                       formatter={(v: number) => [v, 'prospects']}
-                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
+                      contentStyle={CHART_TOOLTIP_STYLE}
                     />
                     <Bar dataKey="count" name="count" radius={[3, 3, 0, 0]}>
                       {gcosHistogram.map((bucket) => {
@@ -343,7 +340,7 @@ export function DashboardPage() {
           <ZAxis type="number" dataKey="z" range={[40, 300]} name="Commercial" />
           <Tooltip
             cursor={{ strokeDasharray: '3 3', stroke: '#334155' }}
-            contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
+            contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(value, name) => [value, name]}
             labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? ''}
           />
@@ -393,7 +390,7 @@ export function DashboardPage() {
                     <td className="px-4 py-4 text-slate-300">{p.basin}</td>
                     <td className="px-4 py-4 text-slate-300">{p.block}</td>
                     <td className="px-4 py-4 text-slate-300">{p.playType}</td>
-                    <td className="px-4 py-4 font-semibold text-slate-100">{Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%</td>
+                    <td className="px-4 py-4 font-semibold text-slate-100">{Math.round(safeGcos(p) * 100)}%</td>
                     <td className="px-4 py-4 text-slate-300">{p.commercialScore}</td>
                     <td className="px-4 py-4 text-slate-300">{p.resourceEstimate}</td>
                     <td className="px-4 py-4">

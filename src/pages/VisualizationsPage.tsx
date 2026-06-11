@@ -6,6 +6,7 @@ import {
 import { useProspectStore } from '../store/useProspectStore';
 import { componentMap, componentNames, componentLabels } from '../domain/explainability';
 import { safeGcos } from '../utils/numberUtils';
+import { CHART_TOOLTIP_STYLE } from '../utils/chartConfig';
 
 const COMPONENT_COLOR: Record<string, string> = {
   Source: '#38bdf8',
@@ -114,7 +115,7 @@ export function VisualizationsPage() {
             <XAxis type="number" domain={[0, 100]} unit="%" tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={false} />
             <YAxis type="category" dataKey="name" width={140} tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
             <Tooltip
-              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number, name: string) => [`${value}%`, name]}
             />
             <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
@@ -139,7 +140,7 @@ export function VisualizationsPage() {
             <ZAxis type="number" dataKey="z" range={[40, 300]} name="Resource (MMboe)" />
             <Tooltip
               cursor={{ strokeDasharray: '3 3', stroke: '#334155' }}
-              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value, name) => [value, name]}
               labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? ''}
             />
@@ -164,7 +165,7 @@ export function VisualizationsPage() {
             <XAxis dataKey="rank" tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={false} label={{ value: 'Prospect rank (by GCoS)', position: 'insideBottom', offset: -10, fill: '#64748b', fontSize: 10 }} />
             <YAxis tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={false} label={{ value: 'Cumulative MMboe', angle: -90, position: 'insideLeft', offset: 12, fill: '#64748b', fontSize: 10 }} />
             <Tooltip
-              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 12 }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               labelFormatter={(rank) => `Prospect rank ${rank}`}
             />
             <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />

@@ -14,6 +14,8 @@ import { useProspectStore } from '../store/useProspectStore';
 import { getScoreBreakdown } from '../domain/explainability';
 import { scoreProspect } from '../domain/scoring';
 import { findAnalogs } from '../domain/analogFinder';
+import { safeGcos } from '../utils/numberUtils';
+import { CHART_TOOLTIP_STYLE } from '../utils/chartConfig';
 import type { Prospect } from '../domain/prospect';
 
 const COLORS = ['#38bdf8', '#f472b6', '#34d399', '#fb923c'];
@@ -122,7 +124,7 @@ export function ComparisonPage() {
                   <div className="font-semibold truncate">{p.name}</div>
                   <div className="text-slate-400 truncate">{p.basin}</div>
                   <div className="mt-1 font-mono text-sky-400">
-                    {pct(p.geologicalChanceOfSuccess ?? 0)} GCoS
+                    {pct(safeGcos(p))} GCoS
                   </div>
                 </button>
               );
@@ -144,7 +146,7 @@ export function ComparisonPage() {
                 className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs text-slate-300 hover:border-sky-500 hover:text-sky-200 transition-colors"
               >
                 <div className="font-semibold">{p.name}</div>
-                <div className="text-slate-400">{p.basin} · {pct(p.geologicalChanceOfSuccess ?? 0)} GCoS</div>
+                <div className="text-slate-400">{p.basin} · {pct(safeGcos(p))} GCoS</div>
               </button>
             ))}
           </div>
@@ -189,7 +191,7 @@ export function ComparisonPage() {
                 ))}
                 <Tooltip
                   formatter={(value: number, name: string) => [pct(value), name]}
-                  contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+                  contentStyle={CHART_TOOLTIP_STYLE}
                   labelStyle={{ color: '#cbd5e1' }}
                 />
                 <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
@@ -216,7 +218,7 @@ export function ComparisonPage() {
                 </tr>
               </thead>
               <tbody>
-                <MetricRow label="GCoS" values={chosen.map((p) => pct(p.geologicalChanceOfSuccess ?? 0))} />
+                <MetricRow label="GCoS" values={chosen.map((p) => pct(safeGcos(p)))} />
                 <MetricRow
                   label="Priority"
                   values={chosen.map((p) => (

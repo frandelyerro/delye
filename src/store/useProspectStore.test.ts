@@ -82,6 +82,31 @@ describe('useProspectStore portfolio behavior', () => {
     expect(updated.geologicalChanceOfSuccess).toBeCloseTo(0.331776);
   });
 
+  it('batchUpdateOutcomes sets outcomes for multiple prospects in one call', () => {
+    useProspectStore.getState().replaceProspects([sample, { ...sample, id: 'x2', name: 'X2' }, { ...sample, id: 'x3', name: 'X3' }]);
+    useProspectStore.getState().batchUpdateOutcomes([
+      { id: 'x1', outcome: { label: 'dry_hole', targetVariable: 'geological_success', resultConfidence: 'high', source: 'manual' } },
+      { id: 'x2', outcome: { label: 'commercial_discovery', targetVariable: 'commercial_success', resultConfidence: 'medium', source: 'manual' } },
+    ]);
+    const state = useProspectStore.getState();
+    expect(state.prospects.find((p) => p.id === 'x1')?.outcome?.label).toBe('dry_hole');
+    expect(state.prospects.find((p) => p.id === 'x2')?.outcome?.label).toBe('commercial_discovery');
+    expect(state.prospects.find((p) => p.id === 'x3')?.outcome).toBeUndefined();
+  });
+
+  it('batchUpdateOutcomes overwrites a previously recorded outcome', () => {
+    useProspectStore.getState().replaceProspects([sample]);
+    useProspectStore.getState().batchUpdateOutcomes([
+      { id: 'x1', outcome: { label: 'non_commercial', targetVariable: 'geological_success', resultConfidence: 'low', source: 'manual' } },
+    ]);
+    useProspectStore.getState().batchUpdateOutcomes([
+      { id: 'x1', outcome: { label: 'dry_hole', targetVariable: 'geological_success', resultConfidence: 'high', source: 'manual' } },
+    ]);
+    const updated = useProspectStore.getState().prospects.find((p) => p.id === 'x1');
+    expect(updated?.outcome?.label).toBe('dry_hole');
+    expect(updated?.outcome?.resultConfidence).toBe('high');
+  });
+
   it('deleteProspect removes a prospect', () => {
     useProspectStore.getState().replaceProspects([sample, { ...sample, id: 'x2', name: 'X2' }]);
     useProspectStore.getState().deleteProspect('x1');

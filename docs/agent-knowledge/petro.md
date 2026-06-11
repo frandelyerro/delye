@@ -13,6 +13,17 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   methodology citation (SPE/AAPG/SEG unconventional definitions) and before/after test
   evidence for a tight-sandstone case.
 
+## Completed
+- Trap-geometry advisor query — IMPLEMENTED in cycle 17: new handler in `advisor.ts`
+  triggered by trap-type/geometry/closure/subsalt keywords. Reads `evidence?.trap`
+  (`TrapEvidence`: `closureMapped`, `trapType`, `closureAreaKm2`, `closureHeightM`,
+  `seismicConfidence`) and returns: trap-type distribution across the portfolio,
+  prospects with `closureMapped === false` (unmapped closures), subsalt traps with
+  `seismicConfidence` below "high" (velocity pull-up/push-down imaging risk —
+  consistent with the subsalt penalty already in `geoscienceEngine.ts assessTrap`),
+  and trap-score-limited prospects, plus a methodology note. Pure read/aggregation
+  over existing evidence — no geoscience engine or scoring change.
+
 ## Reference material / methodology notes
 - 2026-06-10 (cycle 16): NPV advisor handler (explaining "positive EMV but negative
   NPV" using `discountRate`/`simpleNPVAtDiscountUsdMM`) and a `mlFeatures.ts` NPV

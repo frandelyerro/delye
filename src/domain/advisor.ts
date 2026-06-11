@@ -47,7 +47,19 @@ const findMentionedProspects = (question: string, prospects: Prospect[]): Prospe
   const lowerQuestion = question.toLowerCase();
   const matches: Prospect[] = [];
   for (const prospect of [...prospects].sort((a, b) => b.name.length - a.name.length)) {
-    if (lowerQuestion.includes(prospect.name.toLowerCase())) matches.push(prospect);
+    const name = prospect.name.toLowerCase();
+    // Only push if this name doesn't overlap (substring either direction) an already
+    // matched name — prevents "Tupi North" also matching a shorter "Tupi" in the same
+    // question and producing a bogus self-comparison / wrong second prospect.
+    if (
+      lowerQuestion.includes(name) &&
+      !matches.some((m) => {
+        const mn = m.name.toLowerCase();
+        return mn.includes(name) || name.includes(mn);
+      })
+    ) {
+      matches.push(prospect);
+    }
     if (matches.length === 2) break;
   }
   return matches;
@@ -160,8 +172,9 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `The highest-ranked current prospect is strongest in ${formatComponents(best)}.`;
   }
 
-  if (q.includes('compare') && findMentionedProspects(q, prospects).length === 2) {
-    const [a, b] = findMentionedProspects(q, prospects);
+  const comparePair = q.includes('compare') ? findMentionedProspects(q, prospects) : [];
+  if (comparePair.length === 2) {
+    const [a, b] = comparePair;
     const componentEntries = (Object.keys(componentLabels) as (keyof typeof componentLabels)[]).map((key) => {
       const componentKey = `${key}Score` as keyof Prospect;
       const aVal = Number(a[componentKey]) || 0;
@@ -483,7 +496,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     (q.includes('how many') && q.includes('label') && q.includes('need'))
   ) {
     const { labeled, positives, negatives, minExamples } = summarizeTrainingLabels(prospects);
-    return `You currently have ${labeled} real labeled example(s) (${positives} positive / ${negatives} negative). The baseline trains with at least ${minExamples}; for more reliable metrics aim for 100+ labeled outcomes with at least 10 of each class (discoveries and dry holes). Synthetic labels do not count toward real training. Add outcomes via the Historical Outcome section on each prospect, or import a labeled dataset from ML Lab.`;
+    return `You currently have ${labeled} real labeled example(s) (${positives} positive / ${negatives} negative). The baseline trains with at least ${minExamples}; for more reliable metrics aim for 100+ labeled outcomes with at least 10 of each class (discoveries and dry holes). Synthetic labels do not count toward real training. Add outcomes via the Historical Outcome section on each prospect, label many at once on the Outcome Labeling page (/outcomes), or import a labeled dataset from ML Lab.`;
   }
 
   if (
@@ -582,9 +595,9 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
   ) {
     const withOutcomes = prospects.filter((p) => p.outcome && isKnownOutcome(p.outcome));
     if (!withOutcomes.length) {
-      return 'No prospects have recorded historical outcomes yet. Add well outcomes in the Edit Prospect form (Historical Outcome section) to build a real ML training dataset. No trained ML model is connected.';
+      return 'No prospects have recorded historical outcomes yet. Add well outcomes in the Edit Prospect form (Historical Outcome section), or label several at once on the Outcome Labeling page (/outcomes), to build a real ML training dataset. No trained ML model is connected.';
     }
-    return `Prospects with recorded outcomes (${withOutcomes.length}): ${withOutcomes.map((p) => `${p.name} (${getOutcomeLabelText(p.outcome!.label)})`).join(', ')}. These are included in the real training dataset export on the ML Lab page. No trained ML model is connected yet.`;
+    return `Prospects with recorded outcomes (${withOutcomes.length}): ${withOutcomes.map((p) => `${p.name} (${getOutcomeLabelText(p.outcome!.label)})`).join(', ')}. These are included in the real training dataset export on the ML Lab page. Use the Outcome Labeling page (/outcomes) to label more prospects in bulk. No trained ML model is connected yet.`;
   }
 
   if (
@@ -869,6 +882,55 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Reservoir quality assessment: Productive reservoir requires sufficient porosity (>8% for carbonates, >10% for clastics), permeability, and continuity. In PetroTarget AI, reservoirScore (0–1) encodes porosity type, diagenetic risk, net-to-gross ratio, and lateral continuity. Portfolio average reservoir score: ${(avgReservoir * 100).toFixed(0)}%. ${lowReservoir.length} prospect${lowReservoir.length !== 1 ? 's have' : ' has'} reservoirScore < 30% — high reservoir risk. ${mainReservoirRisk.length} prospect${mainReservoirRisk.length !== 1 ? 's identify' : ' identifies'} reservoir as main risk. Typical de-risking: analog well log correlations, AVO analysis on 3D seismic, direct hydrocarbon indicators (DHI), and sedimentological facies models. Reservoir quality often improves (or collapses) dramatically at the drill bit.`;
   }
 
+  // ── Trap geometry / trap-type risk ──────────────────────────────────────────
+
+  if (
+    q.includes('trap type') ||
+    q.includes('trap geometry') ||
+    q.includes('trap style') ||
+    q.includes('stratigraphic trap') ||
+    q.includes('structural trap') ||
+    q.includes('closure') ||
+    q.includes('subsalt') ||
+    q.includes('sub-salt') ||
+    (q.includes('trap') && (q.includes('risk') || q.includes('assess') || q.includes('mapped') || q.includes('breakdown') || q.includes('geometry')))
+  ) {
+    const withTrap = prospects.filter((p) => p.evidence?.trap);
+    const typeCounts: Record<string, number> = {};
+    for (const p of withTrap) {
+      const t = p.evidence!.trap!.trapType ?? 'unspecified';
+      typeCounts[t] = (typeCounts[t] ?? 0) + 1;
+    }
+    const dist = Object.entries(typeCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([t, n]) => `${n} ${t}`)
+      .join(', ');
+    const unmapped = withTrap.filter((p) => p.evidence!.trap!.closureMapped === false || p.evidence!.trap!.trapType === 'unknown');
+    const subsaltRisk = withTrap.filter((p) => p.evidence!.trap!.trapType === 'subsalt' && p.evidence!.trap!.seismicConfidence !== 'high');
+    const trapLimited = prospects.filter((p) => p.mainRisk === 'trap' || p.trapScore < 0.40);
+    const noTrapEvidence = prospects.length - withTrap.length;
+
+    const parts: string[] = [];
+    parts.push(`Trap geometry assessment across ${prospects.length} prospect${prospects.length !== 1 ? 's' : ''}.`);
+    if (withTrap.length > 0) {
+      parts.push(`Trap-type distribution (${withTrap.length} with trap evidence): ${dist}.`);
+    }
+    if (unmapped.length > 0) {
+      parts.push(`${unmapped.length} prospect${unmapped.length !== 1 ? 's have' : ' has'} no defined structural closure (closure not mapped or trap type unknown) — these require seismic mapping before a drill decision: ${unmapped.map((p) => p.name).join(', ')}.`);
+    }
+    if (subsaltRisk.length > 0) {
+      parts.push(`${subsaltRisk.length} subsalt trap${subsaltRisk.length !== 1 ? 's' : ''} carr${subsaltRisk.length !== 1 ? 'y' : 'ies'} sub-high seismic confidence (${subsaltRisk.map((p) => p.name).join(', ')}) — velocity pull-up/push-down increases sub-salt imaging uncertainty; reprocess/PSDM before committing capital.`);
+    }
+    if (trapLimited.length > 0) {
+      parts.push(`Trap-limited prospects (trap is the main risk or trapScore < 40%): ${trapLimited.map((p) => p.name).join(', ')}.`);
+    }
+    if (noTrapEvidence > 0) {
+      parts.push(`${noTrapEvidence} prospect${noTrapEvidence !== 1 ? 's are' : ' is'} manually scored without structured trap evidence — switch to evidence-derived mode to capture closure type, area, height and seismic confidence.`);
+    }
+    parts.push(`Methodology: four-way structural closures are the lowest-risk trap class because they are seismically well-imaged; stratigraphic and fault-dependent traps carry higher pre-drill risk since they rely on lateral seal/pinch-out continuity that seismic resolves poorly. Trap risk is the most seismically-reducible of the six petroleum-system components — well-imaged closures justify drilling, poorly-defined traps justify acquiring or reprocessing seismic first.`);
+    return parts.join(' ');
+  }
+
   if (
     q.includes('target depth') ||
     q.includes('depth target') ||
@@ -880,6 +942,32 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     (q.includes('depth') && (q.includes('prospect') || q.includes('drilling') || q.includes('well') || q.includes('target')))
   ) {
     return `Target depth and formation: PetroTarget AI currently stores play type and basin but does not yet capture target formation name or total depth (TVD). These are critical well-planning inputs — TD determines drilling cost, casing program, and BHA design. Standard depth risk buckets: shallow (<1500 m, lowest cost/risk), moderate (1500–3500 m), deep (3500–5000 m), ultra-deep (>5000 m, highest cost/risk). To add depth/formation information: edit each prospect and add it to the notes field for now. A future version will add dedicated depth and formation fields to the Prospect schema. If you have well prognosis data (formation tops, predicted depths), export your portfolio as GeoJSON from the Map page and annotate in GeoLibre or a GIS tool.`;
+  }
+
+  // ── Point-to-point distance between two named prospects ─────────────────────
+
+  if (
+    q.includes('how far') ||
+    q.includes('distance between') ||
+    q.includes('distance from')
+  ) {
+    const mentioned = findMentionedProspects(question, prospects);
+    if (mentioned.length < 2) {
+      return 'To compute a point-to-point distance, name two prospects in your question — e.g. "how far is Vaca Norte from Austral Shelf Fan". I could not resolve two distinct prospect names from that question.';
+    }
+    const [a, b] = mentioned;
+    const invalid = [a, b].filter((p) => !isValidCoordinate(p.latitude, p.longitude));
+    if (invalid.length > 0) {
+      return `Cannot compute distance: ${invalid.map((p) => p.name).join(' and ')} ${invalid.length > 1 ? 'have' : 'has'} no valid coordinates (non-zero lat/lon). Add coordinates on the prospect edit page to enable spatial distance queries.`;
+    }
+    const km = haversineKm(a.latitude, a.longitude, b.latitude, b.longitude);
+    const sameBasin = a.basin === b.basin;
+    const infra = km < 50
+      ? 'At under 50 km they are close enough to share seismic acquisition, infrastructure and tie-back development — consider a joint development scenario.'
+      : km < 200
+        ? 'At this separation some regional seismic and logistics may be shared, but standalone development economics likely apply.'
+        : 'At this distance they are effectively independent developments with separate infrastructure and standalone economics.';
+    return `${a.name} and ${b.name} are approximately ${km.toFixed(0)} km apart (great-circle distance). ${a.name} sits in the ${a.basin} basin; ${b.name} sits in the ${b.basin} basin${sameBasin ? ' (same basin)' : ''}. ${infra}`;
   }
 
   // ── Nearest prospect spatial query ──────────────────────────────────────────
@@ -933,5 +1021,5 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Play-type distribution across ${prospects.length} prospect${prospects.length !== 1 ? 's' : ''}: ${lines}. Dominant play type: ${dominant?.play ?? '—'} with ${dominant?.count} prospect${dominant?.count !== 1 ? 's' : ''}. Diversifying across play types reduces correlated geological risk — if all prospects share the same source kitchen or seal type, a single regional failure could eliminate the entire portfolio value. The Map page play-type filter lets you visualize spatial play concentration.`;
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "migration risk", "risk reward", "risk-reward", "capital efficiency", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", "norway limitations", "basin distribution", "best basin", "map overview", "spatial overview", "cluster analysis", "frontier basin", "analog field", "source rock maturity", "seal integrity", "reservoir quality", "target depth", "nearest prospect", "play type distribution", or "explain GCoS".';
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "migration risk", "risk reward", "risk-reward", "capital efficiency", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", "norway limitations", "basin distribution", "best basin", "map overview", "spatial overview", "cluster analysis", "frontier basin", "analog field", "source rock maturity", "seal integrity", "reservoir quality", "trap geometry", "target depth", "nearest prospect", "how far is [name] from [name]", "play type distribution", or "explain GCoS".';
 };

@@ -3,6 +3,7 @@ import { mockProspects } from '../data/mockProspects';
 import { Priority, Prospect, validateProspect } from '../domain/prospect';
 import { scoreProspect, scoreProspects } from '../domain/scoring';
 import { getProspectRepository } from '../services/prospectRepository';
+import type { ProspectOutcome } from '../domain/outcomes';
 
 type Filters = { basin: string; block: string; playType: string; priority: '' | Priority };
 const STORAGE_KEY = 'petrotarget-ai:prospects';
@@ -15,6 +16,7 @@ type ProspectStore = {
   appendProspects: (prospects: Prospect[]) => void;
   createProspect: (prospect: Prospect) => void;
   updateProspect: (id: string, prospect: Prospect) => void;
+  batchUpdateOutcomes: (updates: { id: string; outcome: ProspectOutcome }[]) => void;
   deleteProspect: (id: string) => void;
   resetProspects: () => void;
   loadFromStorage: () => void;
@@ -99,6 +101,14 @@ export const useProspectStore = create<ProspectStore>((set) => ({
       return { prospects: scoredProspects };
     });
   },
+  batchUpdateOutcomes: (updates) => set((state) => {
+    const outcomeById = new Map(updates.map((u) => [u.id, u.outcome]));
+    const scoredProspects = scoreProspects(
+      state.prospects.map((p) => (outcomeById.has(p.id) ? scoreProspect({ ...p, outcome: outcomeById.get(p.id) }) : p)),
+    );
+    writeStoredProspects(scoredProspects);
+    return { prospects: scoredProspects };
+  }),
   deleteProspect: (id) => set((state) => {
     const scoredProspects = scoreProspects(state.prospects.filter((p) => p.id !== id));
     writeStoredProspects(scoredProspects);

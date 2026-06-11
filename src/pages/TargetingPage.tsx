@@ -15,6 +15,7 @@ import { getExplorationStage, getExplorationStageLabel } from '../domain/earlyEx
 import { getPortfolioSummary } from '../domain/portfolioIntelligence';
 import { getDecisionSignalLabel } from '../domain/economics';
 import { tierBadgeClass as tierBadge, actionBadgeClass as actionBadge, decisionSignalBadge, riskBadgeClass as riskBadge } from '../utils/badgeStyles';
+import { safeGcos } from '../utils/numberUtils';
 
 const tierShortLabel: Record<ProspectivityTier, string> = {
   tier_1: 'T1', tier_2: 'T2', tier_3: 'T3', tier_4: 'T4',
@@ -189,7 +190,7 @@ export function TargetingPage() {
                       </td>
                       <td className="px-4 py-4 text-slate-300">{p.basin}</td>
                       <td className="px-4 py-4 text-slate-300">{p.playType}</td>
-                      <td className="px-4 py-4 font-semibold text-slate-100">{Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}%</td>
+                      <td className="px-4 py-4 font-semibold text-slate-100">{Math.round(safeGcos(p) * 100)}%</td>
                       <td className="px-4 py-4 text-slate-300">{p.commercialScore}</td>
                       <td className="px-4 py-4 text-slate-300">{p.resourceEstimate}</td>
                       <td className="px-4 py-4">
@@ -263,7 +264,7 @@ export function TargetingPage() {
                       return (
                         <li key={r.prospectId} className="flex items-center justify-between gap-2 text-xs">
                           <Link to={`/prospects/${r.prospectId}`} className="font-medium text-slate-200 hover:text-cyan-300">{r.prospectName}</Link>
-                          <span className="shrink-0 text-slate-500">{p ? `${Math.round((p.geologicalChanceOfSuccess ?? 0) * 100)}% GCoS` : ''}</span>
+                          <span className="shrink-0 text-slate-500">{p ? `${Math.round(safeGcos(p) * 100)}% GCoS` : ''}</span>
                         </li>
                       );
                     })}
