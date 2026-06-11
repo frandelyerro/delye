@@ -20,6 +20,7 @@ import { useMLTraining } from '../hooks/useMLTraining';
 import {
   buildTrainingRows,
 } from '../domain/mlTrainingFeatures';
+import { computeFeatureCorrelations } from '../domain/mlEvaluation';
 import {
   getDefaultMLTrainingConfig,
   validateTrainingReadinessForModel,
@@ -128,12 +129,14 @@ export function MLLabPage() {
     const negatives = rows.length - positives;
     const syntheticExcluded = excluded.filter((e) => /synthetic/i.test(e.reason)).length;
     const readinessWarnings = validateTrainingReadinessForModel(rows, trainingConfig);
+    const featureCorrelations = computeFeatureCorrelations(rows).slice(0, 8);
     return {
       labeled: rows.length,
       positives,
       negatives,
       syntheticExcluded,
       readinessWarnings,
+      featureCorrelations,
       canTrain: rows.length >= trainingConfig.minExamples,
     };
   }, [prospects, trainingConfig]);
@@ -374,6 +377,29 @@ export function MLLabPage() {
             <ul className="space-y-1">
               {trainingPreview.readinessWarnings.map((w, i) => (
                 <li key={i} className="text-xs text-amber-300">⚠ {w}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {trainingPreview.labeled >= 5 && (
+          <div className="mt-3 rounded border border-slate-700 bg-slate-950 p-3">
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Feature Correlations (Exploratory)
+            </div>
+            <p className="mb-2 text-xs text-slate-500">
+              Point-biserial correlation between each feature and the {trainingTargetLabel[trainTarget].toLowerCase()} label
+              on the {trainingPreview.labeled} currently-labeled prospects. Exploratory only — not used for feature
+              selection or causal claims, and may shift substantially as more outcomes are recorded.
+            </p>
+            <ul className="space-y-1">
+              {trainingPreview.featureCorrelations.map(({ feature, correlation }) => (
+                <li key={feature} className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">{feature}</span>
+                  <span className={correlation >= 0 ? 'text-emerald-300' : 'text-red-300'}>
+                    {correlation >= 0 ? '+' : ''}{correlation.toFixed(2)}
+                  </span>
+                </li>
               ))}
             </ul>
           </div>

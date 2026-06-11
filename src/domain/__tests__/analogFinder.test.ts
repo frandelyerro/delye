@@ -58,4 +58,44 @@ describe('findAnalogs', () => {
     const result = findAnalogs(target, [target, dupe, dupeAgain], 5);
     expect(result.map((p) => p.id)).toEqual(['dupe']);
   });
+
+  it('samePlayType filter restricts candidates to the target play type', () => {
+    const target = makeProspect({ id: 'target', playType: 'Conventional Clastic' });
+    const samePlay = makeProspect({ id: 'same-play', playType: 'Conventional Clastic', sourceScore: 0.1 });
+    const otherPlay = makeProspect({ id: 'other-play', playType: 'Carbonate', sourceScore: 0.7 });
+    const result = findAnalogs(target, [target, samePlay, otherPlay], 5, { samePlayType: true });
+    expect(result.map((p) => p.id)).toEqual(['same-play']);
+  });
+
+  it('sameBasin filter restricts candidates to the target basin', () => {
+    const target = makeProspect({ id: 'target', basin: 'Basin A' });
+    const sameBasin = makeProspect({ id: 'same-basin', basin: 'Basin A', sourceScore: 0.1 });
+    const otherBasin = makeProspect({ id: 'other-basin', basin: 'Basin B', sourceScore: 0.7 });
+    const result = findAnalogs(target, [target, sameBasin, otherBasin], 5, { sameBasin: true });
+    expect(result.map((p) => p.id)).toEqual(['same-basin']);
+  });
+
+  it('byMainRisk filter restricts candidates to the target mainRisk', () => {
+    const target = makeProspect({ id: 'target', mainRisk: 'seal' });
+    const sameRisk = makeProspect({ id: 'same-risk', mainRisk: 'seal', sourceScore: 0.1 });
+    const otherRisk = makeProspect({ id: 'other-risk', mainRisk: 'trap', sourceScore: 0.7 });
+    const result = findAnalogs(target, [target, sameRisk, otherRisk], 5, { byMainRisk: true });
+    expect(result.map((p) => p.id)).toEqual(['same-risk']);
+  });
+
+  it('byMainRisk filter never matches when the target has no mainRisk', () => {
+    const target = makeProspect({ id: 'target', mainRisk: undefined });
+    const candidate = makeProspect({ id: 'candidate', mainRisk: 'seal' });
+    const result = findAnalogs(target, [target, candidate], 5, { byMainRisk: true });
+    expect(result).toEqual([]);
+  });
+
+  it('combines multiple filters', () => {
+    const target = makeProspect({ id: 'target', basin: 'Basin A', playType: 'Conventional Clastic' });
+    const matches = makeProspect({ id: 'matches', basin: 'Basin A', playType: 'Conventional Clastic', sourceScore: 0.1 });
+    const wrongBasin = makeProspect({ id: 'wrong-basin', basin: 'Basin B', playType: 'Conventional Clastic', sourceScore: 0.1 });
+    const wrongPlay = makeProspect({ id: 'wrong-play', basin: 'Basin A', playType: 'Carbonate', sourceScore: 0.1 });
+    const result = findAnalogs(target, [target, matches, wrongBasin, wrongPlay], 5, { sameBasin: true, samePlayType: true });
+    expect(result.map((p) => p.id)).toEqual(['matches']);
+  });
 });

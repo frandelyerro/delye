@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 18;
+const CURRENT_CYCLE = 19;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata' | 'ml';
 
@@ -49,9 +49,9 @@ const AGENTS: AgentDef[] = [
     precision: 90,
     recall: 68,
     depth: 85,
-    totalFindings: 36,
-    implemented: 33,
-    latestFinding: 'Shipped outcome success-rate analytics: getBasinOutcomeStats/getPlayTypeOutcomeStats/getOutcomeCalibration in portfolioIntelligence.ts plus "success rate by basin" and "gcos calibration" advisor handlers — Rose & Associates lookback methodology over the new labeled outcomes.',
+    totalFindings: 37,
+    implemented: 34,
+    latestFinding: 'Extended findAnalogs() with optional sameBasin/samePlayType/byMainRisk filters so the analog finder can be narrowed to truly comparable prospects when assessing a target.',
     knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation'],
   },
   {
@@ -109,9 +109,9 @@ const AGENTS: AgentDef[] = [
     precision: 80,
     recall: 74,
     depth: 76,
-    totalFindings: 14,
-    implemented: 12,
-    latestFinding: 'Added analog-proximity analysis: findNearestOutcome()/rankByAnalogProximity() in geoUtils.ts plus a "nearest analog to [name]" advisor handler — ranks undrilled prospects by distance to the nearest drilled (outcome-labeled) well.',
+    totalFindings: 15,
+    implemented: 13,
+    latestFinding: 'Added basinClusteringStats() to geoUtils.ts (avg/min/max nearest-neighbor distance per basin, dense vs. scattered classification) plus a "basin cluster spacing" advisor handler — surfaces shared-facility/tie-back candidates.',
     knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred — requires MapLibre expression-based clusterProperties, untestable by unit tests, risk of cluster regressions'],
   },
   {
@@ -121,13 +121,13 @@ const AGENTS: AgentDef[] = [
     ring: 'border-pink-500/40',
     description: 'ML feature/label honesty, baseline model calibration, ML Lab UX, advisor ML coverage.',
     specialties: ['Feature engineering', 'Synthetic vs. real labels', 'Baseline model calibration', 'ML readiness'],
-    precision: 0,
-    recall: 0,
-    depth: 0,
-    totalFindings: 0,
-    implemented: 0,
-    latestFinding: 'New specialist agent added in cycle 19 — covers mlFeatures/mlDataset/mlModel/mlReadiness/mlTrainingFeatures/mlTrainingService/mlEvaluation/mlLogisticRegression/norwayFactpagesAdapter and MLLabPage. First audit pending.',
-    knownGaps: ['mlReadiness/mlEvaluation may not yet leverage real outcome labels added in cycles 17-18'],
+    precision: 80,
+    recall: 60,
+    depth: 65,
+    totalFindings: 1,
+    implemented: 1,
+    latestFinding: 'Shipped computeFeatureCorrelations() in mlEvaluation.ts and a "Feature Correlations (Exploratory)" panel in ML Lab — point-biserial correlation between each training feature and the selected target on currently-labeled prospects, clearly marked exploratory-only.',
+    knownGaps: ['mlReadiness/mlEvaluation may not yet fully leverage real outcome labels added in cycles 17-18'],
   },
 ];
 
@@ -162,6 +162,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 16, architect: 2, petro: 1, review: 2, security: 1, dev: 0, geodata: 1, ml: 0, highlight: 'VisualizationsPage NaN fixes, badge-style dedup, basin bounding-circle overlay' },
   { cycle: 17, architect: 1, petro: 2, review: 3, security: 1, dev: 1, geodata: 2, ml: 0, highlight: 'Trap-geometry advisor query, great-circle distance query, findMentionedProspects substring fix, chart-config dedup, batch outcome labeling' },
   { cycle: 18, architect: 0, petro: 1, review: 0, security: 0, dev: 1, geodata: 1, ml: 0, highlight: 'Outcome Calibration page (/calibration), success-rate-by-basin/play advisor analytics, nearest-drilled-analog proximity ranking' },
+  { cycle: 19, architect: 0, petro: 1, review: 0, security: 0, dev: 0, geodata: 1, ml: 1, highlight: 'AI/ML specialist agent added; basin clustering/spacing analytics + advisor query, findAnalogs basin/play-type/main-risk filters, exploratory feature-correlation panel in ML Lab' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {

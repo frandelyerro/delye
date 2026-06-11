@@ -44,6 +44,12 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   and trap-score-limited prospects, plus a methodology note. Pure read/aggregation
   over existing evidence — no geoscience engine or scoring change.
 
+- 2026-06-11 (cycle 19): Extended `findAnalogs()` in `analogFinder.ts` with an optional
+  `AnalogFilters` argument (`samePlayType`, `sameBasin`, `byMainRisk`) so callers can
+  restrict candidates to truly comparable prospects (same play type, same basin, or
+  same dominant risk factor) before ranking by scoring-profile distance. `byMainRisk`
+  matches nothing if the target has no `mainRisk` set. 6 new analogFinder tests.
+
 ## Reference material / methodology notes
 - 2026-06-10 (cycle 16): NPV advisor handler (explaining "positive EMV but negative
   NPV" using `discountRate`/`simpleNPVAtDiscountUsdMM`) and a `mlFeatures.ts` NPV

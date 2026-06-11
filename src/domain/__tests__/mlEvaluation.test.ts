@@ -5,6 +5,7 @@ import {
   calculateBrierScore,
   calculateConfusionMatrix,
   calculateROCAUC,
+  computeFeatureCorrelations,
   evaluateModel,
   findOptimalThreshold,
   kFoldCrossValidate,
@@ -350,5 +351,66 @@ describe('kFoldCrossValidate', () => {
     const rows = makeBalancedRows(4);
     const result = kFoldCrossValidate(rows, getDefaultMLTrainingConfig(), 10);
     expect(result.folds).toBeGreaterThanOrEqual(0);
+  });
+});
+
+const makeMultiFeatureRow = (id: string, features: Record<string, number>, label: 0 | 1): MLTrainingRow => ({
+  prospectId: id,
+  prospectName: id,
+  features,
+  label,
+  target: 'geological_success',
+  isSynthetic: false,
+});
+
+describe('computeFeatureCorrelations', () => {
+  it('returns [] for fewer than 2 rows', () => {
+    expect(computeFeatureCorrelations([])).toEqual([]);
+    expect(computeFeatureCorrelations([makeMultiFeatureRow('a', { x: 1 }, 1)])).toEqual([]);
+  });
+
+  it('finds a perfect positive correlation between a feature and the label', () => {
+    const rows = [
+      makeMultiFeatureRow('a', { x: 0, y: 5 }, 0),
+      makeMultiFeatureRow('b', { x: 1, y: 5 }, 1),
+      makeMultiFeatureRow('c', { x: 0, y: 5 }, 0),
+      makeMultiFeatureRow('d', { x: 1, y: 5 }, 1),
+    ];
+    const result = computeFeatureCorrelations(rows);
+    const x = result.find((r) => r.feature === 'x')!;
+    expect(x.correlation).toBeCloseTo(1, 5);
+  });
+
+  it('finds a perfect negative correlation', () => {
+    const rows = [
+      makeMultiFeatureRow('a', { x: 1 }, 0),
+      makeMultiFeatureRow('b', { x: 0 }, 1),
+      makeMultiFeatureRow('c', { x: 1 }, 0),
+      makeMultiFeatureRow('d', { x: 0 }, 1),
+    ];
+    const result = computeFeatureCorrelations(rows);
+    expect(result[0].correlation).toBeCloseTo(-1, 5);
+  });
+
+  it('returns 0 correlation for a zero-variance feature (avoids division by zero)', () => {
+    const rows = [
+      makeMultiFeatureRow('a', { constant: 5 }, 0),
+      makeMultiFeatureRow('b', { constant: 5 }, 1),
+      makeMultiFeatureRow('c', { constant: 5 }, 0),
+    ];
+    const result = computeFeatureCorrelations(rows);
+    expect(result.find((r) => r.feature === 'constant')!.correlation).toBe(0);
+  });
+
+  it('sorts results by absolute correlation descending', () => {
+    const rows = [
+      makeMultiFeatureRow('a', { strong: 0, weak: 0.4 }, 0),
+      makeMultiFeatureRow('b', { strong: 1, weak: 0.6 }, 1),
+      makeMultiFeatureRow('c', { strong: 0, weak: 0.5 }, 0),
+      makeMultiFeatureRow('d', { strong: 1, weak: 0.5 }, 1),
+    ];
+    const result = computeFeatureCorrelations(rows);
+    expect(Math.abs(result[0].correlation)).toBeGreaterThanOrEqual(Math.abs(result[1].correlation));
+    expect(result[0].feature).toBe('strong');
   });
 });

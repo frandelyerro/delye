@@ -164,6 +164,44 @@ export const findOptimalThreshold = (
   return bestThreshold;
 };
 
+export type FeatureCorrelation = { feature: string; correlation: number };
+
+/**
+ * Point-biserial correlation between each training feature and the binary
+ * label (equivalent to Pearson correlation against a 0/1 outcome), sorted by
+ * |correlation| descending. Returns [] for fewer than 2 rows. A feature with
+ * zero variance across rows gets correlation 0 (avoids division by zero).
+ *
+ * Exploratory only: surfaces which features move with real outcomes on the
+ * current labeled set. Not used for feature selection, gating, or causal claims.
+ */
+export const computeFeatureCorrelations = (rows: MLTrainingRow[]): FeatureCorrelation[] => {
+  if (rows.length < 2) return [];
+  const n = rows.length;
+  const featureNames = Object.keys(rows[0].features);
+  const labels: number[] = rows.map((r) => r.label);
+  const labelMean = labels.reduce((a, b) => a + b, 0) / n;
+
+  return featureNames
+    .map((feature) => {
+      const values = rows.map((r) => r.features[feature]);
+      const valueMean = values.reduce((a, b) => a + b, 0) / n;
+      let cov = 0;
+      let varX = 0;
+      let varY = 0;
+      for (let i = 0; i < n; i++) {
+        const dx = values[i] - valueMean;
+        const dy = labels[i] - labelMean;
+        cov += dx * dy;
+        varX += dx * dx;
+        varY += dy * dy;
+      }
+      const denom = Math.sqrt(varX * varY);
+      return { feature, correlation: denom === 0 ? 0 : cov / denom };
+    })
+    .sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation));
+};
+
 /** Evaluates a trained model on a held-out test set. */
 export const evaluateModel = (
   model: TrainedMLModel,

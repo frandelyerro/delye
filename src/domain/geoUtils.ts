@@ -115,6 +115,55 @@ export function rankByAnalogProximity<T extends MaybeLabeled>(
     .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
+type BasinGroupable = { basin: string; latitude: number; longitude: number };
+
+export type BasinClusteringStat = {
+  basin: string;
+  count: number;
+  avgNearestNeighborKm: number;
+  minNearestNeighborKm: number;
+  maxNearestNeighborKm: number;
+  isDense: boolean;
+};
+
+const DENSE_AVG_NN_KM = 100;
+
+/**
+ * For each basin with >=2 valid-coordinate prospects, computes the nearest-neighbor
+ * distance distribution (avg/min/max, km) and flags "dense" basins (avg NN distance
+ * below `DENSE_AVG_NN_KM`) — a proxy for shared-infrastructure / tie-back potential.
+ * Basins with 0 or 1 valid-coordinate prospects are omitted (no neighbor pairs).
+ */
+export function basinClusteringStats<T extends BasinGroupable>(items: T[]): BasinClusteringStat[] {
+  const byBasin = new Map<string, T[]>();
+  for (const item of items) {
+    if (!isValidCoordinate(item.latitude, item.longitude)) continue;
+    const group = byBasin.get(item.basin);
+    if (group) group.push(item);
+    else byBasin.set(item.basin, [item]);
+  }
+
+  const stats: BasinClusteringStat[] = [];
+  for (const [basin, group] of byBasin) {
+    if (group.length < 2) continue;
+    const nnDistances = group.map((item) => {
+      const others = group.filter((c) => c !== item);
+      const nearest = findNearest(others, item.latitude, item.longitude);
+      return nearest!.distanceKm;
+    });
+    const avgNearestNeighborKm = nnDistances.reduce((s, d) => s + d, 0) / nnDistances.length;
+    stats.push({
+      basin,
+      count: group.length,
+      avgNearestNeighborKm,
+      minNearestNeighborKm: Math.min(...nnDistances),
+      maxNearestNeighborKm: Math.max(...nnDistances),
+      isDense: avgNearestNeighborKm < DENSE_AVG_NN_KM,
+    });
+  }
+  return stats.sort((a, b) => a.avgNearestNeighborKm - b.avgNearestNeighborKm);
+}
+
 /** Computes the centroid and the radius of the smallest circle (centered on the
  * centroid) enclosing all valid items. Returns null if there are no valid items. */
 export function basinBoundingCircle<T extends { latitude: number; longitude: number }>(

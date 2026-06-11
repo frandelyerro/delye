@@ -12,17 +12,39 @@ const featureVector = (p: Prospect): number[] => [
 const euclideanDistance = (a: number[], b: number[]): number =>
   Math.sqrt(a.reduce((sum, val, i) => sum + (val - b[i]) ** 2, 0));
 
+export type AnalogFilters = {
+  /** Restrict candidates to the same play type as the target. */
+  samePlayType?: boolean;
+  /** Restrict candidates to the same basin as the target. */
+  sameBasin?: boolean;
+  /** Restrict candidates to those sharing the target's primary risk component. */
+  byMainRisk?: boolean;
+};
+
 /**
  * Finds the k prospects most similar to the target across the six geological
  * scoring dimensions plus commercial score, used to surface analog prospects
  * for de-risking. Excludes the target itself.
+ *
+ * Optional `filters` narrow the candidate pool before similarity ranking
+ * (e.g. `{ samePlayType: true }` restricts analogs to the same play type).
+ * `byMainRisk` only restricts candidates when the target has a `mainRisk` set;
+ * a candidate without `mainRisk` never matches under `byMainRisk`.
  */
-export const findAnalogs = (target: Prospect, candidates: Prospect[], k = 5): Prospect[] => {
+export const findAnalogs = (
+  target: Prospect,
+  candidates: Prospect[],
+  k = 5,
+  filters?: AnalogFilters,
+): Prospect[] => {
   const targetVector = featureVector(target);
   const seenIds = new Set<string>();
   return candidates
     .filter((p) => {
       if (p.id === target.id || seenIds.has(p.id)) return false;
+      if (filters?.samePlayType && p.playType !== target.playType) return false;
+      if (filters?.sameBasin && p.basin !== target.basin) return false;
+      if (filters?.byMainRisk && (!target.mainRisk || p.mainRisk !== target.mainRisk)) return false;
       seenIds.add(p.id);
       return true;
     })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { haversineKm, isValidCoordinate, findNearest, hasLowPrecisionCoordinates, findIsolated, basinBoundingCircle, circlePolygonCoordinates, findNearestOutcome, rankByAnalogProximity } from '../geoUtils';
+import { haversineKm, isValidCoordinate, findNearest, hasLowPrecisionCoordinates, findIsolated, basinBoundingCircle, circlePolygonCoordinates, findNearestOutcome, rankByAnalogProximity, basinClusteringStats } from '../geoUtils';
 
 describe('haversineKm', () => {
   it('returns 0 for identical coordinates', () => {
@@ -242,5 +242,71 @@ describe('circlePolygonCoordinates', () => {
       expect(lon).toBeCloseTo(5, 5);
       expect(lat).toBeCloseTo(5, 5);
     }
+  });
+});
+
+type BasinTestItem = { id: string; basin: string; latitude: number; longitude: number };
+
+describe('basinClusteringStats', () => {
+  it('returns empty array when no basin has >=2 valid-coordinate items', () => {
+    const items: BasinTestItem[] = [
+      { id: 'a', basin: 'Basin A', latitude: 10, longitude: 10 },
+      { id: 'b', basin: 'Basin B', latitude: 20, longitude: 20 },
+    ];
+    expect(basinClusteringStats(items)).toEqual([]);
+  });
+
+  it('computes avg/min/max nearest-neighbor distance for a basin with multiple items', () => {
+    const items: BasinTestItem[] = [
+      { id: 'a', basin: 'Basin A', latitude: 0, longitude: 1 },
+      { id: 'b', basin: 'Basin A', latitude: 0, longitude: 2 },
+      { id: 'c', basin: 'Basin A', latitude: 0, longitude: 3 },
+    ];
+    const stats = basinClusteringStats(items);
+    expect(stats).toHaveLength(1);
+    expect(stats[0].basin).toBe('Basin A');
+    expect(stats[0].count).toBe(3);
+    expect(stats[0].minNearestNeighborKm).toBeGreaterThan(0);
+    expect(stats[0].maxNearestNeighborKm).toBeGreaterThanOrEqual(stats[0].minNearestNeighborKm);
+    expect(stats[0].avgNearestNeighborKm).toBeGreaterThan(0);
+  });
+
+  it('flags a basin as dense when avg nearest-neighbor distance is below 100 km', () => {
+    const items: BasinTestItem[] = [
+      { id: 'a', basin: 'Basin Dense', latitude: 1, longitude: 1 },
+      { id: 'b', basin: 'Basin Dense', latitude: 1.05, longitude: 1.05 },
+    ];
+    const stats = basinClusteringStats(items);
+    expect(stats[0].isDense).toBe(true);
+  });
+
+  it('flags a basin as scattered when avg nearest-neighbor distance is >= 100 km', () => {
+    const items: BasinTestItem[] = [
+      { id: 'a', basin: 'Basin Scattered', latitude: 1, longitude: 1 },
+      { id: 'b', basin: 'Basin Scattered', latitude: 6, longitude: 6 },
+    ];
+    const stats = basinClusteringStats(items);
+    expect(stats[0].isDense).toBe(false);
+  });
+
+  it('ignores items with invalid coordinates', () => {
+    const items: BasinTestItem[] = [
+      { id: 'a', basin: 'Basin A', latitude: 2, longitude: 2 },
+      { id: 'b', basin: 'Basin A', latitude: 1, longitude: 1 },
+      { id: 'c', basin: 'Basin A', latitude: NaN, longitude: NaN },
+    ];
+    const stats = basinClusteringStats(items);
+    expect(stats[0].count).toBe(2);
+  });
+
+  it('sorts basins by avg nearest-neighbor distance ascending (densest first)', () => {
+    const items: BasinTestItem[] = [
+      { id: 'a1', basin: 'Scattered', latitude: 1, longitude: 1 },
+      { id: 'a2', basin: 'Scattered', latitude: 6, longitude: 6 },
+      { id: 'b1', basin: 'Dense', latitude: 10, longitude: 10 },
+      { id: 'b2', basin: 'Dense', latitude: 10.01, longitude: 10.01 },
+    ];
+    const stats = basinClusteringStats(items);
+    expect(stats.map((s) => s.basin)).toEqual(['Dense', 'Scattered']);
   });
 });

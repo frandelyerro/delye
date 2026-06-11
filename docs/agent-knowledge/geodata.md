@@ -43,6 +43,15 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   pair. Returns great-circle distance, basin context, and tiered shared-infrastructure
   guidance (<50km / <200km / >=200km).
 
+- Basin cluster spacing — IMPLEMENTED in cycle 19: `basinClusteringStats()` in
+  `geoUtils.ts` computes per-basin avg/min/max nearest-neighbor distance (filters
+  invalid/null-island coords, requires >=2 valid items per basin) and flags a basin
+  as `isDense` when avg nearest-neighbor distance < 100 km. New "basin spacing" /
+  "basin density" / "cluster density" / "nearest neighbor" / "infrastructure
+  sharing" advisor handler returns per-basin spacing summary plus shared-facility/
+  tie-back guidance for dense basins. Placed BEFORE the existing broader "cluster"
+  handler to avoid precedence collisions. 6 new geoUtils tests.
+
 ## Reference material / methodology notes
 - 2026-06-10: `@turf/turf` is still NOT installed. MapLibre native clustering is in
   use (clusterRadius 40, clusterMaxZoom 10) and covers basic density; the heatmap
