@@ -6,10 +6,13 @@ import { useProspectStore } from '../store/useProspectStore';
 import { getAdvisorResponse } from '../domain/advisor';
 import type { Prospect } from '../domain/prospect';
 import { isValidCoordinate, hasLowPrecisionCoordinates, findIsolated, basinBoundingCircle, circlePolygonCoordinates } from '../domain/geoUtils';
+import { isGeologicalSuccess } from '../domain/outcomes';
 import { safeGcos } from '../utils/numberUtils';
 import { PRIORITY_COLOR, type Priority } from '../utils/chartConfig';
 
-type FilterState = { basin: string | null; priority: Priority | null };
+type OutcomeFilter = 'discoveries' | 'dry_holes' | 'non_commercial';
+
+type FilterState = { basin: string | null; priority: Priority | null; outcome: OutcomeFilter | null };
 
 const PLAY_TYPE_COLOR: Record<string, string> = {
   'Conventional Clastic':   '#3b82f6',
@@ -209,7 +212,7 @@ export function MapPage() {
   const layersReady = useRef(false);
   const filteredRef = useRef<Prospect[]>([]);
 
-  const [filter, setFilter] = useState<FilterState>({ basin: null, priority: null });
+  const [filter, setFilter] = useState<FilterState>({ basin: null, priority: null, outcome: null });
   const [is3D, setIs3D] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showBasinCircles, setShowBasinCircles] = useState(false);
@@ -226,6 +229,12 @@ export function MapPage() {
       prospects.filter((p) => {
         if (filter.basin && p.basin !== filter.basin) return false;
         if (filter.priority && (p.priority ?? 'low') !== filter.priority) return false;
+        if (filter.outcome) {
+          if (!p.outcome) return false;
+          if (filter.outcome === 'discoveries' && !isGeologicalSuccess(p.outcome)) return false;
+          if (filter.outcome === 'dry_holes' && p.outcome.label !== 'dry_hole') return false;
+          if (filter.outcome === 'non_commercial' && p.outcome.label !== 'non_commercial') return false;
+        }
         return true;
       }),
     [prospects, filter],
@@ -488,9 +497,13 @@ export function MapPage() {
     basinCirclesSrc?.setData(basinCirclesToGeoJSON(filteredProspects));
 
     // Fit bounds when a filter is active and there are prospects to show
-    if ((filter.basin || filter.priority) && filteredProspects.length > 0) {
+    if ((filter.basin || filter.priority || filter.outcome) && filteredProspects.length > 0) {
       const valid = filteredProspects.filter((p) => isValidCoordinate(p.latitude, p.longitude));
-      if (valid.length) {
+      if (valid.length === 1) {
+        // A single point would otherwise produce a zero-area bounding box and
+        // force maxZoom — ease to it directly instead.
+        mapRef.current.easeTo({ center: [valid[0].longitude, valid[0].latitude], zoom: 12, duration: 500 });
+      } else if (valid.length > 1) {
         const bounds = valid.reduce(
           (b, p) => b.extend([p.longitude, p.latitude]),
           new maplibregl.LngLatBounds([valid[0].longitude, valid[0].latitude], [valid[0].longitude, valid[0].latitude]),
@@ -549,6 +562,7 @@ export function MapPage() {
 
   const setBasinFilter = (basin: string | null) => setFilter((f) => ({ ...f, basin }));
   const setPriorityFilter = (priority: Priority | null) => setFilter((f) => ({ ...f, priority }));
+  const setOutcomeFilter = (outcome: OutcomeFilter | null) => setFilter((f) => ({ ...f, outcome }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -627,10 +641,25 @@ export function MapPage() {
               {p}
             </button>
           ))}
-          {(filter.basin || filter.priority) && (
+          <span className="mx-1 text-slate-700">|</span>
+          {([
+            { key: 'discoveries', label: 'Discoveries' },
+            { key: 'dry_holes', label: 'Dry Holes' },
+            { key: 'non_commercial', label: 'Non-Commercial' },
+          ] as { key: OutcomeFilter; label: string }[]).map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setOutcomeFilter(filter.outcome === key ? null : key)}
+              className={`rounded-full border px-3 py-0.5 text-xs font-medium ${filter.outcome === key ? 'border-cyan-700 bg-cyan-950/40 text-cyan-200' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}
+            >
+              {label}
+            </button>
+          ))}
+          {(filter.basin || filter.priority || filter.outcome) && (
             <button
               type="button"
-              onClick={() => setFilter({ basin: null, priority: null })}
+              onClick={() => setFilter({ basin: null, priority: null, outcome: null })}
               className="rounded-full border border-red-800/50 px-3 py-0.5 text-xs text-red-400 hover:bg-red-950/20"
             >
               Clear filters ({filteredProspects.length}/{prospects.length})

@@ -109,6 +109,15 @@ export const extractTrainingFeatures = (
   features.componentRange = compMax - compMin;
   features.componentVariance = compVariance;
 
+  // Petroleum-system interaction features — safe pre-drill (products/min of
+  // the 6 component scores). Source-migration and reservoir-seal pairs model
+  // charge and containment as joint requirements (a weak link in either
+  // dominates), and trap-timing captures the "trap formed before migration
+  // ceased" requirement as a single bottleneck signal.
+  features.sourceTimesMigration = p.sourceScore * p.migrationScore;
+  features.reservoirTimesSeal = p.reservoirScore * p.sealScore;
+  features.minTrapTiming = Math.min(p.trapScore, p.timingScore);
+
   if (mode === 'expert_calibration') {
     features.gcosExpert = p.geologicalChanceOfSuccess ?? 0;
   }

@@ -11,6 +11,11 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   (`npm run typecheck && npm run test && npm run build` plus a manual smoke check).
 
 ## Resolved
+- 2026-06-11 (cycle 22): Added `worker-src 'self' blob:` to the CSP in
+  `vercel.json` — closes the last open low-priority CSP item flagged in cycle 21
+  (MapLibre GL WebGL workers). No behavior change observed (app already rendered
+  fine); this makes the allowance explicit instead of relying on default-src.
+  Re-audit otherwise found zero HIGH+ issues.
 - 2026-06-11 (cycle 21): Implemented the previously-deferred MEDIUM finding
   (SEC-001): the ML Lab CSV import handler (`MLLabPage.tsx handleFileChange`,
   ~line 144) now rejects files >10MB before calling `reader.readAsText(file)`,

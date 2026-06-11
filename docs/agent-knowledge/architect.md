@@ -3,6 +3,12 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
+- 2026-06-11 (cycle 22): ARCH-005 (extract `<EvidenceSection>` from
+  ProspectFormPage.tsx, the 6 near-identical evidence blocks at lines ~475-646)
+  was re-confirmed as the recommended next architecture change, but deferred
+  again this cycle for budget — cycle 22 implemented security/petro/geodata
+  changes instead. Remains the top architecture candidate for cycle 23, ideally
+  bundled with ARCH-004/006 (Zustand selectors) per the cycle-21 plan below.
 - `advisor.ts` reached ~1100 lines (cycle 18): `getAdvisorResponse()` is one function
   with ~40 `q.includes(...)` branches. Proposed split: extract handlers into
   `advisorHandlers.ts` with a pattern→handler registry. DEFERRED — branch precedence

@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 21;
+const CURRENT_CYCLE = 22;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata' | 'ml';
 
@@ -49,10 +49,10 @@ const AGENTS: AgentDef[] = [
     precision: 90,
     recall: 68,
     depth: 85,
-    totalFindings: 40,
-    implemented: 35,
-    latestFinding: 'Added a "fault seal risk" advisor handler that surfaces prospects with evidence.seal.faultSealRisk of high/medium, separate from the broader sealScore-based "seal risk" handler — closes the loop between fault-seal evidence captured during scoring and advisor visibility.',
-    knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'validateUnconventionalFlagConsistency() for assessReservoir() — deferred (touches geoscienceEngine.ts, a hard-constraint file)', 'ML interaction features (sourceTimesMigration, reservoirTimesSeal, minTrapTiming) for mlTrainingFeatures.ts'],
+    totalFindings: 41,
+    implemented: 36,
+    latestFinding: 'Added three petroleum-system interaction features to mlTrainingFeatures.ts: sourceTimesMigration and reservoirTimesSeal (joint charge/containment requirements — a weak link in either dominates), and minTrapTiming (the "trap formed before migration ceased" bottleneck as a single feature). All three are safe pre-drill, derived from the existing 6 component scores.',
+    knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'validateUnconventionalFlagConsistency() for assessReservoir() — deferred (touches geoscienceEngine.ts, a hard-constraint file)'],
   },
   {
     id: 'review',
@@ -79,10 +79,10 @@ const AGENTS: AgentDef[] = [
     precision: 88,
     recall: 76,
     depth: 82,
-    totalFindings: 10,
-    implemented: 9,
-    latestFinding: 'Cycle-21 re-audit found zero HIGH+ issues (XSS escaping, CSP, CSV/JSON import, localStorage all clean). Implemented the deferred MEDIUM finding: a 10MB file-size guard on the ML Lab CSV import handler, returning a clear error instead of risking a frozen browser thread on huge files.',
-    knownGaps: ['Dynamic property access on external data', 'Vite CSP header config (worker-src for MapLibre)'],
+    totalFindings: 11,
+    implemented: 10,
+    latestFinding: 'Cycle-22 re-audit found zero HIGH+ issues. Implemented the last deferred LOW finding: added `worker-src \'self\' blob:` to the CSP in vercel.json so MapLibre GL WebGL workers are explicitly allowed (no behavior change — the app already worked, this just removes implicit/default-src reliance).',
+    knownGaps: ['Dynamic property access on external data', 'esbuild/vite dev-only npm audit findings (deferred — major version jump risk)'],
   },
   {
     id: 'dev',
@@ -109,10 +109,10 @@ const AGENTS: AgentDef[] = [
     precision: 80,
     recall: 74,
     depth: 76,
-    totalFindings: 16,
-    implemented: 14,
-    latestFinding: 'Flagged low-precision coordinates (<4 decimals) directly on the map: prospectsToGeoJSON() now exports a coordinatePrecision/lowPrecisionCoords property, and the point-click popup shows an amber "verify location before well planning" warning for affected prospects.',
-    knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred — requires MapLibre expression-based clusterProperties, untestable by unit tests, risk of cluster regressions'],
+    totalFindings: 18,
+    implemented: 16,
+    latestFinding: 'Fixed the single-prospect fitBounds bug (GEO-003): a 1-result filter previously produced a zero-area bounding box and forced maxZoom 10 — now uses easeTo({ center, zoom: 12 }) for exactly one valid prospect. Also added GEO-004 outcome filter chips ("Discoveries"/"Dry Holes"/"Non-Commercial") so the map can isolate outcome-labeled prospects, closing the loop with analog-proximity ranking and the Calibration page.',
+    knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred — requires MapLibre expression-based clusterProperties, untestable by unit tests, risk of cluster regressions', 'Basin circle density labels (avgNearestNeighborKm/isDense annotations) still open'],
   },
   {
     id: 'ml',
@@ -165,6 +165,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 19, architect: 0, petro: 1, review: 0, security: 0, dev: 0, geodata: 1, ml: 1, highlight: 'AI/ML specialist agent added; basin clustering/spacing analytics + advisor query, findAnalogs basin/play-type/main-risk filters, exploratory feature-correlation panel in ML Lab' },
   { cycle: 20, architect: 0, petro: 0, review: 1, security: 0, dev: 0, geodata: 1, ml: 1, highlight: 'NaN-safe basin/play/cluster GCoS averages (finiteGcos), removed leaked post-drill features from ML training CSV export, low-precision-coordinate flag on map popups and GeoJSON export' },
   { cycle: 21, architect: 0, petro: 1, review: 1, security: 1, dev: 0, geodata: 0, ml: 1, highlight: 'Baseline calibration report against real labeled outcomes (evaluateBaselineOnLabeledOutcomes), fault-seal-risk advisor handler, 10MB CSV import size guard, defensive fix for basinClusteringStats nearest-neighbor lookup' },
+  { cycle: 22, architect: 0, petro: 1, review: 0, security: 1, dev: 0, geodata: 1, ml: 0, highlight: 'CSP worker-src blob: for MapLibre WebGL workers, source/migration and reservoir/seal interaction features + min(trap,timing) bottleneck feature for ML training, single-prospect map fitBounds fix (easeTo instead of degenerate bounding box) plus outcome-based map filter chips (Discoveries/Dry Holes/Non-Commercial)' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {

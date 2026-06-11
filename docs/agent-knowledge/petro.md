@@ -23,14 +23,14 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   contradicts the flag. Touches geoscienceEngine.ts (hard constraint) — needs a PR with
   methodology citation (SPE/AAPG/SEG unconventional definitions) and before/after test
   evidence for a tight-sandstone case.
-- ML petroleum-system interaction features for `mlTrainingFeatures.ts`: add
-  `sourceTimesMigration` (sourceScore*migrationScore), `reservoirTimesSeal`
-  (reservoirScore*sealScore), and `minTrapTiming` (min(trapScore, timingScore)) as
-  composite safe-pre-drill features alongside the existing componentMin/Max/Range/
-  Variance features (extractTrainingFeatures, ~line 96-116). ~5 lines + 2 tests.
-  Proposed cycle 21, deferred for sizing.
-
 ## Completed
+- 2026-06-11 (cycle 22): Added the three petroleum-system interaction features
+  proposed in cycle 21 to `extractTrainingFeatures()` in `mlTrainingFeatures.ts`:
+  `sourceTimesMigration` (sourceScore*migrationScore), `reservoirTimesSeal`
+  (reservoirScore*sealScore), and `minTrapTiming` (min(trapScore, timingScore)) —
+  all safe pre-drill, derived from the existing 6 component scores, alongside
+  componentMin/Max/Range/Variance. 3 new mlTrainingFeatures tests.
+
 - 2026-06-11 (cycle 21): Added a "fault seal risk" / "faulted seal" advisor handler
   in `advisor.ts`, placed BEFORE the existing broader "seal risk" handler (pattern
   precedence — "fault seal risk" contains "seal risk" as a substring). Reads

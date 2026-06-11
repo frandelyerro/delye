@@ -3,6 +3,11 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
+- 2026-06-11 (cycle 22): Dev agent proposed TargetingPage keyboard navigation
+  (ArrowUp/Down/Enter/'e' shortcuts) citing a "backlog item #9" — no such item
+  exists in this file's history. The actual deferred dev item remains the GCoS
+  range slider + filter presets (below). No implementation this cycle; re-propose
+  with a concrete file:line plan next cycle if still desired.
 - Drill-sequence / budget allocation planner: `getDrillSequenceOrder()` exists but
   there's no budget-constrained view (EMV waterfall, cumulative capex vs risked
   resource). Next-best candidate after calibration; uses existing

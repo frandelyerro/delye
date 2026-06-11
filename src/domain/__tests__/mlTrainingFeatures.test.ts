@@ -229,3 +229,27 @@ describe('composite component-score features', () => {
     expect(f.componentRange).toBeGreaterThan(0.5);
   });
 });
+
+describe('petroleum-system interaction features', () => {
+  it('sourceTimesMigration is the product of source and migration scores', () => {
+    const p = makeProspect({ sourceScore: 0.8, migrationScore: 0.5 });
+    const f = extractTrainingFeatures(p, 'safe_pre_drill');
+    expect(f.sourceTimesMigration).toBeCloseTo(0.4, 10);
+  });
+
+  it('reservoirTimesSeal is the product of reservoir and seal scores', () => {
+    const p = makeProspect({ reservoirScore: 0.6, sealScore: 0.5 });
+    const f = extractTrainingFeatures(p, 'safe_pre_drill');
+    expect(f.reservoirTimesSeal).toBeCloseTo(0.3, 10);
+  });
+
+  it('minTrapTiming is the lesser of trap and timing scores', () => {
+    const p = makeProspect({ trapScore: 0.9, timingScore: 0.3 });
+    const f = extractTrainingFeatures(p, 'safe_pre_drill');
+    expect(f.minTrapTiming).toBeCloseTo(0.3, 10);
+
+    const q = makeProspect({ trapScore: 0.2, timingScore: 0.7 });
+    const g = extractTrainingFeatures(q, 'safe_pre_drill');
+    expect(g.minTrapTiming).toBeCloseTo(0.2, 10);
+  });
+});

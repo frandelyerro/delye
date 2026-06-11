@@ -12,6 +12,15 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   no behavioral fix, so it stays low priority.
 
 ## Completed
+- 2026-06-11 (cycle 22 audit): Re-checked two findings raised this cycle, both
+  rejected as non-actionable. (1) `deriveSyntheticLabel()` in `mlDataset.ts` was
+  flagged for the case `gcos>=0.35 && commercialScore>=70 && dc<70` falling
+  through to `'unknown'` — but this matches the documented synthetic-label rules
+  exactly (the conservative "else -> unknown" catch-all is intentional: low data
+  confidence undermines both the GCoS and commercial-score inputs, so the case is
+  correctly left unlabeled). (2) The proposed mainRisk one-hot-sum validation in
+  `validateTrainingExample()` is already implemented (`mlDataset.ts` ~lines 81-90,
+  `oneHotFields` loop). No code changes from the ML agent this cycle.
 - 2026-06-11 (cycle 21): Resolved the cycle-20 "design decision" blocker
   (`dummyModel`/threshold) by NOT building a model object at all — added
   `evaluateBaselineOnLabeledOutcomes(prospects, target?, threshold = 0.5)` to

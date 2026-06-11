@@ -3,15 +3,6 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- MapPage single-prospect fitBounds (GEO-003, proposed cycle 21): when a filter
-  produces exactly 1 valid prospect, `fitBounds([lon,lat],[lon,lat])` (MapPage.tsx
-  ~line 494-498) creates a zero-area box and forces maxZoom (10). Replace with
-  `easeTo({ center: [lon, lat], zoom: 12, duration: 500 })` for the single-prospect
-  case. ~10 lines.
-- MapPage "Show Outcomes" filter (GEO-004, proposed cycle 21): add
-  `outcomeFilter` state + filter chips ("All Outcomes"/"Discoveries"/"Dry Holes"/
-  "Non-Commercial") so the map can isolate outcome-labeled prospects, closing the
-  loop with analog-proximity ranking and the Calibration page. ~40 lines.
 - Basin circle density labels (GEO-005, proposed cycle 21): annotate
   `basin-circles` layer with `avgNearestNeighborKm`/`isDense` from
   `basinClusteringStats()`, render a symbol layer label
@@ -24,6 +15,16 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   calculations).
 
 ## Completed
+- 2026-06-11 (cycle 22): GEO-003 — fixed the single-prospect `fitBounds()`
+  degenerate-bounding-box bug in `MapPage.tsx` (when a filter narrows to exactly
+  1 valid-coordinate prospect, the old code built a zero-area `LngLatBounds` and
+  forced `maxZoom: 10`). Now uses `easeTo({ center: [lon, lat], zoom: 12, duration:
+  500 })` for the 1-result case, keeping `fitBounds` for 2+ results.
+  GEO-004 — added an outcome filter: `FilterState.outcome` (`OutcomeFilter` =
+  'discoveries' | 'dry_holes' | 'non_commercial') plus three new filter chips
+  ("Discoveries" = `isGeologicalSuccess()`, "Dry Holes", "Non-Commercial"),
+  wired into `filteredProspects`, `setOutcomeFilter()`, and the "Clear filters"
+  button/condition. No new dependencies.
 - Spatial outlier (isolated prospect) flagging — IMPLEMENTED in cycle 14
   (`findIsolated()` in `geoUtils.ts`, surfaced in MapPage `buildSpatialInsights`).
 - MapLibre heatmap layer for prospect density / GCoS intensity — IMPLEMENTED in

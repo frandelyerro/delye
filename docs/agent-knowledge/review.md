@@ -6,6 +6,9 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
 - (none recorded yet)
 
 ## Completed
+- 2026-06-11 (cycle 22): Re-audit of cycle 21's changes (baseline calibration
+  report, fault-seal-risk advisor handler, CSV size guard, geoUtils non-null fix)
+  found zero new HIGH/MEDIUM/LOW issues. 709/709 tests pass.
 - 2026-06-11 (cycle 21): Full sweep of cycle-20 code (finiteGcos exports/usages,
   ML CSV feature-leakage fix, MapPage low-precision-coordinate flagging) found ZERO
   HIGH/MEDIUM issues; 701/701 tests + typecheck clean. One LOW issue found:
