@@ -12,8 +12,6 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   there's no budget-constrained view (EMV waterfall, cumulative capex vs risked
   resource). Next-best candidate after calibration; uses existing
   `economicAssessment` fields only.
-- CSV export exists on Dashboard; consider a calibration-data CSV export on
-  /calibration if users ask for lookback data offline.
 - GCoS range slider + filter presets for TargetingPage (validated cycle 21): new
   `src/domain/filterPresets.ts` (save/load/delete/validate via localStorage key
   `petrotarget:filter-presets`), `gcosMin`/`gcosMax` added to the store's `Filters`
@@ -23,6 +21,12 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   implement next cycle.
 
 ## Completed
+- 2026-06-11 (cycle 23): Calibration-data CSV export IMPLEMENTED — new
+  `exportCalibrationDataAsCsv()` in `src/utils/exportReport.ts` (reuses
+  `csvEscape`/`downloadText`): one row per known-outcome prospect with
+  pre-drill GCoS %, data confidence, outcome label/target/well/year/operator/
+  result-confidence/source. "Export Calibration CSV" button added to the
+  /calibration header, shown only when drilled outcomes exist.
 - Outcome Calibration page — IMPLEMENTED in cycle 18: new
   `src/pages/CalibrationPage.tsx` at route `/calibration` (sidebar: "Calibration").
   KPI row from `getOutcomeStats`, actual-vs-predicted grouped bar chart from

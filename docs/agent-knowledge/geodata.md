@@ -3,11 +3,12 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- Basin circle density labels (GEO-005, proposed cycle 21): annotate
-  `basin-circles` layer with `avgNearestNeighborKm`/`isDense` from
-  `basinClusteringStats()`, render a symbol layer label
-  "{basin} ({count}, {avgNN}km NN)", color-code dense (green) vs scattered (amber)
-  basins. ~50 lines, no new deps.
+- Verify symbol-layer text rendering in production: `OSM_STYLE` in MapPage.tsx
+  defines no `glyphs` URL, yet three symbol layers use `text-field`
+  (`cluster-count`, `unclustered-label`, and the new `basin-circles-labels`).
+  If text does not render in the deployed app, add a free glyphs endpoint to
+  OSM_STYLE (and extend CSP connect-src accordingly). Needs a browser check —
+  not verifiable from unit tests.
 - Basin convex hull visualization — would require `@turf/turf` (justified, no paid
   API) for a tighter-fitting polygon than the bounding-circle approximation added in
   cycle 16. Lower priority now that basin extents are visualized without a new
@@ -15,6 +16,16 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   calculations).
 
 ## Completed
+- 2026-06-11 (cycle 23): GEO-005 IMPLEMENTED — `basinCirclesToGeoJSON()` now
+  joins `basinClusteringStats()` per basin and exports `isDense` plus a
+  pre-built `densityLabel` property ("{basin} ({count}, {avgNN}km NN)", falling
+  back to "{basin} ({count})" when a basin has <2 valid-coordinate prospects).
+  New `basin-circles-labels` symbol layer renders the label at each circle,
+  green (#22c55e) for dense basins, amber (#f59e0b) for scattered, with a dark
+  halo; toggled together with the fill/line layers by the "Basin Circles"
+  button. Also fixed the cycle-22 LOW finding: when an active filter matches
+  zero valid-coordinate prospects, the fitBounds effect now eases back to the
+  home view (center [-20,10], zoom 2) instead of leaving the stale zoom.
 - 2026-06-11 (cycle 22): GEO-003 — fixed the single-prospect `fitBounds()`
   degenerate-bounding-box bug in `MapPage.tsx` (when a filter narrows to exactly
   1 valid-coordinate prospect, the old code built a zero-area `LngLatBounds` and

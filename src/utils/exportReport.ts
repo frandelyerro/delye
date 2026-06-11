@@ -1,4 +1,5 @@
 import { Prospect } from '../domain/prospect';
+import { isKnownOutcome } from '../domain/outcomes';
 
 export const downloadJson = (filename: string, data: unknown): void => {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -48,6 +49,31 @@ export const exportPortfolioAsCsv = (prospects: Prospect[]): void => {
 
   const csv = [CSV_HEADERS.join(','), ...rows].join('\n');
   downloadText(`portfolio-export-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+};
+
+const CALIBRATION_CSV_HEADERS = [
+  'id', 'name', 'basin', 'block', 'playType',
+  'predrillGcosPercent', 'dataConfidence',
+  'outcomeLabel', 'targetVariable', 'wellName', 'drillYear', 'operator',
+  'resultConfidence', 'outcomeSource',
+] as const;
+
+// Lookback dataset: only prospects with a known (non-unknown) drilling outcome,
+// pairing the pre-drill GCoS with the observed result.
+export const exportCalibrationDataAsCsv = (prospects: Prospect[]): void => {
+  const rows = prospects
+    .filter((p) => p.outcome && isKnownOutcome(p.outcome))
+    .map((p) => [
+      p.id, p.name, p.basin, p.block, p.playType,
+      p.geologicalChanceOfSuccess != null ? (p.geologicalChanceOfSuccess * 100).toFixed(2) : '',
+      p.dataConfidence ?? '',
+      p.outcome!.label, p.outcome!.targetVariable, p.outcome!.wellName ?? '',
+      p.outcome!.drillYear ?? '', p.outcome!.operator ?? '',
+      p.outcome!.resultConfidence, p.outcome!.source,
+    ].map(csvEscape).join(','));
+
+  const csv = [CALIBRATION_CSV_HEADERS.join(','), ...rows].join('\n');
+  downloadText(`calibration-data-${new Date().toISOString().slice(0, 10)}.csv`, csv);
 };
 
 export const exportPortfolioAsJson = (prospects: Prospect[]): void => {

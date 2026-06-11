@@ -5,7 +5,7 @@ import type { FeatureCollection, Point, Polygon } from 'geojson';
 import { useProspectStore } from '../store/useProspectStore';
 import { getAdvisorResponse } from '../domain/advisor';
 import type { Prospect } from '../domain/prospect';
-import { isValidCoordinate, hasLowPrecisionCoordinates, findIsolated, basinBoundingCircle, circlePolygonCoordinates } from '../domain/geoUtils';
+import { isValidCoordinate, hasLowPrecisionCoordinates, findIsolated, basinBoundingCircle, circlePolygonCoordinates, basinClusteringStats } from '../domain/geoUtils';
 import { isGeologicalSuccess } from '../domain/outcomes';
 import { safeGcos } from '../utils/numberUtils';
 import { PRIORITY_COLOR, type Priority } from '../utils/chartConfig';
@@ -125,14 +125,25 @@ function basinCirclesToGeoJSON(prospects: Prospect[]): FeatureCollection<Polygon
     list.push(p);
     basinMap.set(p.basin, list);
   }
+  const statsByBasin = new Map(basinClusteringStats(prospects).map((s) => [s.basin, s]));
   const features: FeatureCollection<Polygon>['features'] = [];
   for (const [basin, ps] of basinMap.entries()) {
     const circle = basinBoundingCircle(ps);
     if (!circle) continue;
+    const stat = statsByBasin.get(basin);
     features.push({
       type: 'Feature' as const,
       geometry: { type: 'Polygon' as const, coordinates: [circlePolygonCoordinates(circle.center, circle.radiusKm)] },
-      properties: { basin, count: ps.length, radiusKm: Math.round(circle.radiusKm) },
+      properties: {
+        basin,
+        count: ps.length,
+        radiusKm: Math.round(circle.radiusKm),
+        isDense: stat?.isDense ?? false,
+        // Pre-built label: spacing stats need >=2 valid-coordinate prospects.
+        densityLabel: stat
+          ? `${basin} (${ps.length}, ${Math.round(stat.avgNearestNeighborKm)}km NN)`
+          : `${basin} (${ps.length})`,
+      },
     });
   }
   return { type: 'FeatureCollection', features };
@@ -330,6 +341,23 @@ export function MapPage() {
           'line-dasharray': [2, 2],
         },
       });
+      // Density labels — green = dense (avg NN < 100 km, tie-back candidates),
+      // amber = scattered. Rendered at each circle's centroid.
+      m.addLayer({
+        id: 'basin-circles-labels',
+        type: 'symbol',
+        source: 'basin-circles',
+        layout: {
+          visibility: 'none',
+          'text-field': ['get', 'densityLabel'],
+          'text-size': 11,
+        },
+        paint: {
+          'text-color': ['case', ['get', 'isDense'], '#22c55e', '#f59e0b'],
+          'text-halo-color': '#0f172a',
+          'text-halo-width': 1,
+        },
+      });
 
       // Cluster circles
       m.addLayer({
@@ -497,9 +525,13 @@ export function MapPage() {
     basinCirclesSrc?.setData(basinCirclesToGeoJSON(filteredProspects));
 
     // Fit bounds when a filter is active and there are prospects to show
-    if ((filter.basin || filter.priority || filter.outcome) && filteredProspects.length > 0) {
+    if (filter.basin || filter.priority || filter.outcome) {
       const valid = filteredProspects.filter((p) => isValidCoordinate(p.latitude, p.longitude));
-      if (valid.length === 1) {
+      if (valid.length === 0) {
+        // Filter matched nothing mappable — return to the home view instead of
+        // staying zoomed into the previous filter's now-empty bounds.
+        mapRef.current.easeTo({ center: [-20, 10], zoom: 2, duration: 500 });
+      } else if (valid.length === 1) {
         // A single point would otherwise produce a zero-area bounding box and
         // force maxZoom — ease to it directly instead.
         mapRef.current.easeTo({ center: [valid[0].longitude, valid[0].latitude], zoom: 12, duration: 500 });
@@ -537,6 +569,7 @@ export function MapPage() {
     const visibility = showBasinCircles ? 'visible' : 'none';
     m.setLayoutProperty('basin-circles-fill', 'visibility', visibility);
     m.setLayoutProperty('basin-circles-line', 'visibility', visibility);
+    m.setLayoutProperty('basin-circles-labels', 'visibility', visibility);
   }, [showBasinCircles]);
 
   const handleAiSend = (q: string) => {

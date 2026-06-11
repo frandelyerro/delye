@@ -98,4 +98,33 @@ describe('findAnalogs', () => {
     const result = findAnalogs(target, [target, matches, wrongBasin, wrongPlay], 5, { sameBasin: true, samePlayType: true });
     expect(result.map((p) => p.id)).toEqual(['matches']);
   });
+
+  it('outcomeOnly filter restricts candidates to prospects with a known outcome', () => {
+    const outcome = { label: 'commercial_discovery', targetVariable: 'geological_success', resultConfidence: 'high', source: 'historical' } as const;
+    const target = makeProspect({ id: 'target' });
+    const drilled = makeProspect({ id: 'drilled', outcome });
+    const unknownOutcome = makeProspect({ id: 'unknown-outcome', outcome: { ...outcome, label: 'unknown' } });
+    const undrilled = makeProspect({ id: 'undrilled' });
+    const result = findAnalogs(target, [target, drilled, unknownOutcome, undrilled], 5, { outcomeOnly: true });
+    expect(result.map((p) => p.id)).toEqual(['drilled']);
+  });
+
+  it('outcomeOnly accepts dry holes and non-commercial outcomes (any known label)', () => {
+    const base = { targetVariable: 'geological_success', resultConfidence: 'high', source: 'historical' } as const;
+    const target = makeProspect({ id: 'target' });
+    const dryHole = makeProspect({ id: 'dry-hole', outcome: { ...base, label: 'dry_hole' } });
+    const nonCommercial = makeProspect({ id: 'non-commercial', outcome: { ...base, label: 'non_commercial' } });
+    const result = findAnalogs(target, [target, dryHole, nonCommercial], 5, { outcomeOnly: true });
+    expect(result.map((p) => p.id).sort()).toEqual(['dry-hole', 'non-commercial']);
+  });
+
+  it('outcomeOnly combines with other filters', () => {
+    const outcome = { label: 'technical_discovery', targetVariable: 'geological_success', resultConfidence: 'medium', source: 'historical' } as const;
+    const target = makeProspect({ id: 'target', basin: 'Basin A' });
+    const drilledSameBasin = makeProspect({ id: 'drilled-same-basin', basin: 'Basin A', outcome });
+    const drilledOtherBasin = makeProspect({ id: 'drilled-other-basin', basin: 'Basin B', outcome });
+    const undrilledSameBasin = makeProspect({ id: 'undrilled-same-basin', basin: 'Basin A' });
+    const result = findAnalogs(target, [target, drilledSameBasin, drilledOtherBasin, undrilledSameBasin], 5, { outcomeOnly: true, sameBasin: true });
+    expect(result.map((p) => p.id)).toEqual(['drilled-same-basin']);
+  });
 });

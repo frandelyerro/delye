@@ -11,6 +11,12 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   (`npm run typecheck && npm run test && npm run build` plus a manual smoke check).
 
 ## Resolved
+- 2026-06-11 (cycle 23): Re-audit clean — zero HIGH+ findings. npm audit
+  unchanged (2 moderate dev-only). Cycle-22 additions verified: outcome filter
+  chips use hardcoded labels/enum-constrained types (no user strings reach
+  HTML), ML features purely numeric, popup esc() coverage intact, localStorage
+  keys hardcoded, CSP coherent. Vite 5→8 upgrade explicitly deferred again —
+  do not bundle with refactor cycles.
 - 2026-06-11 (cycle 22): Added `worker-src 'self' blob:` to the CSP in
   `vercel.json` — closes the last open low-priority CSP item flagged in cycle 21
   (MapLibre GL WebGL workers). No behavior change observed (app already rendered

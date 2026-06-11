@@ -8,12 +8,6 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   a pure `sealAnalysis.ts` grouping prospects by seal lithology cross-tabbed with trap
   type (subsalt traps need higher seal confidence). Methodology: AAPG Memoir 74;
   Knipe et al. (1997) fault seal prediction. ~80-100 lines remaining, additive only.
-- `findAnalogs()` (analogFinder.ts) ignores play type and basin — add optional
-  `samePlayType`/`sameBasin`/`byMainRisk` filters and an outcome-conditioned variant
-  (analogs restricted to prospects with historical outcomes). Complements the
-  cycle-18 spatial analog-proximity work (geodata.md), which is distance-based only.
-  NOTE: `samePlayType`/`sameBasin`/`byMainRisk` filters were already shipped in
-  cycle 19 — only the outcome-conditioned variant remains.
 - Unconventional reservoir flag-consistency check (`geoscienceEngine.ts` ~line 174):
   porosity/permeability assessment branches on `evidence.isUnconventional`, but there's
   no validation that this flag matches the actual porosity/permeability profile (e.g.
@@ -24,6 +18,12 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   methodology citation (SPE/AAPG/SEG unconventional definitions) and before/after test
   evidence for a tight-sandstone case.
 ## Completed
+- 2026-06-11 (cycle 23): Outcome-conditioned analog variant IMPLEMENTED — added
+  `outcomeOnly?: boolean` to `AnalogFilters` in `analogFinder.ts`; when set,
+  candidates are restricted to prospects with a known historical outcome
+  (`isKnownOutcome(p.outcome)` — discovery/dry hole/non-commercial). Composes
+  with samePlayType/sameBasin/byMainRisk. 3 new analogFinder tests. This
+  completes the findAnalogs filter set started in cycle 19.
 - 2026-06-11 (cycle 22): Added the three petroleum-system interaction features
   proposed in cycle 21 to `extractTrainingFeatures()` in `mlTrainingFeatures.ts`:
   `sourceTimesMigration` (sourceScore*migrationScore), `reservoirTimesSeal`

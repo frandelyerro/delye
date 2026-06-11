@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 22;
+const CURRENT_CYCLE = 23;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata' | 'ml';
 
@@ -34,10 +34,10 @@ const AGENTS: AgentDef[] = [
     precision: 82,
     recall: 71,
     depth: 78,
-    totalFindings: 25,
-    implemented: 20,
-    latestFinding: 'Flagged advisor.ts at 1025 lines (36 if-branches in one function) — proposed a pattern-registry split into advisorHandlers.ts. Deferred to a dedicated cycle: branch precedence makes a mechanical registry refactor regression-prone while handlers are still being added.',
-    knownGaps: ['Missing useMemo on O(n²) renders', 'ProspectFormPage (915), ProspectDetailPage (728), MapPage (601) still >300 lines', '<PanelSection> extraction still pending (~10 call sites)'],
+    totalFindings: 26,
+    implemented: 21,
+    latestFinding: 'Shipped ARCH-005: extracted the shared <EvidenceSection> wrapper (src/components/ProspectForm/EvidenceSection.tsx) from ProspectFormPage\'s six near-identical evidence blocks (Source/Migration/Reservoir/Seal/Trap/Timing) — identical section card + accent heading + responsive grid now defined once. Behavior-preserving; form state, validation and setters untouched.',
+    knownGaps: ['ARCH-004/006 Zustand fine-grained selectors (planned for cycle 24)', 'Missing useMemo on O(n²) renders', 'ProspectDetailPage (728), MapPage (~680) still >300 lines', 'advisor.ts pattern-registry split still deferred (precedence-sensitive)'],
   },
   {
     id: 'petro',
@@ -49,9 +49,9 @@ const AGENTS: AgentDef[] = [
     precision: 90,
     recall: 68,
     depth: 85,
-    totalFindings: 41,
-    implemented: 36,
-    latestFinding: 'Added three petroleum-system interaction features to mlTrainingFeatures.ts: sourceTimesMigration and reservoirTimesSeal (joint charge/containment requirements — a weak link in either dominates), and minTrapTiming (the "trap formed before migration ceased" bottleneck as a single feature). All three are safe pre-drill, derived from the existing 6 component scores.',
+    totalFindings: 42,
+    implemented: 37,
+    latestFinding: 'Added the outcomeOnly analog filter to findAnalogs() — restricts analog candidates to prospects with a known drilling outcome (discovery/dry hole/non-commercial), the highest-confidence analogs for calibrating expectations on undrilled prospects (Rose & Associates lookback methodology). Completes the AnalogFilters set started in cycle 19.',
     knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'validateUnconventionalFlagConsistency() for assessReservoir() — deferred (touches geoscienceEngine.ts, a hard-constraint file)'],
   },
   {
@@ -94,10 +94,10 @@ const AGENTS: AgentDef[] = [
     precision: 75,
     recall: 82,
     depth: 70,
-    totalFindings: 18,
-    implemented: 14,
-    latestFinding: 'Shipped the Outcome Calibration page (/calibration) — actual-vs-predicted success by GCoS bucket with optimistic/conservative/calibrated badges, plus per-basin and per-play success-rate tables, closing the label → calibrate → train UX loop.',
-    knownGaps: ['Play-type legend WCAG AA contrast not yet verified', 'Mobile breakpoint validation'],
+    totalFindings: 19,
+    implemented: 15,
+    latestFinding: 'Shipped the calibration-data CSV export on /calibration: exportCalibrationDataAsCsv() pairs each known-outcome prospect\'s pre-drill GCoS and data confidence with its observed result (label, well, year, operator, confidence, source) for offline lookback analysis.',
+    knownGaps: ['GCoS range slider + filter presets for TargetingPage (~200 lines, deferred)', 'Budget-constrained drill-sequence planner (large)', 'Play-type legend WCAG AA contrast not yet verified'],
   },
   {
     id: 'geodata',
@@ -109,10 +109,10 @@ const AGENTS: AgentDef[] = [
     precision: 80,
     recall: 74,
     depth: 76,
-    totalFindings: 18,
-    implemented: 16,
-    latestFinding: 'Fixed the single-prospect fitBounds bug (GEO-003): a 1-result filter previously produced a zero-area bounding box and forced maxZoom 10 — now uses easeTo({ center, zoom: 12 }) for exactly one valid prospect. Also added GEO-004 outcome filter chips ("Discoveries"/"Dry Holes"/"Non-Commercial") so the map can isolate outcome-labeled prospects, closing the loop with analog-proximity ranking and the Calibration page.',
-    knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred — requires MapLibre expression-based clusterProperties, untestable by unit tests, risk of cluster regressions', 'Basin circle density labels (avgNearestNeighborKm/isDense annotations) still open'],
+    totalFindings: 20,
+    implemented: 18,
+    latestFinding: 'Shipped GEO-005: basin bounding circles now carry density labels — "{basin} ({count}, {avgNN}km NN)" rendered as a symbol layer at each circle, green for dense basins (avg nearest-neighbor < 100 km, tie-back/shared-facility candidates) and amber for scattered ones, reusing basinClusteringStats(). Also fixed the empty-filter edge case: when an active filter matches nothing mappable, the map now resets to the home view instead of staying on stale bounds.',
+    knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred', 'OSM_STYLE has no glyphs URL — verify symbol-layer text (cluster counts, density labels) renders in production'],
   },
   {
     id: 'ml',
@@ -166,6 +166,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 20, architect: 0, petro: 0, review: 1, security: 0, dev: 0, geodata: 1, ml: 1, highlight: 'NaN-safe basin/play/cluster GCoS averages (finiteGcos), removed leaked post-drill features from ML training CSV export, low-precision-coordinate flag on map popups and GeoJSON export' },
   { cycle: 21, architect: 0, petro: 1, review: 1, security: 1, dev: 0, geodata: 0, ml: 1, highlight: 'Baseline calibration report against real labeled outcomes (evaluateBaselineOnLabeledOutcomes), fault-seal-risk advisor handler, 10MB CSV import size guard, defensive fix for basinClusteringStats nearest-neighbor lookup' },
   { cycle: 22, architect: 0, petro: 1, review: 0, security: 1, dev: 0, geodata: 1, ml: 0, highlight: 'CSP worker-src blob: for MapLibre WebGL workers, source/migration and reservoir/seal interaction features + min(trap,timing) bottleneck feature for ML training, single-prospect map fitBounds fix (easeTo instead of degenerate bounding box) plus outcome-based map filter chips (Discoveries/Dry Holes/Non-Commercial)' },
+  { cycle: 23, architect: 1, petro: 1, review: 0, security: 0, dev: 1, geodata: 1, ml: 0, highlight: 'EvidenceSection extraction from ProspectFormPage (ARCH-005), outcome-conditioned analog filter (outcomeOnly) in analogFinder, basin circle density labels (avg nearest-neighbor + dense/scattered color coding), calibration-data CSV export on /calibration, empty-filter map view reset' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {

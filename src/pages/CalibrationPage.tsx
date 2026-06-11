@@ -19,6 +19,7 @@ import {
   type GroupOutcomeStats,
 } from '../domain/portfolioIntelligence';
 import { CHART_TOOLTIP_STYLE } from '../utils/chartConfig';
+import { exportCalibrationDataAsCsv } from '../utils/exportReport';
 
 const deltaBadge = (actual: number, predicted: number, drilled: number) => {
   if (drilled < 5) return <span className="text-slate-500 text-xs">n&lt;5</span>;
@@ -92,12 +93,23 @@ export function CalibrationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Outcome Calibration</h1>
-        <p className="text-slate-400 text-sm mt-1">
-          Compares pre-drill expert GCoS against observed drilling outcomes (Rose &amp; Associates lookback
-          methodology). A calibrated portfolio succeeds at roughly the rate its GCoS predicted.
-        </p>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Outcome Calibration</h1>
+          <p className="text-slate-400 text-sm mt-1">
+            Compares pre-drill expert GCoS against observed drilling outcomes (Rose &amp; Associates lookback
+            methodology). A calibrated portfolio succeeds at roughly the rate its GCoS predicted.
+          </p>
+        </div>
+        {stats.totalDrilled > 0 && (
+          <button
+            type="button"
+            onClick={() => exportCalibrationDataAsCsv(prospects)}
+            className="shrink-0 rounded border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
+          >
+            Export Calibration CSV
+          </button>
+        )}
       </div>
 
       {stats.totalDrilled === 0 ? (

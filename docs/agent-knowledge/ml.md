@@ -12,6 +12,18 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   no behavioral fix, so it stays low priority.
 
 ## Completed
+- 2026-06-11 (cycle 23 audit): VERIFIED the cycle-22 interaction features flow
+  correctly through the full training pipeline — mlTrainingTypes rows use a
+  dynamic `Record<string, number>`, mlLogisticRegression/mlTrainingService
+  normalize via `Object.keys()` (no stale hardcoded feature list), and the
+  feature-correlation panel picks them up automatically. The one finding
+  (CSV export omits the interaction features) was REJECTED as inapplicable:
+  `exportTrainingDatasetAsCsv()` serializes `MLTrainingExample.features`, which
+  is typed `MLFeatureVector` (from `extractMLFeatures`) — a different feature
+  set that structurally cannot contain the training-row interaction features;
+  adding those keys to `scalarFeatureKeys: Array<keyof MLFeatureVector>` would
+  be a type error. The training rows and the MLFeatureVector export are
+  intentionally separate surfaces.
 - 2026-06-11 (cycle 22 audit): Re-checked two findings raised this cycle, both
   rejected as non-actionable. (1) `deriveSyntheticLabel()` in `mlDataset.ts` was
   flagged for the case `gcos>=0.35 && commercialScore>=70 && dc<70` falling

@@ -1,4 +1,5 @@
 import type { Prospect } from './prospect';
+import { isKnownOutcome } from './outcomes';
 
 const SCORE_FIELDS: Array<keyof Pick<Prospect,
   'sourceScore' | 'migrationScore' | 'reservoirScore' | 'sealScore' | 'trapScore' | 'timingScore'
@@ -19,6 +20,13 @@ export type AnalogFilters = {
   sameBasin?: boolean;
   /** Restrict candidates to those sharing the target's primary risk component. */
   byMainRisk?: boolean;
+  /**
+   * Restrict candidates to prospects with a known historical outcome
+   * (drilled analogs: discovery / dry hole / non-commercial). These are the
+   * highest-confidence analogs for calibrating expectations on undrilled
+   * prospects (Rose & Associates lookback methodology).
+   */
+  outcomeOnly?: boolean;
 };
 
 /**
@@ -45,6 +53,7 @@ export const findAnalogs = (
       if (filters?.samePlayType && p.playType !== target.playType) return false;
       if (filters?.sameBasin && p.basin !== target.basin) return false;
       if (filters?.byMainRisk && (!target.mainRisk || p.mainRisk !== target.mainRisk)) return false;
+      if (filters?.outcomeOnly && (!p.outcome || !isKnownOutcome(p.outcome))) return false;
       seenIds.add(p.id);
       return true;
     })

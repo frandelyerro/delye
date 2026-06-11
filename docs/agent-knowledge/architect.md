@@ -3,12 +3,9 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- 2026-06-11 (cycle 22): ARCH-005 (extract `<EvidenceSection>` from
-  ProspectFormPage.tsx, the 6 near-identical evidence blocks at lines ~475-646)
-  was re-confirmed as the recommended next architecture change, but deferred
-  again this cycle for budget — cycle 22 implemented security/petro/geodata
-  changes instead. Remains the top architecture candidate for cycle 23, ideally
-  bundled with ARCH-004/006 (Zustand selectors) per the cycle-21 plan below.
+- ARCH-004/006 (Zustand fine-grained selectors): planned for cycle 24 as a
+  fast-follow to ARCH-005 (verified plan: ~6 selector exports from
+  useProspectStore.ts adopted in MLLabPage/ProspectDetailPage, ~25 diff lines).
 - `advisor.ts` reached ~1100 lines (cycle 18): `getAdvisorResponse()` is one function
   with ~40 `q.includes(...)` branches. Proposed split: extract handlers into
   `advisorHandlers.ts` with a pattern→handler registry. DEFERRED — branch precedence
@@ -37,7 +34,14 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   the existing open item above).
 
 ## Completed
-- Chart styling dedup — IMPLEMENTED in cycle 17: created `src/utils/chartConfig.ts`
+- 2026-06-11 (cycle 23): ARCH-005 IMPLEMENTED — extracted the shared
+  `<EvidenceSection>` wrapper to `src/components/ProspectForm/EvidenceSection.tsx`
+  (title + accentClass props, children pattern). The six evidence blocks in
+  ProspectFormPage.tsx (Source/Migration/Reservoir/Seal/Trap/Timing) now share
+  one section-card + accent-heading + responsive-grid definition; all field
+  contents, render helpers (renderSelect/renderNum/renderSourceTypes), setters,
+  and validation stay in the page (they depend on local state). Behavior
+  preserved; ProspectFormPage 915 → 892 lines. created `src/utils/chartConfig.ts`
   exporting `CHART_TOOLTIP_STYLE`, `PRIORITY_COLOR` (+ `Priority` type), and
   `BASIN_PALETTE`. Removed the local `colors`/`BASIN_PALETTE` consts from
   DashboardPage and the local `Priority` type/`PRIORITY_COLOR` const from MapPage;

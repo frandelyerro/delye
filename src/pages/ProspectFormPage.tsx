@@ -36,6 +36,7 @@ import {
   getTierLabel,
 } from '../domain/recommendationEngine';
 import { createDefaultEvidence } from '../domain/evidenceDefaults';
+import { EvidenceSection } from '../components/ProspectForm/EvidenceSection';
 import { getEconomicAssumptionDefaults } from '../domain/economics';
 import type { EconomicAssumptions } from '../domain/economicTypes';
 import type { OutcomeLabel, ProspectOutcome } from '../domain/outcomes';
@@ -472,10 +473,7 @@ export function ProspectFormPage() {
             </div>
           </section>
 
-          {/* A. Source Rock Evidence */}
-          <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-base font-semibold text-sky-300">A. Source Rock Evidence</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <EvidenceSection title="A. Source Rock Evidence" accentClass="text-sky-300">
               {renderSelect<SourcePresence>(
                 'Source Rock Presence',
                 ev.source?.presence,
@@ -498,13 +496,9 @@ export function ProspectFormPage() {
                 />
               </label>
               {renderSourceTypes(ev.source?.sources, setSource)}
-            </div>
-          </section>
+          </EvidenceSection>
 
-          {/* B. Migration Evidence */}
-          <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-base font-semibold text-cyan-300">B. Migration Evidence</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <EvidenceSection title="B. Migration Evidence" accentClass="text-cyan-300">
               {renderSelect<MigrationPathway>(
                 'Migration Pathway',
                 ev.migration?.pathway,
@@ -534,13 +528,9 @@ export function ProspectFormPage() {
                 <span>Shows Present (oil/gas seeps or staining)</span>
               </label>
               {renderSourceTypes(ev.migration?.sources, setMigration)}
-            </div>
-          </section>
+          </EvidenceSection>
 
-          {/* C. Reservoir Evidence */}
-          <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-base font-semibold text-indigo-300">C. Reservoir Evidence</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <EvidenceSection title="C. Reservoir Evidence" accentClass="text-indigo-300">
               {renderSelect<ReservoirPresence>(
                 'Reservoir Presence',
                 ev.reservoir?.presence,
@@ -558,13 +548,9 @@ export function ProspectFormPage() {
               {renderNum('Net Pay (m)', ev.reservoir?.netPayM, (v) => setReservoir({ netPayM: v }), 0)}
               {renderNum('Vsh Fraction (0–1)', ev.reservoir?.vshaleFraction, (v) => setReservoir({ vshaleFraction: v }), 0, 1)}
               {renderSourceTypes(ev.reservoir?.sources, setReservoir)}
-            </div>
-          </section>
+          </EvidenceSection>
 
-          {/* D. Seal Evidence */}
-          <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-base font-semibold text-violet-300">D. Seal Evidence</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <EvidenceSection title="D. Seal Evidence" accentClass="text-violet-300">
               {renderSelect<SealPresence>(
                 'Seal Presence',
                 ev.seal?.presence,
@@ -585,13 +571,9 @@ export function ProspectFormPage() {
               )}
               {renderNum('Seal Thickness (m)', ev.seal?.thicknessM, (v) => setSealEv({ thicknessM: v }), 0)}
               {renderSourceTypes(ev.seal?.sources, setSealEv)}
-            </div>
-          </section>
+          </EvidenceSection>
 
-          {/* E. Trap Evidence */}
-          <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-base font-semibold text-rose-300">E. Trap Evidence</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <EvidenceSection title="E. Trap Evidence" accentClass="text-rose-300">
               {renderSelect<TrapType>(
                 'Trap Type',
                 ev.trap?.trapType,
@@ -616,13 +598,9 @@ export function ProspectFormPage() {
                 <span>Closure Mapped on Seismic</span>
               </label>
               {renderSourceTypes(ev.trap?.sources, setTrap)}
-            </div>
-          </section>
+          </EvidenceSection>
 
-          {/* F. Timing Evidence */}
-          <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-base font-semibold text-orange-300">F. Timing Evidence</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <EvidenceSection title="F. Timing Evidence" accentClass="text-orange-300">
               {renderSelect<TrapTimingRelation>(
                 'Trap Formed Before Migration',
                 ev.timing?.trapFormedBeforeMigration,
@@ -642,8 +620,7 @@ export function ProspectFormPage() {
                 (v) => setTiming({ burialHistoryConfidence: v }),
               )}
               {renderSourceTypes(ev.timing?.sources, setTiming)}
-            </div>
-          </section>
+          </EvidenceSection>
 
           {/* Derived Scoring Preview */}
           {evidencePreview && (
