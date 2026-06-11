@@ -3,17 +3,17 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- Seal / fault-seal analysis module (top candidate for a future cycle): a pure
-  `sealAnalysis.ts` grouping prospects by seal lithology, flagging
-  `faultSealRisk === 'high'` and seal-limited prospects, cross-tabbed with trap type
-  (subsalt traps need higher seal confidence), plus advisor handlers ("which prospects
-  have high fault seal risk"). Methodology: AAPG Memoir 74; Knipe et al. (1997) fault
-  seal prediction. ~120–150 lines, additive only. Seal failure is the most common
-  dry-hole cause, and the evidence fields already exist but aren't exposed to the advisor.
+- Seal / fault-seal analysis module: cycle 21 shipped the advisor-handler half of
+  this item ("fault seal risk" / "faulted seal" — see Completed below). Still open:
+  a pure `sealAnalysis.ts` grouping prospects by seal lithology cross-tabbed with trap
+  type (subsalt traps need higher seal confidence). Methodology: AAPG Memoir 74;
+  Knipe et al. (1997) fault seal prediction. ~80-100 lines remaining, additive only.
 - `findAnalogs()` (analogFinder.ts) ignores play type and basin — add optional
   `samePlayType`/`sameBasin`/`byMainRisk` filters and an outcome-conditioned variant
   (analogs restricted to prospects with historical outcomes). Complements the
   cycle-18 spatial analog-proximity work (geodata.md), which is distance-based only.
+  NOTE: `samePlayType`/`sameBasin`/`byMainRisk` filters were already shipped in
+  cycle 19 — only the outcome-conditioned variant remains.
 - Unconventional reservoir flag-consistency check (`geoscienceEngine.ts` ~line 174):
   porosity/permeability assessment branches on `evidence.isUnconventional`, but there's
   no validation that this flag matches the actual porosity/permeability profile (e.g.
@@ -23,8 +23,23 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   contradicts the flag. Touches geoscienceEngine.ts (hard constraint) — needs a PR with
   methodology citation (SPE/AAPG/SEG unconventional definitions) and before/after test
   evidence for a tight-sandstone case.
+- ML petroleum-system interaction features for `mlTrainingFeatures.ts`: add
+  `sourceTimesMigration` (sourceScore*migrationScore), `reservoirTimesSeal`
+  (reservoirScore*sealScore), and `minTrapTiming` (min(trapScore, timingScore)) as
+  composite safe-pre-drill features alongside the existing componentMin/Max/Range/
+  Variance features (extractTrainingFeatures, ~line 96-116). ~5 lines + 2 tests.
+  Proposed cycle 21, deferred for sizing.
 
 ## Completed
+- 2026-06-11 (cycle 21): Added a "fault seal risk" / "faulted seal" advisor handler
+  in `advisor.ts`, placed BEFORE the existing broader "seal risk" handler (pattern
+  precedence — "fault seal risk" contains "seal risk" as a substring). Reads
+  `evidence?.seal?.faultSealRisk` (low/medium/high/unknown) across the portfolio and
+  reports prospects flagged HIGH/MEDIUM with fault-seal-analysis de-risking guidance
+  (SGR, juxtaposition diagrams, offset-well pressure data). Returns a "no data
+  recorded" message when no prospects have this evidence field set. Pure
+  read/aggregation over existing evidence — no geoscience engine or scoring change.
+  2 new advisor tests.
 - Outcome success-rate analytics — IMPLEMENTED in cycle 18: `getBasinOutcomeStats()`,
   `getPlayTypeOutcomeStats()` (shared `groupOutcomeStats` helper) and
   `getOutcomeCalibration()` (10 GCoS buckets, actual vs midpoint-expected success rate,

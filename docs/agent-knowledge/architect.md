@@ -20,6 +20,15 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
 - `COMPONENT_COLOR` and `CONFIDENCE_COLOR` (VisualizationsPage) remain page-local —
   `CONFIDENCE_COLOR.high` (`#34d399`) differs intentionally from `PRIORITY_COLOR.high`
   (`#22c55e`), so do NOT merge these into `chartConfig.ts`'s `PRIORITY_COLOR`.
+- 2026-06-11 (cycle 21): Coarse Zustand selectors — `MLLabPage.tsx`,
+  `ProspectDetailPage.tsx` (~line 49-51) call `useProspectStore()`/`useProspectStore(s
+  => s.prospects)` with no fine-grained selector, so any prospect mutation re-renders
+  all dependents and re-runs `.find(p => p.id === id)`-style lookups. Proposed:
+  export `selectProspects`, `selectProspectById(id)`, `selectImportProspects`,
+  `selectDeleteProspect` from `useProspectStore.ts` and adopt them across pages.
+  Deferred — touches the store + multiple pages, best done as its own cycle alongside
+  ProspectFormPage's `<EvidenceSection>` extraction (also proposed cycle 21, same as
+  the existing open item above).
 
 ## Completed
 - Chart styling dedup — IMPLEMENTED in cycle 17: created `src/utils/chartConfig.ts`

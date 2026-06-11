@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 19;
+const CURRENT_CYCLE = 21;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata' | 'ml';
 
@@ -49,10 +49,10 @@ const AGENTS: AgentDef[] = [
     precision: 90,
     recall: 68,
     depth: 85,
-    totalFindings: 37,
-    implemented: 34,
-    latestFinding: 'Extended findAnalogs() with optional sameBasin/samePlayType/byMainRisk filters so the analog finder can be narrowed to truly comparable prospects when assessing a target.',
-    knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation'],
+    totalFindings: 40,
+    implemented: 35,
+    latestFinding: 'Added a "fault seal risk" advisor handler that surfaces prospects with evidence.seal.faultSealRisk of high/medium, separate from the broader sealScore-based "seal risk" handler — closes the loop between fault-seal evidence captured during scoring and advisor visibility.',
+    knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'validateUnconventionalFlagConsistency() for assessReservoir() — deferred (touches geoscienceEngine.ts, a hard-constraint file)', 'ML interaction features (sourceTimesMigration, reservoirTimesSeal, minTrapTiming) for mlTrainingFeatures.ts'],
   },
   {
     id: 'review',
@@ -64,9 +64,9 @@ const AGENTS: AgentDef[] = [
     precision: 95,
     recall: 80,
     depth: 90,
-    totalFindings: 21,
-    implemented: 20,
-    latestFinding: 'Found that `(p.geologicalChanceOfSuccess ?? 0)` does not catch explicit NaN — the existing `finiteGcos` helper was unused in advisor.ts cluster/basin/play aggregations and portfolioIntelligence.getBasinStats, silently breaking the `avgGcos > 0.2` high-value-cluster threshold. Fixed by exporting `finiteGcos` and using it in all 6 affected aggregations.',
+    totalFindings: 22,
+    implemented: 21,
+    latestFinding: 'Cycle-20 re-audit clean (zero HIGH/MEDIUM); found one LOW issue — basinClusteringStats() used a non-null assertion (`nearest!.distanceKm`) on a findNearest() result. Replaced with a defensive `nearest ? nearest.distanceKm : 0` fallback.',
     knownGaps: ['useEffect stale closure detection', 'Missing useCallback on memoized-child setters'],
   },
   {
@@ -79,10 +79,10 @@ const AGENTS: AgentDef[] = [
     precision: 88,
     recall: 76,
     depth: 82,
-    totalFindings: 9,
-    implemented: 8,
-    latestFinding: 'Cycle-18 re-audit clean: all MapLibre popup interpolations esc()-escaped, BatchOutcomePage selects enum-constrained, localStorage keys hardcoded, no prototype-pollution path in CSV/JSON import. Only the 2 known moderate dev-only esbuild/vite findings remain (deferred).',
-    knownGaps: ['Dynamic property access on external data', 'Vite CSP header config'],
+    totalFindings: 10,
+    implemented: 9,
+    latestFinding: 'Cycle-21 re-audit found zero HIGH+ issues (XSS escaping, CSP, CSV/JSON import, localStorage all clean). Implemented the deferred MEDIUM finding: a 10MB file-size guard on the ML Lab CSV import handler, returning a clear error instead of risking a frozen browser thread on huge files.',
+    knownGaps: ['Dynamic property access on external data', 'Vite CSP header config (worker-src for MapLibre)'],
   },
   {
     id: 'dev',
@@ -124,10 +124,10 @@ const AGENTS: AgentDef[] = [
     precision: 82,
     recall: 62,
     depth: 67,
-    totalFindings: 2,
-    implemented: 2,
-    latestFinding: 'Removed riskedResource/simpleEMV/prospectivityTierNumeric (post-drill/economics-derived fields, never used by the training pipeline) from the training-dataset CSV export in mlDataset.ts — closes a feature-leakage honesty gap for users exporting "training" data.',
-    knownGaps: ['mlReadiness/mlEvaluation may not yet fully leverage real outcome labels added in cycles 17-18', 'No function yet computes baseline-model accuracy/Brier/ROC-AUC against real labeled outcomes (only exploratory correlations exist)'],
+    totalFindings: 3,
+    implemented: 3,
+    latestFinding: 'Shipped `evaluateBaselineOnLabeledOutcomes()` in mlEvaluation.ts — evaluates the deterministic baseline formula (accuracy/Brier/ROC-AUC/confusion matrix) against real (non-synthetic) Prospect.outcome labels, with a fixed 0.5 threshold. Wired into MLLabPage as a "Baseline Calibration Report (Experimental)" panel shown once >=5 real-labeled prospects exist. Closes the long-standing gap between "baseline is deterministic" and real calibration validation.',
+    knownGaps: ['mlReadiness already correctly uses real outcome labels (verified, no follow-up needed)', 'useTrainingPreview() hook extraction for MLLabPage still deferred alongside broader page-decomposition work'],
   },
 ];
 
@@ -164,6 +164,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 18, architect: 0, petro: 1, review: 0, security: 0, dev: 1, geodata: 1, ml: 0, highlight: 'Outcome Calibration page (/calibration), success-rate-by-basin/play advisor analytics, nearest-drilled-analog proximity ranking' },
   { cycle: 19, architect: 0, petro: 1, review: 0, security: 0, dev: 0, geodata: 1, ml: 1, highlight: 'AI/ML specialist agent added; basin clustering/spacing analytics + advisor query, findAnalogs basin/play-type/main-risk filters, exploratory feature-correlation panel in ML Lab' },
   { cycle: 20, architect: 0, petro: 0, review: 1, security: 0, dev: 0, geodata: 1, ml: 1, highlight: 'NaN-safe basin/play/cluster GCoS averages (finiteGcos), removed leaked post-drill features from ML training CSV export, low-precision-coordinate flag on map popups and GeoJSON export' },
+  { cycle: 21, architect: 0, petro: 1, review: 1, security: 1, dev: 0, geodata: 0, ml: 1, highlight: 'Baseline calibration report against real labeled outcomes (evaluateBaselineOnLabeledOutcomes), fault-seal-risk advisor handler, 10MB CSV import size guard, defensive fix for basinClusteringStats nearest-neighbor lookup' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {

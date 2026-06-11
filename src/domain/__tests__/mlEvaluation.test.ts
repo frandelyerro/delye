@@ -1,17 +1,49 @@
 import { describe, expect, it } from 'vitest';
 import type { MLPredictionResult, MLTrainingRow, TrainedMLModel } from '../mlTrainingTypes';
 import type { MLTrainingConfig } from '../mlTrainingTypes';
+import type { Prospect } from '../prospect';
+import type { ProspectOutcome, OutcomeLabel } from '../outcomes';
 import {
   calculateBrierScore,
   calculateConfusionMatrix,
   calculateROCAUC,
   computeFeatureCorrelations,
+  evaluateBaselineOnLabeledOutcomes,
   evaluateModel,
   findOptimalThreshold,
   kFoldCrossValidate,
   splitTrainTest,
 } from '../mlEvaluation';
 import { getDefaultMLTrainingConfig } from '../mlTrainingService';
+
+const makeProspect = (overrides: Partial<Prospect> = {}): Prospect => ({
+  id: 'p1',
+  name: 'P1',
+  basin: 'Neuquen',
+  block: 'A',
+  playType: 'Structural',
+  latitude: -38,
+  longitude: -68,
+  sourceScore: 0.7,
+  migrationScore: 0.7,
+  reservoirScore: 0.7,
+  sealScore: 0.7,
+  trapScore: 0.7,
+  timingScore: 0.7,
+  commercialScore: 70,
+  resourceEstimate: 100,
+  ...overrides,
+});
+
+const makeOutcome = (
+  label: OutcomeLabel,
+  source: ProspectOutcome['source'] = 'historical',
+): ProspectOutcome => ({
+  label,
+  targetVariable: 'geological_success',
+  resultConfidence: 'high',
+  source,
+});
 
 const makeRow = (id: string, x: number, label: 0 | 1): MLTrainingRow => ({
   prospectId: id,
@@ -412,5 +444,46 @@ describe('computeFeatureCorrelations', () => {
     const result = computeFeatureCorrelations(rows);
     expect(Math.abs(result[0].correlation)).toBeGreaterThanOrEqual(Math.abs(result[1].correlation));
     expect(result[0].feature).toBe('strong');
+  });
+});
+
+describe('evaluateBaselineOnLabeledOutcomes', () => {
+  it('returns zeroed metrics when no real labeled outcomes exist', () => {
+    const prospects = [
+      makeProspect({ id: 'p1' }), // no outcome
+      makeProspect({ id: 'p2', outcome: makeOutcome('commercial_discovery', 'synthetic') }),
+      makeProspect({ id: 'p3', outcome: makeOutcome('unknown') }),
+    ];
+    const { metrics, predictions } = evaluateBaselineOnLabeledOutcomes(prospects);
+    expect(metrics.testSize).toBe(0);
+    expect(metrics.accuracy).toBe(0);
+    expect(metrics.brierScore).toBe(0);
+    expect(predictions).toHaveLength(0);
+  });
+
+  it('excludes synthetic outcomes and only evaluates real labeled prospects', () => {
+    const prospects = [
+      makeProspect({ id: 'real-discovery', sourceScore: 0.9, migrationScore: 0.9, reservoirScore: 0.9, sealScore: 0.9, trapScore: 0.9, timingScore: 0.9, dataConfidence: 90, geologicalChanceOfSuccess: 0.8, outcome: makeOutcome('commercial_discovery', 'historical') }),
+      makeProspect({ id: 'real-dry', sourceScore: 0.1, migrationScore: 0.1, reservoirScore: 0.1, sealScore: 0.1, trapScore: 0.1, timingScore: 0.1, dataConfidence: 10, geologicalChanceOfSuccess: 0.05, outcome: makeOutcome('dry_hole', 'historical') }),
+      makeProspect({ id: 'synthetic', outcome: makeOutcome('commercial_discovery', 'synthetic') }),
+    ];
+    const { metrics, predictions } = evaluateBaselineOnLabeledOutcomes(prospects);
+    expect(metrics.testSize).toBe(2);
+    expect(predictions.map((p) => p.prospectId).sort()).toEqual(['real-discovery', 'real-dry']);
+    expect(metrics.rocAUC).toBeGreaterThanOrEqual(0);
+    expect(metrics.rocAUC).toBeLessThanOrEqual(1);
+    predictions.forEach((p) => {
+      expect(p.probability).toBeGreaterThanOrEqual(0);
+      expect(p.probability).toBeLessThanOrEqual(1);
+    });
+  });
+
+  it('correctly classifies a clearly-discriminating dataset', () => {
+    const prospects = [
+      makeProspect({ id: 'strong', sourceScore: 0.95, migrationScore: 0.95, reservoirScore: 0.95, sealScore: 0.95, trapScore: 0.95, timingScore: 0.95, dataConfidence: 95, geologicalChanceOfSuccess: 0.9, outcome: makeOutcome('commercial_discovery', 'historical') }),
+      makeProspect({ id: 'weak', sourceScore: 0.05, migrationScore: 0.05, reservoirScore: 0.05, sealScore: 0.05, trapScore: 0.05, timingScore: 0.05, dataConfidence: 5, geologicalChanceOfSuccess: 0.02, outcome: makeOutcome('dry_hole', 'historical') }),
+    ];
+    const { metrics } = evaluateBaselineOnLabeledOutcomes(prospects);
+    expect(metrics.confusionMatrix.truePositive + metrics.confusionMatrix.trueNegative).toBe(2);
   });
 });

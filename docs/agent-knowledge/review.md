@@ -6,6 +6,13 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
 - (none recorded yet)
 
 ## Completed
+- 2026-06-11 (cycle 21): Full sweep of cycle-20 code (finiteGcos exports/usages,
+  ML CSV feature-leakage fix, MapPage low-precision-coordinate flagging) found ZERO
+  HIGH/MEDIUM issues; 701/701 tests + typecheck clean. One LOW issue found:
+  `basinClusteringStats()` in `geoUtils.ts:152` used a non-null assertion
+  (`nearest!.distanceKm`) on a `findNearest()` result that is logically always
+  non-null (filtered group has >=2 valid-coordinate items) but fragile if that
+  invariant changes. Replaced with `nearest ? nearest.distanceKm : 0`.
 - 2026-06-11 (cycle 18): Full sweep of cycle-17 code (BatchOutcomePage,
   `batchUpdateOutcomes`, trap-geometry/distance advisor handlers, MapLibre cleanup,
   chartConfig dedup) found ZERO HIGH/MEDIUM issues. Re-verified the

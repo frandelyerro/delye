@@ -384,6 +384,25 @@ describe('advisor geological queries', () => {
     expect(response.toLowerCase()).toMatch(/seal|caprock|integrit/i);
   });
 
+  it('"fault seal risk" reports no data when no prospects have faultSealRisk evidence', () => {
+    const noEvidence = scoreProspects(mockProspects.filter((p) => !p.evidence?.seal?.faultSealRisk));
+    const response = getAdvisorResponse('what is the fault seal risk', noEvidence);
+    expect(response.toLowerCase()).toMatch(/no prospects have fault seal risk recorded/);
+  });
+
+  it('"fault seal risk" lists prospects flagged HIGH and MEDIUM fault seal risk', () => {
+    const withFaultRisk = scoreProspects([
+      { ...mockProspects[0], id: 'fr1', name: 'Marun Norte', evidence: { seal: { presence: 'probable', faultSealRisk: 'high' } } },
+      { ...mockProspects[1], id: 'fr2', name: 'Marun Sur', evidence: { seal: { presence: 'probable', faultSealRisk: 'medium' } } },
+      { ...mockProspects[2], id: 'fr3', name: 'Marun Este', evidence: { seal: { presence: 'proven', faultSealRisk: 'low' } } },
+    ]);
+    const response = getAdvisorResponse('which prospects have fault seal risk', withFaultRisk);
+    expect(response).toContain('Marun Norte');
+    expect(response).toContain('HIGH');
+    expect(response).toContain('Marun Sur');
+    expect(response).toContain('MEDIUM');
+  });
+
   it('"reservoir quality" returns reservoir productivity info', () => {
     const response = getAdvisorResponse('reservoir quality assessment', prospects);
     expect(response.toLowerCase()).toMatch(/reservoir|porosity|permeability/i);

@@ -11,6 +11,14 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   (`npm run typecheck && npm run test && npm run build` plus a manual smoke check).
 
 ## Resolved
+- 2026-06-11 (cycle 21): Implemented the previously-deferred MEDIUM finding
+  (SEC-001): the ML Lab CSV import handler (`MLLabPage.tsx handleFileChange`,
+  ~line 144) now rejects files >10MB before calling `reader.readAsText(file)`,
+  showing "File too large — maximum 10 MB. Please split your dataset into smaller
+  files." Cycle-21 re-audit otherwise found zero HIGH+ issues: MapLibre popup
+  escaping, CSP headers, CSV/JSON import, and localStorage all remain clean. CSP
+  still lacks an explicit `worker-src 'self' blob:` for MapLibre WebGL workers
+  (low priority, app renders fine without it) — left as an open item.
 - 2026-06-11 (cycle 18): Re-audit clean — `npm audit` unchanged (2 moderate dev-only),
   all MapLibre popup interpolations still `esc()`-escaped (incl. the outcome label
   added in cycle 17), BatchOutcomePage select values are enum-constrained at the

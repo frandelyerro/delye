@@ -20,7 +20,7 @@ import { useMLTraining } from '../hooks/useMLTraining';
 import {
   buildTrainingRows,
 } from '../domain/mlTrainingFeatures';
-import { computeFeatureCorrelations } from '../domain/mlEvaluation';
+import { computeFeatureCorrelations, evaluateBaselineOnLabeledOutcomes } from '../domain/mlEvaluation';
 import {
   getDefaultMLTrainingConfig,
   validateTrainingReadinessForModel,
@@ -130,6 +130,7 @@ export function MLLabPage() {
     const syntheticExcluded = excluded.filter((e) => /synthetic/i.test(e.reason)).length;
     const readinessWarnings = validateTrainingReadinessForModel(rows, trainingConfig);
     const featureCorrelations = computeFeatureCorrelations(rows).slice(0, 8);
+    const baselineCalibration = evaluateBaselineOnLabeledOutcomes(prospects, trainingConfig.target).metrics;
     return {
       labeled: rows.length,
       positives,
@@ -137,6 +138,7 @@ export function MLLabPage() {
       syntheticExcluded,
       readinessWarnings,
       featureCorrelations,
+      baselineCalibration,
       canTrain: rows.length >= trainingConfig.minExamples,
     };
   }, [prospects, trainingConfig]);
@@ -149,6 +151,11 @@ export function MLLabPage() {
     setImportError(null);
     setImportConfirming(false);
     resetNorwayState();
+    const MAX_IMPORT_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+    if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
+      setImportError('File too large — maximum 10 MB. Please split your dataset into smaller files.');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
@@ -402,6 +409,33 @@ export function MLLabPage() {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {trainingPreview.baselineCalibration.testSize >= 5 && (
+          <div className="mt-3 rounded border border-slate-700 bg-slate-950 p-3">
+            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Baseline Calibration Report (Experimental)
+            </div>
+            <p className="mb-2 text-xs text-slate-500">
+              How the deterministic baseline formula (not a trained model) scores against the{' '}
+              {trainingPreview.baselineCalibration.testSize} prospects with real (non-synthetic){' '}
+              {trainingTargetLabel[trainTarget].toLowerCase()} outcomes, at a 0.5 probability threshold.
+              Experimental — sample size is small and this does not represent a calibrated, trained model.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[
+                ['Accuracy', trainingPreview.baselineCalibration.accuracy.toFixed(2)],
+                ['Brier Score', trainingPreview.baselineCalibration.brierScore.toFixed(3)],
+                ['ROC-AUC', trainingPreview.baselineCalibration.rocAUC.toFixed(2)],
+                ['Sample Size', String(trainingPreview.baselineCalibration.testSize)],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded border border-slate-800 bg-slate-900 p-2">
+                  <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-100">{value}</div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

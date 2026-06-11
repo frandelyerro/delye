@@ -3,13 +3,20 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- Basin nearest-neighbor clustering stats: `basinClusteringStats()` (per-basin avg/min/
-  max NN distance, dense vs scattered flag at ~100 km avg NN) + a "basin cluster
-  density/spacing" advisor handler — informs infrastructure-sharing strategy. ~95
-  lines, pure functions, no deps. Deferred from cycle 18 to keep scope bounded.
-- MapPage zoom-to-outcomes: a "Show Outcomes" button that fitBounds to
-  outcome-labeled prospects, plus hardening the existing filter fitBounds for the
-  single-valid-prospect case (easeTo instead of degenerate bounds). ~60 lines.
+- MapPage single-prospect fitBounds (GEO-003, proposed cycle 21): when a filter
+  produces exactly 1 valid prospect, `fitBounds([lon,lat],[lon,lat])` (MapPage.tsx
+  ~line 494-498) creates a zero-area box and forces maxZoom (10). Replace with
+  `easeTo({ center: [lon, lat], zoom: 12, duration: 500 })` for the single-prospect
+  case. ~10 lines.
+- MapPage "Show Outcomes" filter (GEO-004, proposed cycle 21): add
+  `outcomeFilter` state + filter chips ("All Outcomes"/"Discoveries"/"Dry Holes"/
+  "Non-Commercial") so the map can isolate outcome-labeled prospects, closing the
+  loop with analog-proximity ranking and the Calibration page. ~40 lines.
+- Basin circle density labels (GEO-005, proposed cycle 21): annotate
+  `basin-circles` layer with `avgNearestNeighborKm`/`isDense` from
+  `basinClusteringStats()`, render a symbol layer label
+  "{basin} ({count}, {avgNN}km NN)", color-code dense (green) vs scattered (amber)
+  basins. ~50 lines, no new deps.
 - Basin convex hull visualization — would require `@turf/turf` (justified, no paid
   API) for a tighter-fitting polygon than the bounding-circle approximation added in
   cycle 16. Lower priority now that basin extents are visualized without a new

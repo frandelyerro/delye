@@ -11,9 +11,13 @@ import type {
   MLPredictionResult,
   MLTrainingConfig,
   MLTrainingRow,
+  MLTrainingTarget,
   TrainedMLModel,
 } from './mlTrainingTypes';
 import { buildPredictionResult, trainLogisticRegression } from './mlLogisticRegression';
+import { buildTrainingRows } from './mlTrainingFeatures';
+import { predictWithBaselineModel } from './mlModel';
+import type { Prospect } from './prospect';
 
 // Deterministic PRNG. Same seed → same sequence.
 export const mulberry32 = (seed: number) => {
@@ -240,6 +244,86 @@ export const evaluateModel = (
     positiveRate: total === 0 ? 0 : positives / total,
     predictedPositiveRate: total === 0 ? 0 : predictedPositives / total,
     trainSize: model.trainingExamples,
+    testSize: total,
+  };
+
+  return { metrics, predictions };
+};
+
+/**
+ * Evaluates the deterministic baseline model (`predictWithBaselineModel`)
+ * against prospects with REAL (non-synthetic) recorded outcomes — not a
+ * trained model, just the fixed weighted-formula baseline. This closes the
+ * gap between "the baseline is deterministic" and "here is how it actually
+ * performs against ground truth", using the real outcome labels added in
+ * cycles 17-18.
+ *
+ * Synthetic outcomes are always excluded: they were derived FROM the same
+ * GCoS formula the baseline partially reuses, so including them would be
+ * circular. Returns zeroed metrics (testSize 0) when no real labeled
+ * outcomes are available for the requested target.
+ */
+export const evaluateBaselineOnLabeledOutcomes = (
+  prospects: Prospect[],
+  target: MLTrainingTarget = 'geological_success',
+  threshold = 0.5,
+): { metrics: MLMetrics; predictions: MLPredictionResult[] } => {
+  const config: MLTrainingConfig = {
+    target,
+    featureMode: 'safe_pre_drill',
+    trainRatio: 1,
+    learningRate: 0,
+    iterations: 0,
+    l2Penalty: 0,
+    minExamples: 0,
+    excludeSynthetic: true,
+    classWeight: 'none',
+    patience: 0,
+    convergenceTol: 0,
+  };
+  const { rows } = buildTrainingRows(prospects, config);
+  const prospectById = new Map(prospects.map((p) => [p.id, p]));
+
+  const predictions: MLPredictionResult[] = rows.map((row) => {
+    const prospect = prospectById.get(row.prospectId);
+    const probability = prospect ? predictWithBaselineModel(prospect).predictedGCoS : 0;
+    return {
+      prospectId: row.prospectId,
+      probability,
+      predictedLabel: probability >= threshold ? 1 : 0,
+      threshold,
+      topFactors: [],
+    };
+  });
+
+  const cm = calculateConfusionMatrix(rows, predictions);
+  const total = rows.length;
+
+  const accuracy = total === 0 ? 0 : (cm.truePositive + cm.trueNegative) / total;
+  const precisionDenom = cm.truePositive + cm.falsePositive;
+  const precision = precisionDenom === 0 ? 0 : cm.truePositive / precisionDenom;
+  const recallDenom = cm.truePositive + cm.falseNegative;
+  const recall = recallDenom === 0 ? 0 : cm.truePositive / recallDenom;
+  const f1 = precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);
+
+  const brierScore = calculateBrierScore(rows, predictions);
+  const positives = rows.filter((r) => r.label === 1).length;
+  const predictedPositives = predictions.filter((p) => p.predictedLabel === 1).length;
+  const rocAUC = calculateROCAUC(rows, predictions);
+  const optimalThreshold = findOptimalThreshold(rows, predictions);
+
+  const metrics: MLMetrics = {
+    accuracy,
+    precision,
+    recall,
+    f1,
+    brierScore,
+    rocAUC,
+    optimalThreshold,
+    confusionMatrix: cm,
+    positiveRate: total === 0 ? 0 : positives / total,
+    predictedPositiveRate: total === 0 ? 0 : predictedPositives / total,
+    trainSize: 0,
     testSize: total,
   };
 

@@ -149,7 +149,7 @@ export function basinClusteringStats<T extends BasinGroupable>(items: T[]): Basi
     const nnDistances = group.map((item) => {
       const others = group.filter((c) => c !== item);
       const nearest = findNearest(others, item.latitude, item.longitude);
-      return nearest!.distanceKm;
+      return nearest ? nearest.distanceKm : 0;
     });
     const avgNearestNeighborKm = nnDistances.reduce((s, d) => s + d, 0) / nnDistances.length;
     stats.push({

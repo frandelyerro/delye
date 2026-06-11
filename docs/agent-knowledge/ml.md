@@ -3,21 +3,33 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- `mlReadiness.ts`/`mlEvaluation.ts` should be cross-checked against the real outcome
-  labels added in cycles 17-18 (currently feature correlations run over `buildTrainingRows`,
-  which already includes real-labeled rows where present, but readiness scoring may still
-  be synthetic-only — needs a follow-up audit).
-- `mlEvaluation.ts` has no function that computes baseline-model accuracy/Brier
-  score/ROC-AUC against real labeled outcomes (only `computeFeatureCorrelations` is
-  exploratory). A `evaluateBaselineOnLabeledOutcomes()` would close the gap between
-  "baseline is deterministic" and real calibration validation — proposed in cycle 20,
-  not yet implemented (deferred — needs a `dummyModel`/threshold design decision).
-- `MLLabPage.tsx` (~930 lines) recomputes `buildTrainingRows()` on every
+- `MLLabPage.tsx` (~960 lines) recomputes `buildTrainingRows()` on every
   prospects/trainingConfig change inside `trainingPreview`; extracting a
   `useTrainingPreview()` hook was proposed in cycle 20 but deferred alongside the
   broader page-decomposition work already tracked by the architecture agent.
+  Re-checked in cycle 21: the existing `useMemo([prospects, trainingConfig])` is
+  already correctly memoized — extraction would be a pure readability refactor with
+  no behavioral fix, so it stays low priority.
 
 ## Completed
+- 2026-06-11 (cycle 21): Resolved the cycle-20 "design decision" blocker
+  (`dummyModel`/threshold) by NOT building a model object at all — added
+  `evaluateBaselineOnLabeledOutcomes(prospects, target?, threshold = 0.5)` to
+  `mlEvaluation.ts`, which calls `predictWithBaselineModel()` directly per prospect,
+  filters to `buildTrainingRows()` rows with `excludeSynthetic: true` (i.e. real,
+  non-synthetic outcomes only — synthetic labels are themselves derived from a GCoS-
+  based formula, so including them would be circular), thresholds `predictedGCoS` at
+  0.5, and reuses `calculateConfusionMatrix`/`calculateBrierScore`/`calculateROCAUC`/
+  `findOptimalThreshold` to produce the same `MLMetrics` shape as `evaluateModel()`.
+  Wired into `MLLabPage.tsx` `trainingPreview` as `baselineCalibration`, rendered as a
+  "Baseline Calibration Report (Experimental)" panel (accuracy/Brier/ROC-AUC/sample
+  size) shown once >=5 real-labeled prospects exist for the selected target, with
+  explicit "Experimental" / "not a calibrated, trained model" language. 3 new
+  mlEvaluation tests (zero real outcomes -> zeroed metrics; synthetic excluded;
+  clearly-discriminating dataset classifies correctly).
+  Also re-confirmed (cycle 21 audit): `mlReadiness.ts:20-22` already correctly counts
+  `labeledExamples` from real outcomes via `isKnownOutcome(p.outcome)` — the cycle-19
+  "cross-check against real outcome labels" item is RESOLVED, no further action needed.
 - 2026-06-11 (cycle 19): New specialist agent created (`.claude/commands/ml.md`), added to the
   `/advance` Phase 1 roster (7 agents total) and to `AgentEvolutionPage` (`AgentId`, `AGENTS`,
   `CYCLE_HISTORY`, `AGENT_COLORS`, `META_IMPROVEMENTS`). Audit scope: `mlFeatures.ts`,

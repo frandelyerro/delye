@@ -9,6 +9,13 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   `economicAssessment` fields only.
 - CSV export exists on Dashboard; consider a calibration-data CSV export on
   /calibration if users ask for lookback data offline.
+- GCoS range slider + filter presets for TargetingPage (validated cycle 21): new
+  `src/domain/filterPresets.ts` (save/load/delete/validate via localStorage key
+  `petrotarget:filter-presets`), `gcosMin`/`gcosMax` added to the store's `Filters`
+  type, and a range-slider + preset dropdown in `TargetingPage.tsx` (currently local
+  component state, lines ~39-43, not store-backed). ~200 lines across 4 files
+  (domain + store + page + tests). Deferred from cycle 21 for sizing — ready to
+  implement next cycle.
 
 ## Completed
 - Outcome Calibration page — IMPLEMENTED in cycle 18: new
