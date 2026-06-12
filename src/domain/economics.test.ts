@@ -32,6 +32,8 @@ describe('assessEconomics', () => {
     expect(ea.estimatedNetRevenueUsdMM).toBeDefined();
     expect(ea.estimatedTotalCostUsdMM).toBeDefined();
     expect(ea.simpleEMVUsdMM).toBeDefined();
+    expect(ea.discountRate).toBeDefined();
+    expect(ea.simpleNPVAtDiscountUsdMM).toBeDefined();
     expect(ea.valuePerRiskedBoeUsd).toBeDefined();
     expect(ea.economicGrade).toBeDefined();
     expect(ea.decisionSignal).toBeDefined();
@@ -157,9 +159,54 @@ describe('assessEconomics', () => {
     expect(ea.valuePerRiskedBoeUsd).toBe(0);
   });
 
-  it('rationale array has 5 entries', () => {
+  it('rationale array has 6 entries', () => {
     const ea = assessEconomics(base);
-    expect(ea.rationale).toHaveLength(5);
+    expect(ea.rationale).toHaveLength(6);
+  });
+
+  it('default discount rate is 10%', () => {
+    const d = getEconomicAssumptionDefaults();
+    expect(d.discountRate).toBe(0.1);
+    const ea = assessEconomics(base);
+    expect(ea.discountRate).toBe(0.1);
+  });
+
+  it('NPV = GCoS × netRevenue / (1 + discountRate)^5 − totalCAPEX', () => {
+    const ea = assessEconomics(base);
+    const gcos = base.geologicalChanceOfSuccess ?? 0;
+    const expected = (gcos * ea.estimatedNetRevenueUsdMM) / (1 + ea.discountRate) ** 5 - ea.estimatedTotalCostUsdMM;
+    expect(ea.simpleNPVAtDiscountUsdMM).toBeCloseTo(expected, 2);
+  });
+
+  it('NPV is lower than EMV for the same prospect (discounting reduces value)', () => {
+    const ea = assessEconomics(base);
+    expect(ea.simpleNPVAtDiscountUsdMM).toBeLessThan(ea.simpleEMVUsdMM);
+  });
+
+  it('discountRate override from economicAssumptions is applied', () => {
+    const ea = assessEconomics({ ...base, economicAssumptions: { discountRate: 0.2 } });
+    expect(ea.discountRate).toBe(0.2);
+    const gcos = base.geologicalChanceOfSuccess ?? 0;
+    const expected = (gcos * ea.estimatedNetRevenueUsdMM) / 1.2 ** 5 - ea.estimatedTotalCostUsdMM;
+    expect(ea.simpleNPVAtDiscountUsdMM).toBeCloseTo(expected, 2);
+  });
+
+  it('positive EMV but negative NPV triggers a back-loaded value warning', () => {
+    // tier_1-like prospect with positive EMV; high discount rate pushes NPV negative
+    const tier1: Prospect = {
+      ...base,
+      sourceScore: 0.9, migrationScore: 0.9, reservoirScore: 0.9,
+      sealScore: 0.9, trapScore: 0.9, timingScore: 0.9,
+      geologicalChanceOfSuccess: 0.531441,
+      dataConfidence: 75,
+      commercialScore: 80,
+      resourceEstimate: 200,
+      economicAssumptions: { discountRate: 0.5 },
+    };
+    const ea = assessEconomics(tier1);
+    if (ea.simpleEMVUsdMM > 0 && ea.simpleNPVAtDiscountUsdMM < 0) {
+      expect(ea.warnings.some((w) => w.toLowerCase().includes('npv'))).toBe(true);
+    }
   });
 
   it('low data confidence triggers economic warning', () => {
@@ -186,6 +233,7 @@ describe('getEconomicAssumptionDefaults', () => {
     expect(d.netRevenueInterest).toBe(0.75);
     expect(d.workingInterest).toBe(1);
     expect(d.royaltyRate).toBe(0.2);
+    expect(d.discountRate).toBe(0.1);
   });
 
   it('each call returns a new independent copy', () => {

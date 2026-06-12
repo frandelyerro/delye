@@ -322,6 +322,13 @@ export function ProspectDetailPage() {
             <div className="mt-2 text-xl font-semibold text-slate-100">${prospect.economicAssessment.estimatedTotalCostUsdMM.toFixed(0)}M</div>
             <div className="text-xs text-slate-500 mt-1">value/risked boe: ${prospect.economicAssessment.valuePerRiskedBoeUsd.toFixed(1)}</div>
           </div>
+          <div className="rounded border border-slate-800 bg-slate-950 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Simple NPV @ {Math.round(prospect.economicAssessment.discountRate * 100)}%</div>
+            <div className={`mt-2 text-xl font-semibold ${prospect.economicAssessment.simpleNPVAtDiscountUsdMM >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+              ${prospect.economicAssessment.simpleNPVAtDiscountUsdMM.toFixed(0)}M
+            </div>
+            <div className="text-xs text-slate-500 mt-1">single-point approximation, not a full DCF</div>
+          </div>
         </div>
 
         <div className="mt-4 space-y-3">

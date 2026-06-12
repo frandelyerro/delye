@@ -15,7 +15,11 @@ const DEFAULTS: Required<EconomicAssumptions> = {
   netRevenueInterest: 0.75,
   workingInterest: 1,
   royaltyRate: 0.2,
+  discountRate: 0.1,
 };
+
+/** Assumed years to first realization of risked net revenue, used by the simple NPV approximation. */
+const NPV_REALIZATION_YEARS = 5;
 
 const mergeAssumptions = (overrides?: EconomicAssumptions): Required<EconomicAssumptions> => ({
   ...DEFAULTS,
@@ -49,6 +53,12 @@ export const assessEconomics = (prospect: Prospect): EconomicAssessment => {
 
   // Simple EMV = GCoS × Net Revenue − Total CAPEX
   const simpleEMVUsdMM = gcos * estimatedNetRevenueUsdMM - estimatedTotalCostUsdMM;
+
+  // Simple NPV approximation: discount the risked net revenue back from an assumed
+  // realization year, then subtract upfront CAPEX (incurred at year 0, undiscounted).
+  // This is a single-point simplification — not a full multi-year DCF.
+  const simpleNPVAtDiscountUsdMM =
+    (gcos * estimatedNetRevenueUsdMM) / (1 + a.discountRate) ** NPV_REALIZATION_YEARS - estimatedTotalCostUsdMM;
 
   const valuePerRiskedBoeUsd = riskedResourceMMboe > 0 ? simpleEMVUsdMM / riskedResourceMMboe : 0;
 
@@ -87,6 +97,7 @@ export const assessEconomics = (prospect: Prospect): EconomicAssessment => {
     `Gross revenue (after ${royaltyPct}% royalty): $${estimatedGrossRevenueUsdMM.toFixed(0)}M. Net revenue (NRI ${a.netRevenueInterest}, WI ${a.workingInterest}, less OpEx): $${estimatedNetRevenueUsdMM.toFixed(0)}M.`,
     `Total CAPEX: $${estimatedTotalCostUsdMM.toFixed(0)}M (development $${(a.developmentCostUsdMM * a.workingInterest).toFixed(0)}M + exploration $${(a.explorationWellCostUsdMM * a.workingInterest).toFixed(0)}M + seismic $${(a.seismicCostUsdMM * a.workingInterest).toFixed(0)}M + lease $${(a.leaseOrEntryCostUsdMM * a.workingInterest).toFixed(0)}M).`,
     `Simple EMV: $${simpleEMVUsdMM.toFixed(0)}M (${Math.round(gcos * 100)}% GCoS × $${estimatedNetRevenueUsdMM.toFixed(0)}M net − $${estimatedTotalCostUsdMM.toFixed(0)}M CAPEX).`,
+    `Simple NPV @ ${Math.round(a.discountRate * 100)}% discount: $${simpleNPVAtDiscountUsdMM.toFixed(0)}M (risked net revenue discounted ${NPV_REALIZATION_YEARS} years − upfront CAPEX). Single-point approximation, not a full DCF.`,
     `Value per risked boe: $${valuePerRiskedBoeUsd.toFixed(1)}/boe. Economic grade: ${economicGrade}.`,
   ];
 
@@ -96,6 +107,7 @@ export const assessEconomics = (prospect: Prospect): EconomicAssessment => {
   if (unriskedResourceMMboe < 20) warnings.push('Small resource size — economics are sensitive to cost assumptions.');
   if (prospect.scoringMode !== 'evidence_derived') warnings.push('Manual scoring in use — no structured evidence model supports these scores.');
   if (simpleEMVUsdMM > 0 && dc < 70 && gcos >= 0.18) warnings.push('Positive EMV is tentative — data confidence gate not met. De-risk before committing capital.');
+  if (simpleEMVUsdMM > 0 && simpleNPVAtDiscountUsdMM < 0) warnings.push(`Positive EMV but negative NPV at ${Math.round(a.discountRate * 100)}% discount — value is back-loaded and time-sensitive; consider accelerating realization or revisiting the discount rate.`);
 
   return {
     unriskedResourceMMboe,
@@ -104,6 +116,8 @@ export const assessEconomics = (prospect: Prospect): EconomicAssessment => {
     estimatedNetRevenueUsdMM,
     estimatedTotalCostUsdMM,
     simpleEMVUsdMM,
+    discountRate: a.discountRate,
+    simpleNPVAtDiscountUsdMM,
     valuePerRiskedBoeUsd,
     economicGrade,
     decisionSignal,
