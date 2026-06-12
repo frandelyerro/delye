@@ -403,6 +403,25 @@ describe('advisor geological queries', () => {
     expect(response).toContain('MEDIUM');
   });
 
+  it('"seal lithology" reports the seal lithology x trap type distribution', () => {
+    const withSealData = scoreProspects([
+      { ...mockProspects[0], id: 'sl1', name: 'Vaca Norte Lead', evidence: { seal: { presence: 'proven', lithology: 'salt' }, trap: { closureMapped: true, trapType: 'subsalt' } } },
+      { ...mockProspects[1], id: 'sl2', name: 'Vaca Sur Lead', evidence: { seal: { presence: 'proven', lithology: 'shale' }, trap: { closureMapped: true, trapType: 'structural' } } },
+    ]);
+    const response = getAdvisorResponse('what is the seal lithology distribution', withSealData);
+    expect(response.toLowerCase()).toContain('salt/subsalt');
+    expect(response.toLowerCase()).toContain('shale/structural');
+  });
+
+  it('"subsalt seal" flags subsalt traps with a non-evaporite seal lithology', () => {
+    const withRisk = scoreProspects([
+      { ...mockProspects[0], id: 'sr1', name: 'Vaca Norte Lead', evidence: { seal: { presence: 'proven', lithology: 'shale' }, trap: { closureMapped: true, trapType: 'subsalt' } } },
+    ]);
+    const response = getAdvisorResponse('any subsalt seal risk?', withRisk);
+    expect(response).toContain('Vaca Norte Lead');
+    expect(response.toLowerCase()).toContain('memoir 74');
+  });
+
   it('"reservoir quality" returns reservoir productivity info', () => {
     const response = getAdvisorResponse('reservoir quality assessment', prospects);
     expect(response.toLowerCase()).toMatch(/reservoir|porosity|permeability/i);

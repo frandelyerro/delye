@@ -3,11 +3,6 @@
 Maintained by `/meta`. Append dated entries below; do not delete prior history.
 
 ## Open improvement areas
-- Seal / fault-seal analysis module: cycle 21 shipped the advisor-handler half of
-  this item ("fault seal risk" / "faulted seal" — see Completed below). Still open:
-  a pure `sealAnalysis.ts` grouping prospects by seal lithology cross-tabbed with trap
-  type (subsalt traps need higher seal confidence). Methodology: AAPG Memoir 74;
-  Knipe et al. (1997) fault seal prediction. ~80-100 lines remaining, additive only.
 - Unconventional reservoir flag-consistency check (`geoscienceEngine.ts` ~line 174):
   porosity/permeability assessment branches on `evidence.isUnconventional`, but there's
   no validation that this flag matches the actual porosity/permeability profile (e.g.
@@ -18,6 +13,22 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   methodology citation (SPE/AAPG/SEG unconventional definitions) and before/after test
   evidence for a tight-sandstone case.
 ## Completed
+- 2026-06-12 (cycle 25): SHIPPED `src/domain/sealAnalysis.ts` per the cycle-24
+  spec — `analyzeSealTrapRisk(prospects)` cross-tabs prospects by seal lithology x
+  trap type (returns sorted counts, `'unrecorded'` for missing lithology/trapType)
+  and `getSubsaltNonEvaporiteRisks(prospects)` flags subsalt-trap prospects whose
+  seal lithology is missing or outside the evaporite class (salt/evaporite/
+  anhydrite — matches `geoscienceEngine.ts assessSeal`'s `isEvaporiteSeal` grouping
+  at lines 252/258/270, confirming consistency). New advisor handler triggered by
+  "seal lithology"/"subsalt seal"/"seal type"/"evaporite seal", placed in
+  `advisor.ts` immediately after the cycle-21 "fault seal" handler and before the
+  broader "seal risk" handler (no pattern collision: the line-1016 "subsalt"
+  trap-geometry handler is later in the chain and our trigger requires "subsalt
+  seal" specifically). 6 new tests (4 sealAnalysis unit tests, 2 advisor tests
+  using the neutral name "Vaca Norte Lead" per the cycle-18 naming convention).
+  724/724 tests pass, 0 TS errors, build clean. The "drilled analogs for
+  [prospect]" follow-on (~10L, outcomeOnly analog filter surfacing) remains open
+  for a future cycle.
 - 2026-06-11 (cycle 24): sealAnalysis.ts re-verified and READY but DEFERRED to
   cycle 25 (this cycle's budget went to the Zustand selector refactor + the
   security CSV-injection fix). Verified plan: new `src/domain/sealAnalysis.ts`

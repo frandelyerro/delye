@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 24;
+const CURRENT_CYCLE = 25;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata' | 'ml';
 
@@ -49,9 +49,9 @@ const AGENTS: AgentDef[] = [
     precision: 90,
     recall: 68,
     depth: 85,
-    totalFindings: 42,
-    implemented: 37,
-    latestFinding: 'Added the outcomeOnly analog filter to findAnalogs() — restricts analog candidates to prospects with a known drilling outcome (discovery/dry hole/non-commercial), the highest-confidence analogs for calibrating expectations on undrilled prospects (Rose & Associates lookback methodology). Completes the AnalogFilters set started in cycle 19.',
+    totalFindings: 43,
+    implemented: 38,
+    latestFinding: 'Shipped sealAnalysis.ts: analyzeSealTrapRisk() cross-tabs prospects by seal lithology x trap type and getSubsaltNonEvaporiteRisks() flags subsalt traps whose seal lithology is outside the evaporite class (salt/evaporite/anhydrite), per AAPG Memoir 74 and Knipe et al. (1997). New "seal lithology"/"subsalt seal"/"seal type"/"evaporite seal" advisor handler placed between the fault-seal and broader seal-risk handlers.',
     knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'validateUnconventionalFlagConsistency() for assessReservoir() — deferred (touches geoscienceEngine.ts, a hard-constraint file)'],
   },
   {
@@ -168,6 +168,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 22, architect: 0, petro: 1, review: 0, security: 1, dev: 0, geodata: 1, ml: 0, highlight: 'CSP worker-src blob: for MapLibre WebGL workers, source/migration and reservoir/seal interaction features + min(trap,timing) bottleneck feature for ML training, single-prospect map fitBounds fix (easeTo instead of degenerate bounding box) plus outcome-based map filter chips (Discoveries/Dry Holes/Non-Commercial)' },
   { cycle: 23, architect: 1, petro: 1, review: 0, security: 0, dev: 1, geodata: 1, ml: 0, highlight: 'EvidenceSection extraction from ProspectFormPage (ARCH-005), outcome-conditioned analog filter (outcomeOnly) in analogFinder, basin circle density labels (avg nearest-neighbor + dense/scattered color coding), calibration-data CSV export on /calibration, empty-filter map view reset' },
   { cycle: 24, architect: 1, petro: 0, review: 0, security: 1, dev: 1, geodata: 0, ml: 0, highlight: 'CSV formula-injection guard in csvEscape (both portfolio + calibration exports), Zustand fine-grained selectors across 7 pages (ARCH-004/006), GCoS min/max range filter on the Targeting workbench; verified glyphs render via MapLibre TinySDF fallback (no fix needed)' },
+  { cycle: 25, architect: 0, petro: 1, review: 0, security: 0, dev: 0, geodata: 0, ml: 0, highlight: 'sealAnalysis.ts: cross-tabs seal lithology x trap type and flags subsalt traps with non-evaporite seal lithology (AAPG Memoir 74 / Knipe et al. 1997), surfaced via a new "seal lithology"/"subsalt seal" advisor handler' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {
