@@ -516,6 +516,23 @@ describe('advisor outcome analytics queries', () => {
     expect(response.toLowerCase()).toContain('/outcomes');
   });
 
+  it('"identified targets" summarizes spatial targets with counts, GCoS, and radius', () => {
+    const response = getAdvisorResponse('what are the identified targets?', prospects);
+    expect(response).toContain('Identified targets');
+    expect(response).toContain('Target 1');
+    expect(response).toMatch(/avg GCoS \d+%/);
+    expect(response).toMatch(/radius ~\d+ km/);
+    expect(response).toContain('/targets');
+  });
+
+  it('"target summary" with no valid-coordinate prospects points to adding coordinates', () => {
+    const noCoords = scoreProspects([
+      { id: 'nc1', name: 'Null Island Lead', basin: 'Basin X', block: 'B-1', playType: 'Carbonate', latitude: 0, longitude: 0, sourceScore: 0.7, migrationScore: 0.7, reservoirScore: 0.7, sealScore: 0.7, trapScore: 0.7, timingScore: 0.7, commercialScore: 70, resourceEstimate: 100 },
+    ]);
+    const response = getAdvisorResponse('give me a target summary', noCoords);
+    expect(response.toLowerCase()).toContain('valid coordinates');
+  });
+
   it('"nearest analog" without a name ranks undrilled prospects by analog proximity', () => {
     const response = getAdvisorResponse('which prospects are closest to a drilled analog?', labeled);
     expect(response.toLowerCase()).toMatch(/closest to a drilled analog|nearest drilled analog/);

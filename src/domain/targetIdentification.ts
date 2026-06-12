@@ -44,21 +44,29 @@ export type TargetGridCell = {
 };
 
 /**
- * Greedy single-linkage spatial clustering: each prospect joins the first
- * cluster containing a member within CLUSTER_LINK_KM, else starts a new one.
- * Deterministic for a given prospect order (callers get prospects in store
- * order, which is stable).
+ * Single-linkage spatial clustering: a prospect joins every cluster with a
+ * member within CLUSTER_LINK_KM; clusters bridged by the new prospect are
+ * merged. Prospects are presorted by latitude then longitude, so for a given
+ * set of prospects the result is independent of store insertion order.
  */
 const clusterByProximity = (prospects: Prospect[]): Prospect[][] => {
+  const sorted = [...prospects].sort(
+    (a, b) => a.latitude - b.latitude || a.longitude - b.longitude,
+  );
   const clusters: Prospect[][] = [];
-  for (const p of prospects) {
-    const home = clusters.find((cluster) =>
+  for (const p of sorted) {
+    const linked = clusters.filter((cluster) =>
       cluster.some((m) => haversineKm(m.latitude, m.longitude, p.latitude, p.longitude) <= CLUSTER_LINK_KM),
     );
-    if (home) {
-      home.push(p);
-    } else {
+    if (linked.length === 0) {
       clusters.push([p]);
+      continue;
+    }
+    const [home, ...bridged] = linked;
+    home.push(p);
+    for (const other of bridged) {
+      home.push(...other);
+      clusters.splice(clusters.indexOf(other), 1);
     }
   }
   return clusters;

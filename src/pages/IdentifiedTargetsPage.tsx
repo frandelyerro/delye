@@ -3,29 +3,12 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { FeatureCollection } from 'geojson';
 import { useProspectStore } from '../store/useProspectStore';
+import { OSM_STYLE, esc } from '../utils/mapUtils';
 import {
   buildTargetGridCells,
   identifyTargets,
   type IdentifiedTarget,
 } from '../domain/targetIdentification';
-
-// Free OSM raster tiles — no API key needed (same style as MapPage)
-const OSM_STYLE = {
-  version: 8 as const,
-  sources: {
-    osm: {
-      type: 'raster' as const,
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
-    },
-  },
-  layers: [{ id: 'osm', type: 'raster' as const, source: 'osm' }],
-};
-
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 function gridCellsToGeoJSON(target: IdentifiedTarget): FeatureCollection {
   return {
@@ -121,7 +104,8 @@ export function IdentifiedTargetsPage() {
       m.on('click', 'target-grid-fill', (e) => {
         const f = e.features?.[0];
         if (!f) return;
-        const props = f.properties as { avgGcos: number; prospectCount: number; prospectNames: string };
+        const props = f.properties as { avgGcos: number; prospectCount: number; prospectNames: string } | null;
+        if (!props) return;
         new maplibregl.Popup({ closeButton: true })
           .setLngLat(e.lngLat)
           .setHTML(

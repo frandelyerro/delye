@@ -105,3 +105,21 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   new ground truth.
 - Hard constraint: ML output is advisory only, must never override expert-system GCoS/recommendations,
   and every prediction surface must disclose "no trained model connected yet" / "deterministic baseline".
+- 2026-06-12 (cycle 27): Fixed early stopping in `mlLogisticRegression.ts` —
+  the patience break returned the weights AFTER `patience` consecutive
+  non-improving loss samples, not the best-observed weights, so oscillating
+  runs (high LR + momentum) could return a materially degraded model.
+  `bestWeights`/`bestIntercept` are now snapshotted on each loss improvement
+  and restored when `stoppedEarly`. Also closed the cycle-26 open item: a
+  momentum=0.9 vs momentum=0 regression test on a realistic non-separable
+  imbalanced dataset (45 rows, 15/30 split, deterministic mulberry32 PRNG,
+  5 deterministic label flips to guarantee non-separability — without the
+  flips the 7-feature dataset was perfectly separable and loss collapsed to
+  ~0, making degradation untestable). The early-stop restoration test uses
+  learningRate=20 + momentum=0.9 to force oscillation, recomputes the returned
+  model's cross-entropy manually via predictProbability (l2Penalty=0 so the
+  formulas match), and asserts it matches min(lossHistory), not the final
+  sample. STILL OPEN (deferred, return-shape + UI change): mlTrainingService
+  computes `predictions` over ALL labeled rows (train+test mixed), masking
+  overfitting in the MLLabPage table — split into test-only predictions plus
+  an optional train-predictions toggle next time the service API is touched.

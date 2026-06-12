@@ -24,6 +24,7 @@ import { getDefaultMLTrainingConfig } from './mlTrainingService';
 import { isKnownOutcome, isGeologicalSuccess, isCommercialSuccess, getOutcomeLabelText } from './outcomes';
 import { haversineKm, isValidCoordinate, findNearest, findNearestOutcome, rankByAnalogProximity, basinClusteringStats } from './geoUtils';
 import { findAnalogs } from './analogFinder';
+import { identifyTargets } from './targetIdentification';
 
 // Summarizes the real labeled training set the baseline model would use.
 // Kept pure (no localStorage): advisor answers are based on portfolio
@@ -210,7 +211,7 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
   }
 
   if (q.includes('portfolio summary')) {
-    const avg = prospects.reduce((acc, p) => acc + (p.geologicalChanceOfSuccess ?? 0), 0) / prospects.length;
+    const avg = prospects.reduce((acc, p) => acc + finiteGcos(p), 0) / prospects.length;
     const resources = prospects.reduce((acc, p) => acc + p.resourceEstimate, 0);
     return `Portfolio summary: ${prospects.length} prospects, average GCoS ${Math.round(avg * 100)}%, total unrisked resources ${resources} MMboe.`;
   }
@@ -915,6 +916,17 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Frontier region analysis: ${frontier.length} prospect${frontier.length !== 1 ? 's' : ''} with data confidence < 50 across ${basinFrontier.length} basin${basinFrontier.length !== 1 ? 's' : ''} (${basinFrontier.join(', ')}). ${withPotential.length} of these still show GCoS > 10% despite limited data — candidates for seismic acquisition before drilling. Increasing data confidence in frontier prospects improves ML readiness and reduces pre-drill uncertainty.`;
   }
 
+  if (q.includes('identified targets') || q.includes('spatial targets') || q.includes('target summary')) {
+    const targets = identifyTargets(prospects);
+    if (!targets.length) {
+      return 'No spatial targets identified yet — add prospects with valid coordinates to enable target identification, or visit the Identified Targets page (/targets).';
+    }
+    const summary = targets
+      .map((t) => `${t.name}: ${t.prospectCount} prospect${t.prospectCount !== 1 ? 's' : ''} (mostly ${t.topBasin}, ${t.topPlayType}), avg GCoS ${Math.round(t.avgGcos * 100)}%, radius ~${Math.round(t.radiusKm)} km${t.successRate !== null ? `, drilled success rate ${Math.round(t.successRate * 100)}%` : ''}`)
+      .join('; ');
+    return `Identified targets (spatial clusters within 150 km, ranked by avg GCoS × √count): ${summary}. See the Identified Targets page (/targets) for the heat-grid map. The 150 km radius is a spatial heuristic — verify clustered prospects share source, seal, and trap-style petroleum-system elements before infrastructure or JV planning.`;
+  }
+
   if (q.includes('drilled analogs')) {
     const target = findMentionedProspect(q, prospects);
     if (!target) {
@@ -1156,5 +1168,5 @@ export const getAdvisorResponse = (question: string, prospects: Prospect[]): str
     return `Play-type distribution across ${prospects.length} prospect${prospects.length !== 1 ? 's' : ''}: ${lines}. Dominant play type: ${dominant?.play ?? '—'} with ${dominant?.count} prospect${dominant?.count !== 1 ? 's' : ''}. Diversifying across play types reduces correlated geological risk — if all prospects share the same source kitchen or seal type, a single regional failure could eliminate the entire portfolio value. The Map page play-type filter lets you visualize spatial play concentration.`;
   }
 
-  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "fault seal risk", "seal lithology", "subsalt seal", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "migration risk", "risk reward", "risk-reward", "capital efficiency", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", "norway limitations", "basin distribution", "best basin", "map overview", "spatial overview", "cluster analysis", "frontier basin", "analog field", "source rock maturity", "seal integrity", "reservoir quality", "trap geometry", "target depth", "nearest prospect", "how far is [name] from [name]", "play type distribution", "success rate by basin", "gcos calibration", "nearest analog to [name]", "drilled analogs for [name]", "basin cluster spacing", or "explain GCoS".';
+  return 'I can answer: "top prospects", "best prospect", "why this score", "data confidence", "weakest component", "strongest components", "main risk", "high resource high risk", "need more data", "portfolio summary", "evidence-derived", "manual scoring", "evidence supports [name]", "missing evidence for [name]", "need more seismic", "seal risk", "fault seal risk", "seal lithology", "subsalt seal", "timing uncertainty", "critical geoscience risk", "drill candidates", "where should we drill first", "de-risk before drill", "farm-in candidates", "acreage review", "tier 1 targets", "tier 2 targets", "high GCoS low data confidence", "main portfolio risk", "migration risk", "risk reward", "risk-reward", "capital efficiency", "what should we do next as an exploration team", "positive EMV prospects", "negative EMV prospects", "best economic prospect", "high resource low GCoS", "de-risk before investment", "does [name] look economic", "portfolio risked resources", "what are the default economic assumptions", "is the ML model trained", "can we train ML", "what data do we need for ML", "export training dataset", "how does ML compare to expert GCoS", "which prospects are ML-ready", "prospects with outcomes", "how many labeled examples", "dry hole prospects", "commercial discoveries", "how do I import a dataset", "why did my dataset fail validation", "what columns are required for import", "can I train with this dataset", "what is post-drill leakage", "how do I train the ML model", "how accurate is the ML model", "what features drive the ML model", "can we use ML to decide drilling", "why is ML not ready", "how many labels do we need", "norway factpages adapter", "convert norway csv", "norway limitations", "basin distribution", "best basin", "map overview", "spatial overview", "cluster analysis", "frontier basin", "analog field", "source rock maturity", "seal integrity", "reservoir quality", "trap geometry", "target depth", "nearest prospect", "how far is [name] from [name]", "play type distribution", "success rate by basin", "gcos calibration", "nearest analog to [name]", "drilled analogs for [name]", "identified targets", "basin cluster spacing", or "explain GCoS".';
 };

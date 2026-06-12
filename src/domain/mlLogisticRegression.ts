@@ -126,9 +126,13 @@ export const trainLogisticRegression = (
     ? m / (2 * negatives)
     : 1;
 
-  // Early stopping state
+  // Early stopping state. Best weights are snapshotted at each loss
+  // improvement so an early stop returns the best-observed model rather than
+  // the weights after `patience` non-improving samples.
   let patienceCount = 0;
   let bestLoss = Infinity;
+  let bestWeights: number[] | null = null;
+  let bestIntercept = 0;
   const patience = config.patience ?? 20;
   const tol = config.convergenceTol ?? 1e-6;
 
@@ -165,6 +169,8 @@ export const trainLogisticRegression = (
         if (loss < bestLoss - tol) {
           bestLoss = loss;
           patienceCount = 0;
+          bestWeights = weights.slice();
+          bestIntercept = intercept;
         } else {
           patienceCount++;
           if (patienceCount >= patience) {
@@ -175,6 +181,11 @@ export const trainLogisticRegression = (
         }
       }
     }
+  }
+
+  if (stoppedEarly && bestWeights) {
+    for (let j = 0; j < n; j++) weights[j] = bestWeights[j];
+    intercept = bestIntercept;
   }
 
   return {

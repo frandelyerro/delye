@@ -114,3 +114,13 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   typecheck error (`Type 'string' is not assignable to type 'SealLithology |
   "unrecorded"'`) because TS widens the field to `string` through the
   `.map().filter()` chain. Confirmed FALSE POSITIVE, no change made; cast must stay.
+- 2026-06-12 (cycle 27): Fixed the last `?? 0` GCoS NaN-propagation instance in
+  advisor.ts — the "portfolio summary" handler (line ~213) averaged
+  `geologicalChanceOfSuccess ?? 0`, which passes explicit NaN through; replaced
+  with `finiteGcos(p)` (already imported, used by the other five averages in
+  the file). Also hardened the IdentifiedTargetsPage grid-cell popup: GeoJSON
+  allows `properties: null`, so the click handler now narrows
+  `f.properties` to `... | null` and returns early. Verified-correct (no
+  action): MapLibre init/cleanup in IdentifiedTargetsPage, negative-longitude
+  grid bucketing, mostCommon() empty-array handling, "drilled analogs" handler
+  precedence vs "nearest analog".

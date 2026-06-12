@@ -76,3 +76,11 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
 ## Reference material / methodology notes
 - 2026-06-10: No circular dependencies detected in the domain layer. Issues are all
   in presentation/component composition, not domain architecture.
+- 2026-06-12 (cycle 27): Extracted duplicated `OSM_STYLE` and `esc()` from
+  MapPage.tsx and IdentifiedTargetsPage.tsx into shared `src/utils/mapUtils.ts`
+  (both pages now import them; zero behavioral change). Build note: the big
+  maplibre vendor chunk is now emitted as `mapUtils-*.js` (~1,054 kB, same
+  content/size as the previous `maplibre-gl-*.js`) because the shared module
+  became the chunk entry — do not mistake this rename for a bundle regression.
+  Declined two MapPage inline-style micro-optimizations (style-object
+  recreation on filter buttons) as churn without measurable benefit.

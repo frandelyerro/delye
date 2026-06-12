@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 26;
+const CURRENT_CYCLE = 27;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata' | 'ml';
 
@@ -34,9 +34,9 @@ const AGENTS: AgentDef[] = [
     precision: 82,
     recall: 71,
     depth: 78,
-    totalFindings: 27,
-    implemented: 22,
-    latestFinding: 'Shipped ARCH-004/006: converted the 7 remaining coarse useProspectStore() destructures (CalibrationPage, MLLabPage, VisualizationsPage, DashboardPage, TargetingPage, BatchOutcomePage, ComparisonPage) to fine-grained inline selectors (s => s.prospects, etc.), matching the 9 existing inline-selector call sites — store mutations no longer force a full re-render of every consumer. No store API or persistence change.',
+    totalFindings: 30,
+    implemented: 23,
+    latestFinding: 'Extracted the OSM_STYLE raster style and esc() HTML-escape helper duplicated between MapPage.tsx and IdentifiedTargetsPage.tsx into a shared src/utils/mapUtils.ts — zero behavioral change, future map pages reuse the same OSM setup and escaping. Also flagged (declined) two inline-style micro-optimizations on MapPage filter buttons as not worth the churn.',
     knownGaps: ['Missing useMemo on O(n²) renders', 'ProspectDetailPage (728), MapPage (~880), MLLabPage (~966) still >300 lines', 'advisor.ts pattern-registry split still deferred (precedence-sensitive)'],
   },
   {
@@ -49,10 +49,10 @@ const AGENTS: AgentDef[] = [
     precision: 90,
     recall: 68,
     depth: 85,
-    totalFindings: 45,
+    totalFindings: 48,
     implemented: 40,
     latestFinding: 'Added a "drilled analogs for [name]" advisor handler (advisor.ts) using the existing findAnalogs(..., { outcomeOnly: true }) to rank known-outcome prospects by scoring-profile similarity to a named prospect — the highest-confidence calibration data per Rose & Associates lookback methodology. Also added a caveat to the new Identified Targets page noting the 150 km clustering radius is a spatial heuristic, not a play-fairway model, and that shared petroleum-system elements (source/seal/trap) must be verified before using a target grouping for infrastructure/JV planning.',
-    knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'validateUnconventionalFlagConsistency() for assessReservoir() — deferred (touches geoscienceEngine.ts, a hard-constraint file)'],
+    knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'Standalone unconventional-flag consistency validator (additive module, ~82L) — deferred for scope this cycle', 'Target petroleum-system consistency validator (play/seal homogeneity flags on IdentifiedTarget, ~103L) — deferred'],
   },
   {
     id: 'review',
@@ -64,9 +64,9 @@ const AGENTS: AgentDef[] = [
     precision: 95,
     recall: 80,
     depth: 90,
-    totalFindings: 23,
-    implemented: 22,
-    latestFinding: 'Found a HIGH issue in the new IdentifiedTargetsPage: `targets[Math.min(activeIndex, targets.length - 1)]` could index with a negative value (-1) when `targets` was empty, returning `undefined` via an out-of-bounds read pattern that broke down once activeIndex stayed at a stale value after the target list shrank. Fixed with `Math.max(0, Math.min(activeIndex, targets.length - 1))`. Also confirmed sealAnalysis.ts\'s `as SealLithology | "unrecorded"` cast (flagged MEDIUM "unnecessary cast" last cycle) is structurally required — TS widens the field to `string` through the `.map().filter()` chain without it; verified via typecheck, no change made.',
+    totalFindings: 25,
+    implemented: 24,
+    latestFinding: 'Found the last remaining `?? 0` NaN-propagation instance in advisor.ts — the "portfolio summary" handler averaged geologicalChanceOfSuccess with `?? 0`, which passes explicit NaN through (NaN ?? 0 === NaN) and would display "NaN%". Replaced with the finiteGcos() helper already used by the other five GCoS averages in the file. Also hardened the IdentifiedTargetsPage popup against null GeoJSON properties (spec allows properties: null).',
     knownGaps: ['useEffect stale closure detection', 'Missing useCallback on memoized-child setters'],
   },
   {
@@ -109,10 +109,10 @@ const AGENTS: AgentDef[] = [
     precision: 80,
     recall: 74,
     depth: 76,
-    totalFindings: 21,
-    implemented: 19,
-    latestFinding: 'Added mini-summaries to the Identified Targets page: targetIdentification.ts now computes topBasin/topPlayType (most common basin and play type among a target\'s prospects) and the target map header shows "Mostly {basin} basin · {playType} play" so users get petroleum-system context at a glance without clicking into individual grid cells.',
-    knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred', 'OSM_STYLE has no glyphs URL — verify symbol-layer text (cluster counts, density labels) renders in production', 'Grid-cell click navigation / target export (CSV/JSON) deferred'],
+    totalFindings: 24,
+    implemented: 21,
+    latestFinding: 'Fixed order-dependent target clustering: clusterByProximity() now presorts prospects by lat/lon and merges clusters bridged by a later prospect (true single-linkage), so the same portfolio always yields the same targets regardless of store insertion order — previously a shuffled upload order could split a 150 km chain into different clusters. Also exposed targets to the advisor: "identified targets" / "spatial targets" / "target summary" returns per-target prospect counts, dominant basin/play, avg GCoS, radius, and drilled success rate.',
+    knownGaps: ['Antimeridian wrapping (grid cells near ±180° untested)', 'High-latitude grid cells compress (~5.5 km claim is equatorial)', 'clusterProperties avg-GCoS aggregation deferred', 'Grid-cell click navigation / target export (CSV/JSON) deferred'],
   },
   {
     id: 'ml',
@@ -124,10 +124,10 @@ const AGENTS: AgentDef[] = [
     precision: 82,
     recall: 62,
     depth: 67,
-    totalFindings: 3,
-    implemented: 3,
-    latestFinding: 'Shipped `evaluateBaselineOnLabeledOutcomes()` in mlEvaluation.ts — evaluates the deterministic baseline formula (accuracy/Brier/ROC-AUC/confusion matrix) against real (non-synthetic) Prospect.outcome labels, with a fixed 0.5 threshold. Wired into MLLabPage as a "Baseline Calibration Report (Experimental)" panel shown once >=5 real-labeled prospects exist. Closes the long-standing gap between "baseline is deterministic" and real calibration validation.',
-    knownGaps: ['mlReadiness already correctly uses real outcome labels (verified, no follow-up needed)', 'useTrainingPreview() hook extraction for MLLabPage still deferred alongside broader page-decomposition work'],
+    totalFindings: 6,
+    implemented: 5,
+    latestFinding: 'Fixed early stopping in mlLogisticRegression.ts: the patience break previously returned the weights AFTER `patience` consecutive non-improving loss samples instead of the best-observed weights — on oscillating runs (high learning rate + momentum) the returned model could be materially worse than the best seen during training. Best weights/intercept are now snapshotted at each loss improvement and restored on early stop. Also closed the cycle-26 open item: momentum=0.9 vs momentum=0 regression test on a realistic, non-separable, imbalanced 45-row dataset (deterministic mulberry32 fixture with label flips).',
+    knownGaps: ['Predictions in mlTrainingService are computed on ALL labeled rows (train+test mixed) — test-set-only predictions deferred (return-shape + UI change)', 'useTrainingPreview() hook extraction for MLLabPage still deferred alongside broader page-decomposition work'],
   },
 ];
 
@@ -170,6 +170,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 24, architect: 1, petro: 0, review: 0, security: 1, dev: 1, geodata: 0, ml: 0, highlight: 'CSV formula-injection guard in csvEscape (both portfolio + calibration exports), Zustand fine-grained selectors across 7 pages (ARCH-004/006), GCoS min/max range filter on the Targeting workbench; verified glyphs render via MapLibre TinySDF fallback (no fix needed)' },
   { cycle: 25, architect: 0, petro: 1, review: 0, security: 0, dev: 0, geodata: 0, ml: 0, highlight: 'sealAnalysis.ts: cross-tabs seal lithology x trap type and flags subsalt traps with non-evaporite seal lithology (AAPG Memoir 74 / Knipe et al. 1997), surfaced via a new "seal lithology"/"subsalt seal" advisor handler' },
   { cycle: 26, architect: 0, petro: 2, review: 1, security: 0, dev: 0, geodata: 1, ml: 0, highlight: 'Identified Targets fixes: out-of-bounds activeIndex guard, spatial-heuristic caveat, and basin/play mini-summaries; new "drilled analogs for [name]" advisor handler ranking known-outcome prospects by scoring-profile similarity' },
+  { cycle: 27, architect: 1, petro: 0, review: 2, security: 0, dev: 0, geodata: 2, ml: 1, highlight: 'Order-invariant single-linkage target clustering (presort + bridge merging), early-stopping best-weights restoration in the ML trainer, last advisor NaN-propagation fix (portfolio summary), "identified targets" advisor handler, shared mapUtils.ts extraction' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {

@@ -95,6 +95,37 @@ describe('identifyTargets', () => {
     expect(target.areaKm2).toBeCloseTo(Math.PI * 100, 3);
   });
 
+  it('produces the same clusters regardless of input order', () => {
+    // Chain: each consecutive pair ~133 km apart (1.2° latitude), ends ~400 km apart.
+    const chain = [0, 1.2, 2.4, 3.6].map((lat, i) =>
+      makeProspect({ id: `c${i}`, latitude: 10 + lat, longitude: 10 }),
+    );
+    const shuffled = [chain[2], chain[0], chain[3], chain[1]];
+
+    const forward = identifyTargets(chain);
+    const reordered = identifyTargets(shuffled);
+
+    expect(forward).toHaveLength(1);
+    expect(reordered).toHaveLength(1);
+    expect(forward[0].prospects.map((p) => p.id).sort()).toEqual(
+      reordered[0].prospects.map((p) => p.id).sort(),
+    );
+  });
+
+  it('merges clusters bridged by a later prospect (true single-linkage)', () => {
+    // A and C share a latitude ~262 km apart (clustered separately even after
+    // the lat/lon presort); B sits north between them within 150 km of both,
+    // so processing B must merge the two clusters into one target.
+    const a = makeProspect({ id: 'a', latitude: 10, longitude: 10 });
+    const c = makeProspect({ id: 'c', latitude: 10, longitude: 12.4 });
+    const b = makeProspect({ id: 'b', latitude: 10.5, longitude: 11.2 });
+
+    const targets = identifyTargets([a, c, b]);
+
+    expect(targets).toHaveLength(1);
+    expect(targets[0].prospectCount).toBe(3);
+  });
+
   it('reports the most common basin and play type as a mini-summary', () => {
     const a = makeProspect({ id: 'a', latitude: 10, longitude: 10, basin: 'Vaca Muerta', playType: 'Shale' });
     const b = makeProspect({ id: 'b', latitude: 10.1, longitude: 10.1, basin: 'Vaca Muerta', playType: 'Conventional Clastic' });

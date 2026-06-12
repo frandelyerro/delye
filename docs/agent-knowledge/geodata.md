@@ -110,6 +110,22 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   target. 1 new targetIdentification test. Grid-cell click navigation and a
   CSV/JSON target export remain deferred (dev backlog).
 
+- 2026-06-12 (cycle 27): Fixed order-dependent clustering in
+  `targetIdentification.ts` — `clusterByProximity()` now (a) presorts prospects
+  by latitude then longitude and (b) merges all clusters linked by a newly
+  added prospect (true single-linkage) instead of joining only the first match.
+  Same portfolio now always yields the same targets regardless of store
+  insertion order. 2 new tests (shuffled-order invariance; bridge-merge with
+  same-latitude endpoints so the merge path is exercised even after the
+  presort). Also added an "identified targets" / "spatial targets" / "target
+  summary" advisor handler wiring `identifyTargets()` into advisor.ts (placed
+  before the "drilled analogs" handler; no collision with the "target depth"
+  handler further down) — returns per-target prospect count, dominant
+  basin/play, avg GCoS, radius, and drilled success rate, with the 150 km
+  spatial-heuristic caveat. 2 new advisor tests. Still open: antimeridian grid
+  cells untested; 0.05° grid cells compress at high latitude (~5.5 km claim is
+  equatorial).
+
 ## Reference material / methodology notes
 - 2026-06-10: `@turf/turf` is still NOT installed. MapLibre native clustering is in
   use (clusterRadius 40, clusterMaxZoom 10) and covers basic density; the heatmap

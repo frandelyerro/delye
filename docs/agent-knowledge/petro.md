@@ -120,3 +120,12 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   heuristic, not a play-fairway model — clustered prospects must be verified to share
   source/seal/trap-style petroleum-system elements before using a target grouping for
   infrastructure or JV planning. 3 new advisor tests.
+- 2026-06-12 (cycle 27): No petro item implemented this cycle (priority went to
+  correctness fixes). Deferred with concrete plans on file: (1) standalone
+  unconventional-flag consistency validator (~82L additive module flagging
+  isUnconventional=false with tight-reservoir data, surfaced as a warning, NOT
+  a geoscienceEngine change); (2) target petroleum-system consistency
+  validator (~103L, play/seal homogeneity flags on IdentifiedTarget); (3)
+  Ro phase-boundary guidance — REJECTED as proposed because it edits
+  assessSource() in geoscienceEngine.ts (hard-constraint file); would need an
+  advisor-only reformulation.
