@@ -46,6 +46,7 @@ export const getDefaultMLTrainingConfig = (): MLTrainingConfig => ({
   classWeight: 'none',
   patience: 20,
   convergenceTol: 1e-6,
+  momentum: 0.9,
 });
 
 /**

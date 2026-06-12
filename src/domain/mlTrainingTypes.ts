@@ -34,6 +34,7 @@ export type MLTrainingConfig = {
   classWeight: MLClassWeight;
   patience: number;       // early stopping: consecutive non-improving checks
   convergenceTol: number; // early stopping: minimum loss improvement
+  momentum?: number;      // classic momentum coefficient for gradient descent (0 = disabled)
 };
 
 export type MLTrainingRow = {

@@ -12,6 +12,20 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   no behavioral fix, so it stays low priority.
 
 ## Completed
+- 2026-06-12 (cycle 25, meta-driven model improvement): Added classic momentum
+  to `trainLogisticRegression()` in `mlLogisticRegression.ts` — `MLTrainingConfig`
+  gained an optional `momentum?: number` (default 0). Each weight/intercept
+  update accumulates `momentum * previousVelocity + learningRate * grad`,
+  smoothing gradient noise and speeding convergence on the small,
+  often-imbalanced datasets typical here. `momentum: 0` (or unset) reproduces
+  plain gradient descent exactly — backward compatible with any previously
+  trained model object (training is always re-run from scratch, not resumed,
+  so no stored-model migration is needed). `getDefaultMLTrainingConfig()` now
+  sets `momentum: 0.9`. MLLabPage spreads the default config, so it picks this
+  up automatically with no UI change. 4 new mlLogisticRegression tests
+  (momentum=0 exactness, determinism with momentum, finite weights, and
+  final-loss-not-worse-than-plain-GD on a fixed iteration budget). 727/727
+  tests pass, 0 TS errors, build clean.
 - 2026-06-11 (cycle 24 audit): No findings — clean report. Deep-audited three
   not-recently-checked areas: (1) mlLogisticRegression.ts numerics — zero-variance
   normalization sets std=1 (no div-by-zero), log-loss clamps to

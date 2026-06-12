@@ -138,4 +138,27 @@ describe('trainLogisticRegression', () => {
     expect(model.stoppedEarly).toBe(false);
     expect(model.finalIteration).toBe(1);
   });
+
+  it('momentum=0 reproduces plain gradient descent exactly', () => {
+    const plain = trainLogisticRegression(makeRows(), { ...config, momentum: undefined, iterations: 200, patience: 1000 });
+    const explicitZero = trainLogisticRegression(makeRows(), { ...config, momentum: 0, iterations: 200, patience: 1000 });
+    expect(explicitZero.weights).toEqual(plain.weights);
+    expect(explicitZero.intercept).toBe(plain.intercept);
+  });
+
+  it('momentum produces finite weights and is deterministic', () => {
+    const a = trainLogisticRegression(makeRows(), { ...config, momentum: 0.9, iterations: 200 });
+    const b = trainLogisticRegression(makeRows(), { ...config, momentum: 0.9, iterations: 200 });
+    expect(a.weights.every((w) => Number.isFinite(w))).toBe(true);
+    expect(a.weights).toEqual(b.weights);
+    expect(a.intercept).toBe(b.intercept);
+  });
+
+  it('momentum converges to at least as low a final loss as plain gradient descent on a fixed iteration budget', () => {
+    const plain = trainLogisticRegression(makeRows(), { ...config, momentum: 0, iterations: 150, patience: 1000 });
+    const withMomentum = trainLogisticRegression(makeRows(), { ...config, momentum: 0.9, iterations: 150, patience: 1000 });
+    const plainFinalLoss = plain.lossHistory[plain.lossHistory.length - 1];
+    const momentumFinalLoss = withMomentum.lossHistory[withMomentum.lossHistory.length - 1];
+    expect(momentumFinalLoss).toBeLessThanOrEqual(plainFinalLoss + 1e-6);
+  });
 });

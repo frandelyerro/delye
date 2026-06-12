@@ -108,6 +108,14 @@ export const trainLogisticRegression = (
   let stoppedEarly = false;
   let finalIteration = config.iterations;
 
+  // Classic momentum: accumulates a fraction of the previous update into the
+  // current one, smoothing gradient noise and speeding convergence on the
+  // small, often-imbalanced datasets typical here. 0 reproduces plain
+  // gradient descent exactly (backward compatible with existing models).
+  const momentum = config.momentum ?? 0;
+  const velocityW = new Array<number>(n).fill(0);
+  let velocityB = 0;
+
   // Class weights for imbalanced datasets
   const positives = normalizedRows.filter((r) => r.label === 1).length;
   const negatives = m - positives;
@@ -143,9 +151,11 @@ export const trainLogisticRegression = (
 
       for (let j = 0; j < n; j++) {
         const grad = gradW[j] / m + config.l2Penalty * weights[j];
-        weights[j] -= config.learningRate * grad;
+        velocityW[j] = momentum * velocityW[j] + config.learningRate * grad;
+        weights[j] -= velocityW[j];
       }
-      intercept -= config.learningRate * (gradB / m);
+      velocityB = momentum * velocityB + config.learningRate * (gradB / m);
+      intercept -= velocityB;
 
       // Sample loss and check early stopping
       if ((iter) % LOSS_SAMPLE_INTERVAL === 0 || iter === config.iterations) {
