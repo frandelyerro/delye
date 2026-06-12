@@ -72,7 +72,7 @@ export function IdentifiedTargetsPage() {
   const layersReady = useRef(false);
 
   const targets = useMemo(() => identifyTargets(prospects), [prospects]);
-  const active: IdentifiedTarget | undefined = targets[Math.min(activeIndex, targets.length - 1)];
+  const active: IdentifiedTarget | undefined = targets[Math.max(0, Math.min(activeIndex, targets.length - 1))];
   const activeRef = useRef(active);
   activeRef.current = active;
 
@@ -173,6 +173,11 @@ export function IdentifiedTargetsPage() {
         Top exploration targets identified by spatial clustering of the portfolio, ranked by average GCoS
         weighted by cluster size. Advisory visualization only — expert-system GCoS and targeting gates govern decisions.
       </p>
+      <p className="text-xs text-slate-500 mt-1">
+        Note: the 150 km clustering radius is a spatial heuristic, not a play-fairway model — verify that
+        clustered prospects actually share source, seal, and trap-style petroleum-system elements before
+        using a target grouping for infrastructure or joint-venture planning.
+      </p>
 
       {targets.length === 0 ? (
         <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-6 text-sm text-slate-400">
@@ -194,7 +199,14 @@ export function IdentifiedTargetsPage() {
 
           <section className="mt-4 rounded-lg border border-slate-800 bg-slate-900 p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold">{active?.name} Map</h2>
+              <div>
+                <h2 className="text-base font-semibold">{active?.name} Map</h2>
+                {active && (
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Mostly {active.topBasin} basin · {active.topPlayType} play
+                  </p>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-[10px] text-slate-400">
                 <span>GCoS 0%</span>
                 <div

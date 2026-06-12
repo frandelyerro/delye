@@ -102,6 +102,14 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   dependencies; reuses the existing `hasLowPrecisionCoordinates()` from
   `geoUtils.ts`.
 
+- 2026-06-12 (cycle 26): Added basin/play-type mini-summaries to the Identified
+  Targets page. `identifyTargets()` (`targetIdentification.ts`) now computes
+  `topBasin`/`topPlayType` (most frequent value among a target's prospects, via a new
+  `mostCommon()` helper) on each `IdentifiedTarget`. `IdentifiedTargetsPage.tsx`
+  renders "Mostly {basin} basin · {playType} play" under the map title for the active
+  target. 1 new targetIdentification test. Grid-cell click navigation and a
+  CSV/JSON target export remain deferred (dev backlog).
+
 ## Reference material / methodology notes
 - 2026-06-10: `@turf/turf` is still NOT installed. MapLibre native clustering is in
   use (clusterRadius 40, clusterMaxZoom 10) and covers basic density; the heatmap

@@ -500,6 +500,22 @@ describe('advisor outcome analytics queries', () => {
     expect(response).toMatch(/\d+ km/);
   });
 
+  it('"drilled analogs for [name]" ranks known-outcome prospects by scoring-profile similarity', () => {
+    const response = getAdvisorResponse('drilled analogs for Vaca Norte Lead', labeled);
+    expect(response).toContain('Drilled analogs for Vaca Norte Lead');
+    expect(response).toMatch(/Wolfcamp East|Austral Shelf Fan/);
+  });
+
+  it('"drilled analogs" without a recognizable name asks for one', () => {
+    const response = getAdvisorResponse('show me drilled analogs', labeled);
+    expect(response.toLowerCase()).toContain('drilled analogs for [name]');
+  });
+
+  it('"drilled analogs for [name]" with no known-outcome prospects points to the Outcome Labeling page', () => {
+    const response = getAdvisorResponse('drilled analogs for Vaca Norte Lead', prospects);
+    expect(response.toLowerCase()).toContain('/outcomes');
+  });
+
   it('"nearest analog" without a name ranks undrilled prospects by analog proximity', () => {
     const response = getAdvisorResponse('which prospects are closest to a drilled analog?', labeled);
     expect(response.toLowerCase()).toMatch(/closest to a drilled analog|nearest drilled analog/);

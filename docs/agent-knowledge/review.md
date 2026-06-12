@@ -105,3 +105,12 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   `'load'` handler always picks up the latest filtered data. No fix needed, but keep
   this invariant (`filteredRef.current = filteredProspects` on every render) intact if
   refactoring this effect.
+- 2026-06-12 (cycle 26): Fixed a HIGH issue in `IdentifiedTargetsPage.tsx` —
+  `targets[Math.min(activeIndex, targets.length - 1)]` could evaluate to `targets[-1]`
+  (`undefined`) when `targets` is empty or `activeIndex` is stale after the target
+  list shrinks. Fixed with `Math.max(0, Math.min(activeIndex, targets.length - 1))`.
+  Also re-verified the cycle-25 MEDIUM "unnecessary cast" finding on
+  `sealAnalysis.ts`'s `as SealLithology | 'unrecorded'` — removing it produces a
+  typecheck error (`Type 'string' is not assignable to type 'SealLithology |
+  "unrecorded"'`) because TS widens the field to `string` through the
+  `.map().filter()` chain. Confirmed FALSE POSITIVE, no change made; cast must stay.

@@ -109,3 +109,14 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   component should we prioritize/focus to de-risk the portfolio" (lowest portfolio-
   average component score + most-frequent weakest component). Both are pure aggregation
   over existing scores, no geoscience engine change.
+- 2026-06-12 (cycle 26): Added a "drilled analogs for [name]" advisor handler
+  (`advisor.ts`, triggers on `q.includes('drilled analogs')` — plural, to avoid
+  colliding with the existing "closest to a drilled analog" handler) that ranks
+  known-outcome portfolio prospects by scoring-profile similarity to the named
+  prospect via `findAnalogs(target, prospects, 3, { outcomeOnly: true })` (cycle 23
+  infrastructure). Returns "no drilled analogs yet" pointing to `/outcomes` when none
+  exist. Also added a caveat paragraph to the new Identified Targets page
+  (`IdentifiedTargetsPage.tsx`) noting the 150 km clustering radius is a spatial
+  heuristic, not a play-fairway model — clustered prospects must be verified to share
+  source/seal/trap-style petroleum-system elements before using a target grouping for
+  infrastructure or JV planning. 3 new advisor tests.

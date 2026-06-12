@@ -94,6 +94,17 @@ describe('identifyTargets', () => {
     expect(target.outlineRing.length).toBeGreaterThan(10);
     expect(target.areaKm2).toBeCloseTo(Math.PI * 100, 3);
   });
+
+  it('reports the most common basin and play type as a mini-summary', () => {
+    const a = makeProspect({ id: 'a', latitude: 10, longitude: 10, basin: 'Vaca Muerta', playType: 'Shale' });
+    const b = makeProspect({ id: 'b', latitude: 10.1, longitude: 10.1, basin: 'Vaca Muerta', playType: 'Conventional Clastic' });
+    const c = makeProspect({ id: 'c', latitude: 10.2, longitude: 10.2, basin: 'Neuquen', playType: 'Conventional Clastic' });
+
+    const [target] = identifyTargets([a, b, c]);
+
+    expect(target.topBasin).toBe('Vaca Muerta');
+    expect(target.topPlayType).toBe('Conventional Clastic');
+  });
 });
 
 describe('buildTargetGridCells', () => {

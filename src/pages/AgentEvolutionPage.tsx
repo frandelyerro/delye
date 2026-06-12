@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Cell, Legend,
 } from 'recharts';
 
-const CURRENT_CYCLE = 25;
+const CURRENT_CYCLE = 26;
 
 type AgentId = 'architect' | 'petro' | 'review' | 'security' | 'dev' | 'geodata' | 'ml';
 
@@ -49,9 +49,9 @@ const AGENTS: AgentDef[] = [
     precision: 90,
     recall: 68,
     depth: 85,
-    totalFindings: 43,
-    implemented: 38,
-    latestFinding: 'Shipped sealAnalysis.ts: analyzeSealTrapRisk() cross-tabs prospects by seal lithology x trap type and getSubsaltNonEvaporiteRisks() flags subsalt traps whose seal lithology is outside the evaporite class (salt/evaporite/anhydrite), per AAPG Memoir 74 and Knipe et al. (1997). New "seal lithology"/"subsalt seal"/"seal type"/"evaporite seal" advisor handler placed between the fault-seal and broader seal-risk handlers.',
+    totalFindings: 45,
+    implemented: 40,
+    latestFinding: 'Added a "drilled analogs for [name]" advisor handler (advisor.ts) using the existing findAnalogs(..., { outcomeOnly: true }) to rank known-outcome prospects by scoring-profile similarity to a named prospect — the highest-confidence calibration data per Rose & Associates lookback methodology. Also added a caveat to the new Identified Targets page noting the 150 km clustering radius is a spatial heuristic, not a play-fairway model, and that shared petroleum-system elements (source/seal/trap) must be verified before using a target grouping for infrastructure/JV planning.',
     knownGaps: ['Play-type-specific source rock Ro windows', 'Basin analog validation', 'validateUnconventionalFlagConsistency() for assessReservoir() — deferred (touches geoscienceEngine.ts, a hard-constraint file)'],
   },
   {
@@ -64,9 +64,9 @@ const AGENTS: AgentDef[] = [
     precision: 95,
     recall: 80,
     depth: 90,
-    totalFindings: 22,
-    implemented: 21,
-    latestFinding: 'Cycle-20 re-audit clean (zero HIGH/MEDIUM); found one LOW issue — basinClusteringStats() used a non-null assertion (`nearest!.distanceKm`) on a findNearest() result. Replaced with a defensive `nearest ? nearest.distanceKm : 0` fallback.',
+    totalFindings: 23,
+    implemented: 22,
+    latestFinding: 'Found a HIGH issue in the new IdentifiedTargetsPage: `targets[Math.min(activeIndex, targets.length - 1)]` could index with a negative value (-1) when `targets` was empty, returning `undefined` via an out-of-bounds read pattern that broke down once activeIndex stayed at a stale value after the target list shrank. Fixed with `Math.max(0, Math.min(activeIndex, targets.length - 1))`. Also confirmed sealAnalysis.ts\'s `as SealLithology | "unrecorded"` cast (flagged MEDIUM "unnecessary cast" last cycle) is structurally required — TS widens the field to `string` through the `.map().filter()` chain without it; verified via typecheck, no change made.',
     knownGaps: ['useEffect stale closure detection', 'Missing useCallback on memoized-child setters'],
   },
   {
@@ -109,10 +109,10 @@ const AGENTS: AgentDef[] = [
     precision: 80,
     recall: 74,
     depth: 76,
-    totalFindings: 20,
-    implemented: 18,
-    latestFinding: 'Shipped GEO-005: basin bounding circles now carry density labels — "{basin} ({count}, {avgNN}km NN)" rendered as a symbol layer at each circle, green for dense basins (avg nearest-neighbor < 100 km, tie-back/shared-facility candidates) and amber for scattered ones, reusing basinClusteringStats(). Also fixed the empty-filter edge case: when an active filter matches nothing mappable, the map now resets to the home view instead of staying on stale bounds.',
-    knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred', 'OSM_STYLE has no glyphs URL — verify symbol-layer text (cluster counts, density labels) renders in production'],
+    totalFindings: 21,
+    implemented: 19,
+    latestFinding: 'Added mini-summaries to the Identified Targets page: targetIdentification.ts now computes topBasin/topPlayType (most common basin and play type among a target\'s prospects) and the target map header shows "Mostly {basin} basin · {playType} play" so users get petroleum-system context at a glance without clicking into individual grid cells.',
+    knownGaps: ['Antimeridian wrapping', 'clusterProperties avg-GCoS aggregation deferred', 'OSM_STYLE has no glyphs URL — verify symbol-layer text (cluster counts, density labels) renders in production', 'Grid-cell click navigation / target export (CSV/JSON) deferred'],
   },
   {
     id: 'ml',
@@ -169,6 +169,7 @@ const CYCLE_HISTORY: CycleRow[] = [
   { cycle: 23, architect: 1, petro: 1, review: 0, security: 0, dev: 1, geodata: 1, ml: 0, highlight: 'EvidenceSection extraction from ProspectFormPage (ARCH-005), outcome-conditioned analog filter (outcomeOnly) in analogFinder, basin circle density labels (avg nearest-neighbor + dense/scattered color coding), calibration-data CSV export on /calibration, empty-filter map view reset' },
   { cycle: 24, architect: 1, petro: 0, review: 0, security: 1, dev: 1, geodata: 0, ml: 0, highlight: 'CSV formula-injection guard in csvEscape (both portfolio + calibration exports), Zustand fine-grained selectors across 7 pages (ARCH-004/006), GCoS min/max range filter on the Targeting workbench; verified glyphs render via MapLibre TinySDF fallback (no fix needed)' },
   { cycle: 25, architect: 0, petro: 1, review: 0, security: 0, dev: 0, geodata: 0, ml: 0, highlight: 'sealAnalysis.ts: cross-tabs seal lithology x trap type and flags subsalt traps with non-evaporite seal lithology (AAPG Memoir 74 / Knipe et al. 1997), surfaced via a new "seal lithology"/"subsalt seal" advisor handler' },
+  { cycle: 26, architect: 0, petro: 2, review: 1, security: 0, dev: 0, geodata: 1, ml: 0, highlight: 'Identified Targets fixes: out-of-bounds activeIndex guard, spatial-heuristic caveat, and basin/play mini-summaries; new "drilled analogs for [name]" advisor handler ranking known-outcome prospects by scoring-profile similarity' },
 ];
 
 const AGENT_COLORS: Record<AgentId, string> = {

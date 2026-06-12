@@ -27,6 +27,10 @@ export type IdentifiedTarget = {
   successRate: number | null;
   /** Ranking score: avgGcos weighted by sqrt(count) so bigger clusters of equal quality rank higher. */
   rankScore: number;
+  /** Most common basin among the target's prospects (mini-summary). */
+  topBasin: string;
+  /** Most common play type among the target's prospects (mini-summary). */
+  topPlayType: string;
 };
 
 export type TargetGridCell = {
@@ -60,6 +64,23 @@ const clusterByProximity = (prospects: Prospect[]): Prospect[][] => {
   return clusters;
 };
 
+/** Returns the most frequent value in a list (first-seen wins on ties). */
+const mostCommon = (values: string[]): string => {
+  const counts = new Map<string, number>();
+  for (const v of values) {
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  let best = values[0] ?? '';
+  let bestCount = 0;
+  for (const [v, count] of counts) {
+    if (count > bestCount) {
+      best = v;
+      bestCount = count;
+    }
+  }
+  return best;
+};
+
 /**
  * Identifies the top exploration targets in the portfolio by spatially
  * clustering valid-coordinate prospects and ranking clusters by average GCoS
@@ -90,6 +111,8 @@ export const identifyTargets = (prospects: Prospect[], maxTargets = 3): Identifi
         successCount: successes.length,
         successRate: drilled.length > 0 ? successes.length / drilled.length : null,
         rankScore: avgGcos * Math.sqrt(cluster.length),
+        topBasin: mostCommon(cluster.map((p) => p.basin)),
+        topPlayType: mostCommon(cluster.map((p) => p.playType)),
       };
     })
     .sort((a, b) => b.rankScore - a.rankScore)
