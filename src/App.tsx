@@ -15,6 +15,7 @@ const AgentEvolutionPage = lazy(() => import('./pages/AgentEvolutionPage').then(
 const VisualizationsPage = lazy(() => import('./pages/VisualizationsPage').then((m) => ({ default: m.VisualizationsPage })));
 const BatchOutcomePage = lazy(() => import('./pages/BatchOutcomePage').then((m) => ({ default: m.BatchOutcomePage })));
 const CalibrationPage = lazy(() => import('./pages/CalibrationPage').then((m) => ({ default: m.CalibrationPage })));
+const IdentifiedTargetsPage = lazy(() => import('./pages/IdentifiedTargetsPage').then((m) => ({ default: m.IdentifiedTargetsPage })));
 
 const PageFallback = () => (
   <div className="flex items-center justify-center h-64 text-slate-500 text-sm">Loading…</div>
@@ -30,6 +31,7 @@ export function App() {
           <Route path="/map" element={<MapPage />} />
           <Route path="/visualizations" element={<VisualizationsPage />} />
           <Route path="/targeting" element={<TargetingPage />} />
+          <Route path="/targets" element={<IdentifiedTargetsPage />} />
           <Route path="/advisor" element={<AdvisorPage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/ml-lab" element={<MLLabPage />} />

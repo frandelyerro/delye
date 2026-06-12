@@ -24,6 +24,19 @@ Maintained by `/meta`. Append dated entries below; do not delete prior history.
   calculations).
 
 ## Completed
+- 2026-06-12 (user-requested feature): Identified Targets page (`/targets`,
+  `IdentifiedTargetsPage.tsx`) + `src/domain/targetIdentification.ts`.
+  `identifyTargets()` greedily single-link clusters valid-coordinate prospects
+  (150 km link distance), ranks clusters by avgGcos * sqrt(count), and returns
+  the top 3 as "Target 1..N" with bounding circle (reuses
+  `basinBoundingCircle`/`circlePolygonCoordinates`), area, avg GCoS, and
+  drilled-outcome success rate. `buildTargetGridCells()` buckets a target's
+  prospects into 0.05° grid cells with per-cell avg GCoS for a MapLibre heat
+  grid (blue→red fill ramp + orange target outline + click popup with cell
+  prospects). Tabs per target, color legend, and 3 KPI cards (Target Size /
+  Average Prediction Grade / Success Rate). Advisory visualization only — no
+  scoring/targeting/economics impact. 11 new targetIdentification tests.
+  No new dependencies (no turf; OSM raster style shared with MapPage).
 - 2026-06-11 (cycle 23): GEO-005 IMPLEMENTED — `basinCirclesToGeoJSON()` now
   joins `basinClusteringStats()` per basin and exports `isDense` plus a
   pre-built `densityLabel` property ("{basin} ({count}, {avgNN}km NN)", falling

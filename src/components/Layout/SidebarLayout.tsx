@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from '../../services/supabaseClient';
 const nav = [
   { to: '/', label: 'Dashboard' },
   { to: '/targeting', label: 'AI Targeting' },
+  { to: '/targets', label: 'Identified Targets' },
   { to: '/comparison', label: 'Compare' },
   { to: '/map', label: 'Map' },
   { to: '/visualizations', label: 'Visualizations' },
